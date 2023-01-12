@@ -1,0 +1,157 @@
+{
+    "Cortical": {
+    	"D": {"Desikan":"desikan",
+    	      "Description":"# 1. Cortical parcellation (D): Desikan-Killiany cortical parcellation (Desikan et al, 2006).",
+            "Type":"freesurfer",
+            "Name":["aparc"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+    	"X": {"Destrieux":"destrieux",
+    	      "Description":"# 1. Cortical parcellation (X): Destrieux cortical parcellation (Destrieux et al, 2009).",
+            "Type":"freesurfer",
+            "Name":["aparc.a2009s"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+    	"T": {"DKT40":"dkt",
+            "Description":"# 1. Cortical parcellation (T): Desikan-Killiany-Tourville cortical parcellation (Klein and Tourville, 2012).",
+            "Type":"gcs",
+            "Name":["atlas-dkt_desc-40regions"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "B": {"Brainnetome":"brainnetome",
+            "Description":"# 1. Cortical parcellation (B): Brainnetome cortical parcellation (Fan et al, 2016).",
+            "Type":"annot",
+            "Name":["atlas-brainnetome"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "R": {"Brodmann":"broadmann",
+            "Description":"# 1. Cortical parcellation (R): Broadmann cortical parcellation (Broadmann, 1909).",
+            "Type":"gcs",
+            "Name":["atlas-brodmann"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "C": {"Campbell":"campbell",
+            "Description":"# 1. Cortical parcellation (C): Campbell cortical parcellation (Campbell, 1905).",
+            "Type":"gcs",
+            "Name":["atlas-campbell"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "K": {"Kleist":"kleist",
+            "Description":"# 1. Cortical parcellation (K): Kleist cortical parcellation (Kleist, 1934).",
+            "Type":"gcs",
+            "Name":["atlas-kleist"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "L": {"Lausanne":"laus2018",
+            "Description":"# 1. Cortical parcellation (L): Lausanne multi-scale cortical parcellation (Symmetric version of Cammoun et al, 2012).",
+            "Type":"annot",
+            "Name":["atlas-laus2018_desc-scale1","atlas-laus2018_desc-scale2","atlas-laus2018_desc-scale3","atlas-laus2018_desc-scale4","atlas-laus2018_desc-scale5"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "H": {"HCPMM":"hcpmm",
+            "Description":"# 1. Cortical parcellation (H): HCP-MMP1 cortical parcellation (Glasser et al, 2016).",
+            "Type":"gcs",
+            "Name":["atlas-hcpmm_desc-5p3","atlas-hcpmm_desc-6p0","atlas-hcpmm_desc-7p1"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "S": {"Smith":"smith",
+            "Description":"# 1. Cortical parcellation (S): Smith cortical parcellation (Smith, 1907).",
+            "Type":"gcs",
+            "Name":["atlas-smith"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "V": {"VonEconomo":"vaneconomo",
+            "Description":"# 1. Cortical parcellation (V): von Economo cortical parcellation (von Economo and Koskinas, 1925).",
+            "Type":"gcs",
+            "Name":["atlas-voneconomo"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "Y": {"Yeo":"yeo2011",
+            "Description":"# 1. Cortical parcellation (Y): Yeo cortical parcellation (Yeo et al, 2011).",
+            "Type":"gcs",
+            "Name":["atlas-yeo2011_desc-7networks","atlas-yeo2011_desc-17networks"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"},
+
+      "F": {"Flechsig":"flechsig",
+            "Description":"# 1. Cortical parcellation (F): Flechsig cortical parcellation (Flechsig, 1920).",
+            "Type":"gcs",
+            "Name":["atlas-flechsig"],
+            "OutSurfLocation":"atlases-surfparc",
+            "OutVolLocation":"atlases-volparc"}
+    },
+    "Subcortical": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 2. Subcortical parcellation (F): Aseg subcortical parcellation (Fischl et al, 2002)."},
+
+        "R": {"First":"first",
+              "Description":"# 2. Subcortical parcellation (R): FIRST subcortical parcellation (Patenaude et al, 2011)."}
+    },
+    "Thalamus": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 3. Thalamus parcellation (F): Aseg subcortical parcellation (Fischl et al, 2002)."},
+
+        "I": {"Iglesias":"FSThalamicParc",
+              "Description":"# 3. Thalamic parcellation (I): Thalamic parcellation (Iglesias et al, 2018)."},
+
+        "M": {"MIAL":"MIALThalamicParc",
+              "Description":"# 3. Thalamic parcellation (M): Thalamic parcellation (Najdenovska and Aleman-Gomez et al, 2018)."},
+
+        "R": {"First":"first",
+              "Description":"# 3. Thalamus parcellation (R): FIRST thalamus parcellation (Patenaude et al, 2011)."}
+    },
+    "Amygdala": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 4. Amygdala parcellation (F): Amygdala parcellation (Fischl et al, 2002)."},
+
+        "I": {"Iglesias":"FSAmygHippoNucleiParc",
+              "Description":"# 4. Amygdala parcellation (I): Amygdala nuclei parcellation (Iglesias et al, 2017)."},
+
+        "R": {"First":"first",
+              "Description":"# 4. Amygdala parcellation (R): FIRST amygdala parcellation (Patenaude et al, 2011)."}
+    },
+    "Hippocampus": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 5. Hippocampus parcellation (F): Hippocampus parcellation (Fischl et al, 2002)."},
+
+        "I": {"Iglesias":"FSAmygHippoNucleiParc",
+              "Description":"# 5. Hippocampus parcellation (I): Hippocampus subfields parcellation (Iglesias et al, 2015)."},
+
+        "H": {"HBT":"FSAmygHippoNucleiParc",
+              "Description":"# 5. Hippocampus parcellation (H): Head body and tail of the hippocampus (Iglesias et al, 2015)."}
+    },
+
+    "Hypothalamus": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 6. Hypothalamus parcellation (F): Hypothalamus parcellation using the Ventral DC (based on in-house protocol)."},
+
+        "I": {"Iglesias":"FSHypoThalamicParc",
+              "Description":"# 6. Hypothalamus parcellation (I): Hypothalamus parcellation (Iglesias et al, 2019)."}
+    },
+    "Cerebellum": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 7. Cerebellum parcellation (F): Cerebellum parcellation (Fischl et al, 2002)."}
+    },
+    "Brainstem": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 8. Brainstem parcellation (F): Brainstem parcellation (Fischl et al, 2002)."},
+
+        "I": {"Iglesias":"FSBrainStemParc",
+              "Description":"# 8. Brainstem parcellation (I): Brainstem parcellation (Iglesias et al, 2018)."}
+    },
+    "GyralWM": {
+        "F": {"FreeSurfer":"aseg",
+              "Description":"# 9. GyralWM parcellation (F): Gyral white matter parcellation based on Desikan (Desikan et al, 2006)."}
+    }
+}
