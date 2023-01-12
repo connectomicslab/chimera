@@ -1,0 +1,8 @@
+atlas-brainnetome
+atlas-laus2018_desc-scale1
+atlas-laus2018_desc-scale2
+atlas-laus2018_desc-scale3
+atlas-laus2018_desc-scale4
+atlas-laus2018_desc-scale5
+atlas-yeo2011_desc-7networks
+atlas-yeo2011_desc-17networks
