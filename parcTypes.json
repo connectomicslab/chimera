@@ -71,7 +71,7 @@
             "OutVolLocation":"atlases-volparc"},
 
       "M": {"Smith":"smith",
-            "Description":"# 1. Cortical parcellation (S): Smith cortical parcellation (Smith, 1907).",
+            "Description":"# 1. Cortical parcellation (M): Smith cortical parcellation (Smith, 1907).",
             "Type":"gcs",
             "Name":["atlas-smith"],
             "OutSurfLocation":"atlases-surfparc",
