@@ -424,6 +424,18 @@ def _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, hemi, out_dir, fullid, atlas)
 
     return out_annot
 
+def _launch_freesurfer(t1file:str, fssubj_dir:str, fullid:str):
+
+
+    os.environ["SUBJECTS_DIR"] = fssubj_dir
+
+    # Computing FreeSurfer
+    subprocess.run(['recon-all', '-subjid', '-i', t1file, fullid, '-all'],
+                    stdout=subprocess.PIPE, universal_newlines=True)
+
+    return
+
+
 def _launch_surf2vol(fssubj_dir, out_dir, fullid, atlas):
 
     if 'desc' not in atlas:
@@ -462,6 +474,7 @@ def _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode):
     else:
         pattern_fullid = "sub-{subject}_run-{run}"
         path_cad       = "sub-" + ent_dict["subject"]
+
 
     fullid             = os.path.basename(layout.build_path(ent_dict, pattern_fullid, validate=False))
 
