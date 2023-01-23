@@ -1,16 +1,20 @@
 # __CHIMERA__: An open source framework for combining multiple parcellations
 
-Creating multi-source parcellations of the human brain is a fundamental task at several steps of the MRI analysis research workflow. __Chimera__ facilitates this otherwise difficult operation with an intuitive and flexible interface for humans and machines, thereby assisting in the construction of sophisticated and more reliable processing pipelines.
-This repository contains the source code and atlases needed by __Chimera__.
+<p align="justify">
+Creating multi-source parcellations of the human brain is a fundamental task at several steps of the MRI analysis research workflow. <b>Chimera</b> facilitates this otherwise difficult operation with an intuitive and flexible interface for humans and machines, thereby assisting in the construction of sophisticated and more reliable processing pipelines.
+This repository contains the source code and atlases needed by <b>Chimera</b>.
+</p>
 
-##### Parcellations fusion
-Chimera defines nine different supra-regions (cortex, basal ganglia, thalamus, amygdala, hippocampus, hypothalamus, cerebellum, brainstem and white-matter). Basal ganglia includes only the regions that are not labeled as supra-regions. Subdivisions in each supra-region will be populated with the parcellation
-information of a single source. The available parcellation sources per supra-region, as well as one corresponding parcellation name, and a one-character unique identifier are configured in a JSON (JavaScript Object Notation) file. 
-__Chimera code__: A sequence of nine one-character identifiers (one per each supra-region) unambiguosly denotes a single instance of combined parcellation (Figure. 1B). Given the sequence of nine identifier characters, Chimera selects the atlas and/or applies the corresponding methodology to obtain the parcellation for each supra-region. These supra-region-specific parcellations are finally integrated to obtain the combined volumetric parcellation for each input subject, as well as its corresponding tab-separated values table of labels, region names, and rendering colors for visualization.
+### Parcellations fusion
+<p align="justify">
+Chimera defines nine different supra-regions (cortex, basal ganglia, thalamus, amygdala, hippocampus, hypothalamus, cerebellum, brainstem and white-matter). Basal ganglia includes only the regions that are not labeled as supra-regions. Subdivisions in each supra-region will be populated with the parcellation information of a single source. The available parcellation sources per supra-region, as well as one corresponding parcellation name, and a one-character unique identifier are configured in a JSON (JavaScript Object Notation) file. <br>
+<b>Chimera code</b>: A sequence of nine one-character identifiers (one per each supra-region) unambiguosly denotes a single instance of combined parcellation (Figure. 1B). Given the sequence of nine identifier characters, Chimera selects the atlas and/or applies the corresponding methodology to obtain the parcellation for each supra-region. These supra-region-specific parcellations are finally integrated to obtain the combined volumetric parcellation for each input subject, as well as its corresponding tab-separated values table of labels, region names, and rendering colors for visualization.
 Chimera uses FreeSurfer to map cortical templates from fsaverage to individual space. It also applies different methods to obtain the hippocampal subfields and brainstem parcellations as well as the thalamic, amygdala and hypothalamic nuclei segmentations. FIRST and ANTs are also used for segmenting subcortical structures and thalamic nuclei respectively.
+</p>
+
 ![](Figure1.png)
 
-##### Requirements
+### Requirements
 Required python packages: 
 - [pandas], [pybids],  [numpy], [nibabel], [time], [os], [pathlib], [argparse], [sys], [csv], [subprocess]
 
@@ -18,7 +22,7 @@ Required image processing packages:
 - [FreeSurfer (version>7.2.0)], [FSL],  [ANTs] 
 ---
 
-##### Options:
+### Options:
 Brief description of input options:
 
 | Option | Description |
@@ -28,7 +32,7 @@ Brief description of input options:
 | `--derivdir`, `-d` | Derivatives folder. |
 | `--parcodes`, `-p` | Sequence of nine one-character identifiers (one per each supra-region). |
 | `--growwm`, `-g` | Grow of GM labels inside the white matter (mm). |
-| `--t1file`, `-t` | File containing basename of T1w images that will be ran. |
+| `--t1file`, `-t` | File containing the basenames of T1w images that will be ran. |
 | `--force`, `-f` | Overwrite the results. |
 | `--verbose`, `-v` | Verbose (**0**, **1** or **2**). |
 | `--help`, `-h` | Help. |
