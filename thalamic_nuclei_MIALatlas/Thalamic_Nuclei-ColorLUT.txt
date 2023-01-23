@@ -1,0 +1,23 @@
+#$Id: thalamic_FreeSurferColorLUT.txt 16-Feb-2018 14:50:16
+
+#No. Label Name:                                                           R   G   B   A
+
+
+# Left Hemisphere. Thalamic Nuclei
+ 0   Unknown                               			           0   0   0   0
+ 1   thal-rh-pulvinar                  					   255 0   0   0
+ 2   thal-rh-ventral_anterior                 				   0   255 0   0
+ 3   thal-rh-mediodorsal                     				   255 255 0   0
+ 4   thal-rh-lateral_posterior_ventral_posterior_group                 	   255 123 0   0
+ 5   thal-rh-medial_pulvinar_centrolateral 	                           0   255 255 0
+ 6   thal-rh-ventrolateral                                                 255 0   255 0
+ 7   thal-rh-ventral_posterior_ventrolateral                               0   0   255 0
+ 
+# Right Hemisphere. Thalamic Nuclei
+ 8   thal-lh-pulvinar                  					   255 0   0   0
+ 9   thal-lh-ventral_anterior                 				   0   255 0   0
+ 10  thal-lh-mediodorsal                     				   255 255 0   0
+ 11  thal-lh-lateral_posterior_ventral_posterior_group                 	   255 123 0   0
+ 12  thal-lh-medial_pulvinar_centrolateral 	                           0   255 255 0
+ 13  thal-lh-ventrolateral                                                 255 0   255 0
+ 14  thal-lh-ventral_posterior_ventrolateral                               0   0   255 0
