@@ -130,6 +130,13 @@ Example of **t1s.txt** file
 |`F`| Cortical (Depends on the cortical parcellation)|
 
 ##### Results
+<p align="justify">
+Chimera parcellations were generated using the following codes: LFMIIIFIF, HFIIIIFIF, BFIIHIFIF (162, 492 and
+314 regions respectively). Figure 2A shows the corresponding results of the fused parcellations for a single
+subject. By filtering each individual's tractogram with the corresponding Chimera parcellations, we generated
+connectivity matrices (Figure 2B).
+</p>
+![](Figure2.png)
 
 ## License
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
