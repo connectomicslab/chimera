@@ -136,6 +136,7 @@ Chimera parcellations were generated using the following codes: LFMIIIFIF, HFIII
 subject. By filtering each individual's tractogram with the corresponding Chimera parcellations, we generated
 connectivity matrices (Figure 2B).
 </p>
+
 ![](Figure2.png)
 
 ## License
