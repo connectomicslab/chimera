@@ -4,6 +4,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import tqdm
 from pathlib import Path
 import bids
 from bids import BIDSLayout
@@ -16,6 +17,8 @@ import csv
 import json
 import subprocess
 import scipy.ndimage as sc
+import concurrent.futures
+import time
 
 
 class SmartFormatter(argparse.HelpFormatter):
@@ -122,19 +125,19 @@ def _build_args_parser():
 
     requiredNamed = p.add_argument_group('Required arguments')
     requiredNamed.add_argument('--regions', '-r', action='store_true', required=False,
-                               help="R| List of available parcellations for each supra-region. \n"
-                               "\n")
+                                help="R| List of available parcellations for each supra-region. \n"
+                                "\n")
 
     requiredNamed.add_argument('--bidsdir', '-b', action='store', required=False, metavar='BIDSDIR', type=str, nargs=1,
-                               help="R| BIDs dataset folder. \n"
-                               "\n")
+                                help="R| BIDs dataset folder. \n"
+                                "\n")
     requiredNamed.add_argument('--derivdir', '-d', action='store', required=False, metavar='DERIVDIR', type=str, nargs=1,
-                               help="R| BIDs derivative folder containing the derivatives folder. \n" 
-                               "\n",
+                                help="R| BIDs derivative folder containing the derivatives folder. \n"
+                                "\n",
                                 default='None')
     requiredNamed.add_argument('--parcodes', '-p', action='store', required=False,
-                               metavar='CODE', type=str, nargs=1,
-                               help="R| Sequence of nine one-character identifiers (one per each supra-region).\n"
+                                metavar='CODE', type=str, nargs=1,
+                                help="R| Sequence of nine one-character identifiers (one per each supra-region).\n"
                                     " The defined supra-regions are: 1) Cortex, 2) Basal ganglia, 3) Thalamus, \n"
                                     " 4) Amygdala, 5) Hippocampus, 6) Hypothalamus, 7) Cerebellum, 8) Brainstem. \n"
                                     "\n"
@@ -152,14 +155,14 @@ def _build_args_parser():
                                     "\n"
                                     "Use the --regions or -r options to show all the available parcellations for eact supra-region.\n"
                                     "\n")
-    requiredNamed.add_argument('--subjid', '-s', action='store', required=False, metavar='SUBJID', type=str, nargs=1,
-                               help="R| Subject ID. \n", default='None')
+    requiredNamed.add_argument('--nthreads', '-n', action='store', required=False, metavar='NTHREADS', type=str, nargs=1,
+                                help="R| Number of processes to run in parallel. \n", default=['1'])
 
     requiredNamed.add_argument('--growwm', '-g', action='store', required=False, metavar='GROWWM', type=str, nargs=1,
-                               help="R| Grow of GM labels inside the white matter in mm. \n", default=['0'])
+                                help="R| Grow of GM labels inside the white matter in mm. \n", default=['2'])
 
-    requiredNamed.add_argument('--t1file', '-t', action='store', required=False, metavar='T1FILE', type=str, nargs=1,
-                               help="R| File containing the basename of the NIFTI images that will be ran. \n"
+    requiredNamed.add_argument('--t1s', '-t', action='store', required=False, metavar='T1FILE', type=str, nargs=1,
+                                help="R| File containing the basename of the NIFTI images that will be ran. \n"
                                     "   This file is useful to tun Chimera, only, on certain T1s in case of multiple T1s \n"
                                     " for the same session.\n"
                                     " Example of this file: \n"
@@ -168,11 +171,11 @@ def _build_args_parser():
                                     "   sub-00001_ses-post_acq-mprage\n"
                                     " \n", default='None')
     requiredNamed.add_argument('--force', '-f', action='store_true', required=False,
-                               help="R| Overwrite the results. \n"
+                                help="R| Overwrite the results. \n"
                                     "\n")
     p.add_argument('--verbose', '-v', action='store', required=False,
-                   type=int, nargs=1,
-                   help='verbosity level: 1=low; 2=debug')
+                    type=int, nargs=1,
+                    help='verbosity level: 1=low; 2=debug')
 
     args = p.parse_args()
 
@@ -379,7 +382,6 @@ def tissue_seg_table(tsv_filename):
 
 def read_fscolorlut(lutFile):
     # Readind a color LUT file
-    import numpy as np
     fid = open(lutFile)
     LUT = fid.readlines()
     fid.close()
@@ -413,9 +415,9 @@ def _launch_annot2ind(fs_annot, ind_annot, hemi, out_dir, fullid, atlas):
 
     # Moving the Annot to individual space
     subprocess.run(['mri_surf2surf', '--srcsubject', 'fsaverage', '--trgsubject', fullid,
-                              '--hemi', hemi, '--sval-annot', fs_annot,
-                              '--tval', ind_annot],
-                             stdout=subprocess.PIPE, universal_newlines=True)
+                            '--hemi', hemi, '--sval-annot', fs_annot,
+                            '--tval', ind_annot],
+                            stdout=subprocess.PIPE, universal_newlines=True)
 
     # Copying the resulting annot to the output folder
     out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dparc.annot')
@@ -482,14 +484,14 @@ def _launch_surf2vol(fssubj_dir, out_dir, fullid, atlas, gm_grow):
             # Creating the volumetric parcellation using the annot files
             subprocess.run(['mri_aparc2aseg', '--s', fullid, '--annot', atlas, '--wmparc-dmax', g, '--labelwm',
                             '--hypo-as-wm', '--new-ribbon', '--o', out_vol],
-                           stdout=subprocess.PIPE, universal_newlines=True)
+                            stdout=subprocess.PIPE, universal_newlines=True)
 
 
         # Moving the resulting parcellation from conform space to native
         raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
         subprocess.run(['mri_vol2vol', '--mov', out_vol, '--targ', raw_vol,
                         '--regheader', '--o', out_vol, '--no-save-reg', '--interp', 'nearest'],
-                       stdout=subprocess.PIPE, universal_newlines=True)
+                        stdout=subprocess.PIPE, universal_newlines=True)
 
         out_parc.append(out_vol)
 
@@ -500,7 +502,7 @@ def _parc_conform2native(cform_mgz, nat_nii, fssubj_dir, fullid):
     raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
     subprocess.run(['mri_vol2vol', '--mov', cform_mgz, '--targ', raw_vol,
                     '--regheader', '--o', nat_nii, '--no-save-reg', '--interp', 'nearest'],
-                   stdout=subprocess.PIPE, universal_newlines=True)
+                    stdout=subprocess.PIPE, universal_newlines=True)
 
 def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_nii, out_str):
 
@@ -521,7 +523,7 @@ def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_ni
         # Registration to MNI template
         subprocess.run(['antsRegistrationSyN.sh', '-d', '3', '-f', t1_temp, '-m', t1, '-t', 's',
                         '-o', defFile + 'desc-t12mni_'],
-                       stdout=subprocess.PIPE, universal_newlines=True)
+                        stdout=subprocess.PIPE, universal_newlines=True)
 
     mial_dir = os.path.dirname(vol_tparc)
     # Creating ouput directory
@@ -537,8 +539,8 @@ def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_ni
     # Applying spatial transform
     subprocess.run(['antsApplyTransforms', '-d', '3', '-e', '3', '-i', thal_spam,
                     '-o', mial_thalspam, '-r', t1, '-t', defFile + 'desc-t12mni_1InverseWarp.nii.gz',
-                    '-t[' + defFile + 'desc-t12mni_0GenericAffine.mat,1]', '-n', 'Linear'],
-                   stdout=subprocess.PIPE, universal_newlines=True)
+                    '-t','[' + defFile + 'desc-t12mni_0GenericAffine.mat,1]', '-n', 'Linear'],
+                    stdout=subprocess.PIPE, universal_newlines=True)
 
     # Creating MaxProb
     _spams2maxprob(mial_thalspam, 0.05, mial_thalparc, aseg_nii, 10, 49)
@@ -548,69 +550,75 @@ def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_ni
 
 def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
 
-        volatlas_dir = os.path.dirname(vol_tparc)
+    volatlas_dir = os.path.dirname(vol_tparc)
 
-        # Creating ouput directory
-        if not os.path.isdir(volatlas_dir):
-            try:
-                os.makedirs(volatlas_dir)
-            except OSError:
-                print("Failed to make nested output directory")
+    # Creating ouput directory
+    if not os.path.isdir(volatlas_dir):
+        try:
+            os.makedirs(volatlas_dir)
+        except OSError:
+            print("Failed to make nested output directory")
 
-        if parcid == 'thalamus':
-            # Running Thalamic parcellation
-            process = subprocess.run(
-                ['segmentThalamicNuclei.sh', fullid, fssubj_dir],
-                stdout=subprocess.PIPE, universal_newlines=True)
+    if parcid == 'thalamus':
+    # Running Thalamic parcellation
+        process = subprocess.run(
+            ['segmentThalamicNuclei.sh', fullid, fssubj_dir],
+            stdout=subprocess.PIPE, universal_newlines=True)
 
-            thal_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'ThalamicNuclei.v12.T1.mgz')
+        thal_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'ThalamicNuclei.v12.T1.mgz')
 
-            # Moving Thalamic parcellation to native space
-            _parc_conform2native(thal_mgz, vol_tparc, fssubj_dir, fullid)
+        # Moving Thalamic parcellation to native space
+        _parc_conform2native(thal_mgz, vol_tparc, fssubj_dir, fullid)
 
-            out_parc = [vol_tparc]
+        out_parc = [vol_tparc]
 
-        elif parcid == 'amygdala' or  parcid == 'hippocampus':
-            # Running Hippocampal and Amygdala parcellation
-            process = subprocess.run(
-                ['segmentHA_T1.sh', fullid, fssubj_dir],
-                stdout=subprocess.PIPE, universal_newlines=True)
+    elif parcid == 'amygdala' or  parcid == 'hippocampus':
+        # Running Hippocampal and Amygdala parcellation
+        process = subprocess.run(
+            ['segmentHA_T1.sh', fullid, fssubj_dir],
+            stdout=subprocess.PIPE, universal_newlines=True)
 
-            # Moving Hippocampal and amygdala parcellation to native space
-            lh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'lh.hippoAmygLabels-T1.v21.mgz')
-            lh_gz = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-L_desc-' + out_str + '_dseg.nii.gz')
-            _parc_conform2native(lh_mgz, lh_gz, fssubj_dir, fullid)
+        # Moving Hippocampal and amygdala parcellation to native space
+        lh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'lh.hippoAmygLabels-T1.v21.mgz')
+        lh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-L_desc-' + out_str + '_dseg.nii.gz')
+        _parc_conform2native(lh_mgz, lh_gz, fssubj_dir, fullid)
 
-            rh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'rh.hippoAmygLabels-T1.v21.mgz')
-            rh_gz = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-R_desc-' + out_str + '_dseg.nii.gz')
-            _parc_conform2native(rh_mgz, rh_gz, fssubj_dir, fullid)
-            out_parc = [lh_gz, rh_gz]
+        rh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'rh.hippoAmygLabels-T1.v21.mgz')
+        rh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-R_desc-' + out_str + '_dseg.nii.gz')
+        _parc_conform2native(rh_mgz, rh_gz, fssubj_dir, fullid)
+        out_parc = [lh_gz, rh_gz]
 
-        elif parcid == 'hypothalamus':
+    elif parcid == 'hypothalamus':
 
-            # Running Hypothalamus parcellation
-            process = subprocess.run(
-                ['mri_segment_hypothalamic_subunits', '--s', fullid, '--sd', fssubj_dir, '--write_posteriors'],
-                stdout=subprocess.PIPE, universal_newlines=True)
+    # Running Hypothalamus parcellation
+        os.system("WRITE_POSTERIORS=1")
+        process = subprocess.run(
+            ['mri_segment_hypothalamic_subunits', '--s', fullid, '--sd', fssubj_dir, '--write_posteriors'],
+            stdout=subprocess.PIPE, universal_newlines=True)
 
-            # Moving Hypothalamus to native space
-            hypo_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'hypothalamic_subunits_seg.v1.mgz')
-            hypo_gz = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-            _parc_conform2native(hypo_mgz, hypo_gz, fssubj_dir, fullid)
-            out_parc = [hypo_gz]
+        # Moving Hypothalamus to native space
+        hypo_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'hypothalamic_subunits_seg.v1.mgz')
+        hypo_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
+        _parc_conform2native(hypo_mgz, hypo_gz, fssubj_dir, fullid)
+        out_parc = [hypo_gz]
 
-        elif parcid == 'brainstem':
+    elif parcid == 'brainstem':
 
-            # Running Brainstem parcellation
-            process = subprocess.run(
-                ['segmentBS.sh', '--s', fullid, '--sd', fssubj_dir, '--write_posteriors'],
-                stdout=subprocess.PIPE, universal_newlines=True)
-            os.environ["WRITE_POSTERIORS"] = 1
-            # Moving Hypothalamus to native space
-            bs_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'brainstemSsLabels.v12.mgz')
-            bs_gz = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-            _parc_conform2native(bs_mgz, bs_gz, fssubj_dir, fullid)
-            out_parc = [bs_gz]
+        # Running Brainstem parcellation
+        # os.environ["WRITE_POSTERIORS"] = 1
+        os.system("WRITE_POSTERIORS=1")
+        process = subprocess.run(
+            ['segmentBS.sh', fullid, fssubj_dir],
+            stdout=subprocess.PIPE, universal_newlines=True)
+        
+        # Moving Hypothalamus to native space
+        bs_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'brainstemSsLabels.v12.mgz')
+        bs_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
+        _parc_conform2native(bs_mgz, bs_gz, fssubj_dir, fullid)
+        out_parc = [bs_gz]
+
+    return out_parc
+
 
 def _spams2maxprob(spamImage:str, thresh:float=0.05, maxpName:str=None, thalMask:str=None, thl_code:int=10, thr_code:int=49):
     # ---------------- Thalamic nuclei (MIAL) ------------ #
@@ -679,18 +687,18 @@ def _spams2maxprob(spamImage:str, thresh:float=0.05, maxpName:str=None, thalMask
     nib.save(imgcoll, maxpName)
 
     # Creating the corresponding TSV file
-    parc_tsv_table(np.concatenate((thalm_codesl, thalm_codesr)),
-                   np.concatenate((thalm_namesl, thalm_namesr)),
-                   np.concatenate((thalm_colorsl, thalm_colorsr)),
-                   tsvName)
+    _parc_tsv_table(np.concatenate((thalm_codesl, thalm_codesr)),
+                    np.concatenate((thalm_namesl, thalm_namesr)),
+                    np.concatenate((thalm_colorsl, thalm_colorsr)),
+                    tsvName)
 
     # Creating and saving the corresponding colorlut table
     now = datetime.now()
     date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
     luttable = ['# $Id: <BIDsDirectory>/derivatives/{} {} \n'.format('/'.join(lutlist[-5:]), date_time),
-                         '# Corresponding parcellation: ',
-                         '# <BIDsDirectory>/derivatives/' + '/'.join(maxlist[-5:]) ,
-                         '# <BIDsDirectory>/derivatives/' + '/'.join(tsvlist[-5:]) + '\n']
+                        '# Corresponding parcellation: ',
+                        '# <BIDsDirectory>/derivatives/' + '/'.join(maxlist[-5:]) ,
+                        '# <BIDsDirectory>/derivatives/' + '/'.join(tsvlist[-5:]) + '\n']
     luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3} \n '.format("#No.", "Label Name:", "R", "G", "B", "A"))
 
     luttable.append("# Left Hemisphere. Thalamic nuclei parcellation (MIAL, Najdenovska and Alemán-Gómez et al, 2018)")
@@ -810,10 +818,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
     # 3. ---------------- Detection of Thalamic nuclei (Iglesias)------------ #
     thali_codesl = np.array(
         [8103, 8104, 8105, 8106, 8108, 8109, 8110, 8111, 8112, 8113, 8115, 8116, 8117, 8118, 8119, 8120, 8121, 8122,
-         8123, 8125, 8126, 8127, 8128, 8129, 8130, 8133, 8134])
+            8123, 8125, 8126, 8127, 8128, 8129, 8130, 8133, 8134])
     thali_codesr = np.array(
         [8203, 8204, 8205, 8206, 8208, 8209, 8210, 8211, 8212, 8213, 8215, 8216, 8217, 8218, 8219, 8220, 8221, 8222,
-         8223, 8225, 8226, 8227, 8228, 8229, 8230, 8233, 8234])
+            8223, 8225, 8226, 8227, 8228, 8229, 8230, 8233, 8234])
 
     idx = search(st_codes, thali_codesl)
     thali_namesl = np.array(st_names)[idx].tolist()
@@ -831,7 +839,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
     thalm_codesl = np.array([1, 2, 3, 4, 5, 6, 7])
     thalm_codesr = np.array([8, 9, 10, 11, 12, 13, 14])
     thalm_names = ['pulvinar', 'ventral-anterior', 'mediodorsal', 'lateral-posterior-ventral-posterior-group',
-                   'pulvinar-medial-centrolateral-group', 'ventrolateral', 'ventral-posterior-ventrolateral-group']
+                    'pulvinar-medial-centrolateral-group', 'ventrolateral', 'ventral-posterior-ventrolateral-group']
     prefix = "thal-lh-"
     thalm_namesl = [prefix + s.lower() for s in thalm_names]
     prefix = "thal-rh-"
@@ -1014,1018 +1022,1038 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
     if not os.path.isfile(os.path.join(fs_indivdir,'mri', 'aparc+aseg.mgz')):
         _launch_freesurfer(t1, fssubj_dir, fullid)
 
+    if os.path.isfile(os.path.join(fs_indivdir,'mri', 'aparc+aseg.mgz')):
+        # Finding the cortical parcellations
+        out_sparc = glob(surfatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.annot')
 
-    # Finding the cortical parcellations
-    out_sparc = glob(surfatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.annot')
+        if len(out_sparc) != len(atlas_names)*2:
+            print("The selected cortical parcellation (" +  parcdict["Cortical"][parccode[0]]["Atlas"] + ") is not computed.")
+            print("Trying to compute the correponding cortical parcellation.")
 
-    if len(out_sparc) != len(atlas_names)*2:
-        print("The selected cortical parcellation (" +  parcdict["Cortical"][parccode[0]]["Atlas"] + ") is not computed.")
-        print("Trying to compute the correponding cortical parcellation.")
+            cwd = os.getcwd()
+            atlas_dir = os.path.join(cwd, atlas_type.upper() + '_atlases')
 
-        cwd = os.getcwd()
-        atlas_dir = os.path.join(cwd, atlas_type.upper() + '_atlases')
+            # Creating the link for fsaverage
+            fsave_dir = os.path.join(fshome_dir,'subjects','fsaverage')
+            if not os.path.isdir(os.path.join(fssubj_dir,'fsaverage')):
+                process = subprocess.run(['ln', '-s', fsave_dir, fssubj_dir],
+                                        stdout=subprocess.PIPE, universal_newlines=True)
 
-        # Creating the link for fsaverage
-        fsave_dir = os.path.join(fshome_dir,'subjects','fsaverage')
-        if not os.path.isdir(os.path.join(fssubj_dir,'fsaverage')):
-            process = subprocess.run(['ln', '-s', fsave_dir, fssubj_dir],
-                                     stdout=subprocess.PIPE, universal_newlines=True)
+            out_sparc = []
+            for atlas in atlas_names:
 
-        out_sparc = []
-        for atlas in atlas_names:
+                # Mapping the annot file to individual space
+                # 1. Left Hemisphere
+                ind_annot     = os.path.join(fssubj_dir, fullid, 'label', 'lh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
+                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas + '_dparc.annot')
+                if not os.path.isfile(out_annot):
+                    if atlas_type == 'annot':
+                        fs_annot  = os.path.join(atlas_dir,
+                                                'lh.' + atlas + '.annot')  # Annot in fsaverage space (Atlas folder)
+                        out_annot = _launch_annot2ind(fs_annot, ind_annot, 'lh', surfatlas_dir, fullid, atlas)
 
-            # Mapping the annot file to individual space
-            # 1. Left Hemisphere
-            ind_annot     = os.path.join(fssubj_dir, fullid, 'label', 'lh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
-            out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas + '_dparc.annot')
-            if not os.path.isfile(out_annot):
-                if atlas_type == 'annot':
-                    fs_annot  = os.path.join(atlas_dir,
-                                            'lh.' + atlas + '.annot')  # Annot in fsaverage space (Atlas folder)
-                    out_annot = _launch_annot2ind(fs_annot, ind_annot, 'lh', surfatlas_dir, fullid, atlas)
+                    elif atlas_type == 'gcs':
+                        fs_gcs    = os.path.join(atlas_dir,
+                                                'lh.' + atlas + '.gcs')  # GCS in fsaverage space (Atlas folder)
+                        out_annot = _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, 'lh', surfatlas_dir, fullid, atlas)
 
-                elif atlas_type == 'gcs':
-                    fs_gcs    = os.path.join(atlas_dir,
-                                            'lh.' + atlas + '.gcs')  # GCS in fsaverage space (Atlas folder)
-                    out_annot = _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, 'lh', surfatlas_dir, fullid, atlas)
+                    elif atlas_type == 'freesurfer':
 
-                elif atlas_type == 'freesurfer':
+                        # Copying the resulting annot to the output folder
+                        if atlas == "aparc":
+                            atlas_str = "atlas-desikan_desc-aparc"
+                        elif atlas == "aparc.a2009s":
+                            atlas_str = "atlas-destrieux_desc-a2009s"
 
-                    # Copying the resulting annot to the output folder
-                    if atlas == "aparc":
-                        atlas_str = "atlas-desikan_desc-aparc"
-                    elif atlas == "aparc.a2009s":
-                        atlas_str = "atlas-destrieux_desc-a2009s"
-
-                    out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas_str + '_dparc.annot')
-                    subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
-
-
-            out_sparc.append(out_annot) # Annot in individual space (Atlases subject's directory)
-
-            # 2. Right Hemisphere
-            ind_annot = os.path.join(fssubj_dir, fullid, 'label', 'rh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
-            out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas + '_dparc.annot')
-            if not os.path.isfile(out_annot):
-                if atlas_type == 'annot':
-                    fs_annot  = os.path.join(atlas_dir,
-                                            'rh.' + atlas + '.annot')  # Annot in fsaverage space (Atlas folder)
-                    out_annot = _launch_annot2ind(fs_annot, ind_annot, 'rh', surfatlas_dir, fullid, atlas)
-
-                elif atlas_type == 'gcs':
-                    fs_gcs    = os.path.join(atlas_dir,
-                                            'rh.' + atlas + '.gcs')  # GCS in fsaverage space (Atlas folder)
-                    out_annot = _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, 'rh', surfatlas_dir, fullid, atlas)
-
-                elif atlas_type == 'freesurfer':
-                    # Copying the resulting annot to the output folder
-                    if atlas == "aparc":
-                        atlas_str = "atlas-desikan_desc-aparc"
-                    elif atlas == "aparc.a2009s":
-                        atlas_str = "atlas-destrieux_desc-a2009s"
-
-                    out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas_str + '_dparc.annot')
-                    subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
-
-            out_sparc.append(out_annot) # Annot in individual space (Atlases subject's directory)
+                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas_str + '_dparc.annot')
+                        subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
 
 
-    # Right hemisphere (Surface parcellation)
-    rh_cparc = [s for s in out_sparc if "hemi-R" in s]  # Right cortical parcellation
-    rh_cparc.sort()
+                out_sparc.append(out_annot) # Annot in individual space (Atlases subject's directory)
 
-    # Left hemisphere (Surface parcellation)
-    lh_cparc = [s for s in out_sparc if "hemi-L" in s]  # Left cortical parcellation
-    lh_cparc.sort()
+                # 2. Right Hemisphere
+                ind_annot = os.path.join(fssubj_dir, fullid, 'label', 'rh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
+                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas + '_dparc.annot')
+                if not os.path.isfile(out_annot):
+                    if atlas_type == 'annot':
+                        fs_annot  = os.path.join(atlas_dir,
+                                                'rh.' + atlas + '.annot')  # Annot in fsaverage space (Atlas folder)
+                        out_annot = _launch_annot2ind(fs_annot, ind_annot, 'rh', surfatlas_dir, fullid, atlas)
 
-    # Selecting the volumetric parcellation
-    # vol_cparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.nii.gz') # Cortical surface parcellation (.annot, .gii)
-    # vol_cparc.sort()  # Volumetric cortical parcellation
+                    elif atlas_type == 'gcs':
+                        fs_gcs    = os.path.join(atlas_dir,
+                                                'rh.' + atlas + '.gcs')  # GCS in fsaverage space (Atlas folder)
+                        out_annot = _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, 'rh', surfatlas_dir, fullid, atlas)
 
-    vol2look = ['grow' + s + 'mm' for s in growwm]
-    vol_cparc = []
-    for g in growwm:
-        tmp = glob(
-            volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*grow' + g +'*.nii.gz')  # Cortical surface parcellation (.annot, .gii)
-        vol_cparc.extend(tmp)
-    vol_cparc.sort()  # Volumetric cortical parcellation
+                    elif atlas_type == 'freesurfer':
+                        # Copying the resulting annot to the output folder
+                        if atlas == "aparc":
+                            atlas_str = "atlas-desikan_desc-aparc"
+                        elif atlas == "aparc.a2009s":
+                            atlas_str = "atlas-destrieux_desc-a2009s"
 
-    # If the volumetric parcellation does not exist it will try to create it
-    if len(vol_cparc) != len(atlas_names)*len(growwm):
+                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas_str + '_dparc.annot')
+                        subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
+
+                out_sparc.append(out_annot) # Annot in individual space (Atlases subject's directory)
+
+
+        # Right hemisphere (Surface parcellation)
+        rh_cparc = [s for s in out_sparc if "hemi-R" in s]  # Right cortical parcellation
+        rh_cparc.sort()
+
+        # Left hemisphere (Surface parcellation)
+        lh_cparc = [s for s in out_sparc if "hemi-L" in s]  # Left cortical parcellation
+        lh_cparc.sort()
+
+        # Selecting the volumetric parcellation
+        # vol_cparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.nii.gz') # Cortical surface parcellation (.annot, .gii)
+        # vol_cparc.sort()  # Volumetric cortical parcellation
+
+        # vol2look = ['grow' + s + 'mm' for s in growwm]
+
+        vol2look = []
+        for s in growwm:
+            if s.isnumeric():
+                vol2look.append('grow' + s + 'mm')
+            else:
+                vol2look.append('grow' + s)
+
+
         vol_cparc = []
-        for atlas in atlas_names:
-            out_vol = _launch_surf2vol(fssubj_dir, volatlas_dir, fullid, atlas, growwm)
+        for g in growwm:
+            tmp = glob(
+                volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*grow' + g +'*.nii.gz')  # Cortical surface parcellation (.annot, .gii)
+            vol_cparc.extend(tmp)
+        vol_cparc.sort()  # Volumetric cortical parcellation
 
-    if len(rh_cparc) != len(lh_cparc):  # Verifying the same number of parcellations for both hemispheres
-        print(
-            "Error: Some surface-based cortical parcellations are missing. Different number of files per hemisphere.\n")
-        sys.exit(1)
+        # If the volumetric parcellation does not exist it will try to create it
+        if len(vol_cparc) != len(atlas_names)*len(growwm):
+            vol_cparc = []
+            for atlas in atlas_names:
+                out_vol = _launch_surf2vol(fssubj_dir, volatlas_dir, fullid, atlas, growwm)
 
-    for f in rh_cparc:  # Verifying the existence of all surface-based cortical parcellations (Right)
-        temp_file = Path(f)
-        if not temp_file.is_file():
-            print("Error: Some surface-based cortical parcellations are missing.\n")
+        if len(rh_cparc) != len(lh_cparc):  # Verifying the same number of parcellations for both hemispheres
+            print(
+                "Error: Some surface-based cortical parcellations are missing. Different number of files per hemisphere.\n")
             sys.exit(1)
 
-    for f in lh_cparc:  # Verifying the existence of all surface-based cortical parcellations (Left)
-        temp_file = Path(f)
-        if not temp_file.is_file():
-            print("Error: Some surface-based cortical parcellations are missing.\n")
-            sys.exit(1)
+        for f in rh_cparc:  # Verifying the existence of all surface-based cortical parcellations (Right)
+            temp_file = Path(f)
+            if not temp_file.is_file():
+                print("Error: Some surface-based cortical parcellations are missing.\n")
+                sys.exit(1)
 
-    for f in vol_cparc:  # Verifying the existence of volumetric parcellations
-        temp_file = Path(f)
-        if not temp_file.is_file():
-            print("Error: Volumetric parcellations are missing.\n")
-            sys.exit(1)
+        for f in lh_cparc:  # Verifying the existence of all surface-based cortical parcellations (Left)
+            temp_file = Path(f)
+            if not temp_file.is_file():
+                print("Error: Some surface-based cortical parcellations are missing.\n")
+                sys.exit(1)
 
-    # Loading Aparc parcellation
-    if 'F' in parccode:
-        tempDir = os.path.join(deriv_dir, 'freesurfer', fullid)
-        aparc_mgz = os.path.join(tempDir, 'mri', 'aseg.mgz')
-        raw_mgz = os.path.join(tempDir, 'mri', 'rawavg.mgz')
-        aseg_nii = os.path.join(tempDir, 'tmp', 'aseg.nii.gz')
-        process = subprocess.run(['mri_vol2vol', '--mov', aparc_mgz, '--targ', raw_mgz, '--regheader', '--o', aseg_nii, '--no-save-reg', '--interp', 'nearest'],
-                                 stdout=subprocess.PIPE, universal_newlines=True)
-        temp_file = Path(aseg_nii)
-        if temp_file.is_file():
-            aseg_parc = nib.load(temp_file)
-            aseg_parc = aseg_parc.get_fdata()
+        for f in vol_cparc:  # Verifying the existence of volumetric parcellations
+            temp_file = Path(f)
+            if not temp_file.is_file():
+                print("Error: Volumetric parcellations are missing.\n")
+                sys.exit(1)
+
+        # Loading Aparc parcellation
+        if 'F' in parccode:
+            tempDir = os.path.join(deriv_dir, 'freesurfer', fullid)
+            aparc_mgz = os.path.join(tempDir, 'mri', 'aseg.mgz')
+            raw_mgz = os.path.join(tempDir, 'mri', 'rawavg.mgz')
+            aseg_nii = os.path.join(tempDir, 'tmp', 'aseg.nii.gz')
+            process = subprocess.run(['mri_vol2vol', '--mov', aparc_mgz, '--targ', raw_mgz, '--regheader', '--o', aseg_nii, '--no-save-reg', '--interp', 'nearest'],
+                                    stdout=subprocess.PIPE, universal_newlines=True)
+            temp_file = Path(aseg_nii)
+            if temp_file.is_file():
+                aseg_parc = nib.load(temp_file)
+                aseg_parc = aseg_parc.get_fdata()
+            else:
+                print("Error: Cannot create the parcellation because there are missing files.\n")
+                sys.exit(1)
+
+        if 'aseg_parc' in locals():
+            dim = aseg_parc.shape
         else:
-            print("Error: Cannot create the parcellation because there are missing files.\n")
-            sys.exit(1)
-
-    if 'aseg_parc' in locals():
-        dim = aseg_parc.shape
-    else:
-        aseg_parc = nib.load(vol_cparc[0])
-        dim = aseg_parc.shape
-
-    outparc_lh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the left hemisphere
-    outparc_rh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the right hemisphere
-
-    # Loading FIRST parcellation
-    if parccode[1] == 'R' or parccode[2] == 'R' or parccode[3] == 'R' or parccode[4] == 'R' or parccode[7] == 'R':
-        atlas_str = parcdict["Subcortical"]["R"]["String"]
-        atlas_desc = parcdict["Subcortical"]["R"]["Description"]
-        atlas_volloc = parcdict["Subcortical"]["R"]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-
-        first_parc = os.path.join(volatlas_dir, fullid + '_space-orig_atlas-' + atlas_str + '_dseg.nii.gz')
-        if not os.path.isfile(first_parc):
-
-            # Creating ouput directory
-            if not os.path.isdir(volatlas_dir):
-                try:
-                    os.makedirs(volatlas_dir)
-                except OSError:
-                    print("Failed to make nested output directory")
-
-            # Running FIRST subcortical parcellation
-            process = subprocess.run(
-                ['run_first_all', '-i', t1, '-o', volatlas_dir + os.path.sep + 'temp'],
-                stdout=subprocess.PIPE, universal_newlines=True)
-
-            # Changing name
-            process = subprocess.run(
-                ['mv', 'temp_all_fast_firstseg.nii.gz', first_parc],
-                stdout=subprocess.PIPE, universal_newlines=True)
-
-            # Deleting temporary files
-            process = subprocess.run(
-                ['rm', '-rf', 'temp*'],
-                stdout=subprocess.PIPE, universal_newlines=True)
-
-        first_parc = nib.load(first_parc)
-        first_parc = aseg_parc.get_fdata()
-
-    ##### ========== Selecting Subcortical parcellation ============== #####
-    try:
-        atlas_str  = parcdict["Subcortical"][parccode[1]]["String"]
-        atlas_desc = parcdict["Subcortical"][parccode[1]]["Description"]
-        atlas_cita    = parcdict["Subcortical"][parccode[1]]["Citation"]
-        atlas_volloc = parcdict["Subcortical"][parccode[1]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-    except:
-        _print_availab_parcels("Subcortical")
-        sys.exit(1)
-
-    if parccode[1] == 'F':
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, subc_codesr, outparc_rh, 0)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, subc_codesl, outparc_lh, 0)
-
-    elif parccode[1] == 'R':  # TODO
-        # Volumetric subcortical parcellation
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(first_parc, subc_codesr, outparc_rh, 0)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(first_parc, subc_codesl, outparc_lh, 0)
-
-
-    ##### ========== Selecting Thalamic parcellation ============== #####
-    try:
-        atlas_str = parcdict["Thalamus"][parccode[2]]["String"]
-        atlas_desc = parcdict["Thalamus"][parccode[2]]["Description"]
-        atlas_cita = parcdict["Thalamus"][parccode[2]]["Citation"]
-        atlas_volloc = parcdict["Thalamus"][parccode[2]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Thalamus")
-        sys.exit(1)
-
-    if parccode[2] == 'F':
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, thalf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, thalf_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[2] == 'R':  # TODO
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(first_parc, thalf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(first_parc, thalf_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[2] == 'I':
-
-        vol_tparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*dseg.nii.gz')
-
-        if not vol_tparc:
-            vol_tparc = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_tparc = _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, 'thalamus', atlas_str)
-
-        # Reading the thalamic parcellation
-        temp_iparc = nib.load(vol_tparc[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, thali_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, thali_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[2] == 'M':
-
-        # Thalamic parcellation based on Najdenovska et al, 2018
-        vol_tparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*dseg.nii.gz')
-
-        if not vol_tparc:
-            vol_tparc = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
-
-            # Computing thalamic nuclei using atlas-based parcellation
-            vol_tparc = _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_nii, atlas_str)
-
-        # Reading the thalamic parcellation
-        temp_iparc = nib.load(vol_tparc[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, thalm_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, thalm_codesl, outparc_lh, st_lengtlh)
-
-    ##### ========== Selecting Amygdala parcellation ============== #####
-    try:
-        atlas_str = parcdict["Amygdala"][parccode[3]]["String"]
-        atlas_desc = parcdict["Amygdala"][parccode[3]]["Description"]
-        atlas_cita = parcdict["Amygdala"][parccode[3]]["Citation"]
-        atlas_volloc = parcdict["Amygdala"][parccode[3]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Amygdala")
-        sys.exit(1)
-
-    if parccode[3] == 'F':
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, amygf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, amygf_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[3] == 'I':
-
-        # # Volumetric amygdala parcellation (vol_aparc)
-        vol_aparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str + '*.nii.gz')
-        vol_aparc_rh = glob(volatlas_dir + os.path.sep + + fullid + '*R*' + atlas_str + '*.nii.gz')
-
-        if not vol_aparc_lh or not vol_aparc_rh:
-
-            vol_aparc_lh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-L_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_aparc_rh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-R_desc-' + atlas_str + '_dseg.nii.gz')
-
-            # Computing amygdala nuclei
-            vol_tparc = _fs_addon_parcellations(vol_aparc_lh, fullid, fssubj_dir, 'amygdala', atlas_str)
-            vol_aparc_lh = [vol_tparc[0]]
-            vol_aparc_rh = [vol_tparc[1]]
-
-        # Reading the amygdala parcellation
-        temp_iparc = nib.load(vol_aparc_rh[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, amygi_codesr, outparc_rh, st_lengtrh)
-
-        # Reading the amygdala parcellation
-        temp_iparc = nib.load(vol_aparc_lh[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, amygi_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[3] == 'R':
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(first_parc, amygf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(first_parc, amygf_codesl, outparc_lh, st_lengtlh)
-
-
-    ##### ========== Selecting Hippocampus parcellation ============== #####
-    try:
-        atlas_str = parcdict["Hippocampus"][parccode[4]]["String"]
-        atlas_desc = parcdict["Hippocampus"][parccode[4]]["Description"]
-        atlas_cita = parcdict["Hippocampus"][parccode[4]]["Citation"]
-        atlas_volloc = parcdict["Hippocampus"][parccode[4]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Hippocampus")
-        sys.exit(1)
-
-    if parccode[4] == 'F':
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, hippf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, hippf_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[4] == 'I':
-
-        # Hippocampus parcellation based on Iglesias et al, 2015
-        vol_hparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str + '*.nii.gz')
-        vol_hparc_rh = glob(volatlas_dir + os.path.sep + fullid + '*R*' + atlas_str + '*.nii.gz')
-
-        if not vol_hparc_lh or not vol_hparc_rh:
-            vol_hparc_lh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-L_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_hparc_rh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-R_desc-' + atlas_str + '_dseg.nii.gz')
-
-            # Computing thalamic nuclei using atlas-based parcellation
-            vol_tparc = _fs_addon_parcellations(vol_hparc_lh, fullid, fssubj_dir, 'hippocampus', atlas_str)
-            vol_hparc_lh = [vol_tparc[0]]
-            vol_hparc_rh = [vol_tparc[1]]
-
-        # Reading the hippocampus parcellation
-        temp_iparc = nib.load(vol_hparc_rh[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hippi_codesr, outparc_rh, st_lengtrh)
-
-        # Reading the hippocampus parcellation
-        temp_iparc = nib.load(vol_hparc_lh[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hippi_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[4] == 'H':
-
-        # Hippocampus parcellation based on Iglesias et al, 2015
-        vol_hparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str + '*.nii.gz')
-        vol_hparc_rh = glob(volatlas_dir + os.path.sep + fullid + '*R*' + atlas_str + '*.nii.gz')
-
-        if not vol_hparc_lh or not vol_hparc_rh:
-            vol_hparc_lh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-L_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_hparc_rh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-R_desc-' + atlas_str + '_dseg.nii.gz')
-
-            # Computing thalamic nuclei using atlas-based parcellation
-            vol_tparc = _fs_addon_parcellations(vol_hparc_lh, fullid, fssubj_dir, 'hippocampus', atlas_str)
-            vol_hparc_lh = [vol_tparc[0]]
-            vol_hparc_rh = [vol_tparc[1]]
-
-        # Reading the hippocampus parcellation
-        temp_iparc = nib.load(vol_hparc_rh[0])
-        temp_iparc = temp_iparc.get_fdata()
-        temp_iparc = _subfields2hbt(temp_iparc, hippi_codesr)
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hipph_codesr, outparc_rh, st_lengtrh)
-
-        # Reading the hippocampus parcellation
-        temp_iparc = nib.load(vol_hparc_lh[0])
-        temp_iparc = temp_iparc.get_fdata()
-        temp_iparc = _subfields2hbt(temp_iparc, hippi_codesl)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hipph_codesl, outparc_lh, st_lengtlh)
-
-    elif parccode[4] == 'R':
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, hippf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, hippf_codesl, outparc_lh, st_lengtlh)
-
-    ##### ========== Selecting Hypothalamus parcellation ============== #####
-    try:
-        atlas_str = parcdict["Hypothalamus"][parccode[5]]["String"]
-        atlas_desc = parcdict["Hypothalamus"][parccode[5]]["Description"]
-        atlas_cita = parcdict["Hypothalamus"][parccode[5]]["Citation"]
-        atlas_volloc = parcdict["Hypothalamus"][parccode[5]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Hypothalamus")
-        sys.exit(1)
-
-    if parccode[5] == 'F':
-        print("This needs to be implemented")
-
-        im_tmp           = np.zeros(aseg_parc.shape)
-        ind_vent         = np.where(aseg_parc == vent3_code)
-        im_tmp[ind_vent] = 1
-        im_dil = mask_dilation(im_tmp, 5) # Dilating 5mm
-        thirdV = op.abspath('{}.nii.gz'.format("ventricle3"))
-        hdr = V.get_header()
-        hdr2 = hdr.copy()
-        hdr2.set_data_dtype(np.int16)
-        iflogger.info("    ... Image saved to {}".format(thirdV))
-        img = ni.Nifti1Image(tmp, V.get_affine(), hdr2)
-        ni.save(img, thirdV)
-
-        iflogger.info("  > Dilate the ventricule image")
-        thirdV_dil = op.abspath('{}_dil.nii.gz'.format("ventricle3"))
-        fslmaths_cmd = 'fslmaths {} -kernel sphere 5 -dilD {}'.format(thirdV, thirdV_dil)
-        iflogger.info("    ... Command: {}".format(fslmaths_cmd))
-        process = subprocess.Popen(fslmaths_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        proc_stdout = process.communicate()[0].strip()
-
-        tmp = ni.load(thirdV_dil).get_data()
-        indrhypothal = np.where((im_dil == 1) & (aseg_parc == vdcf_codel))
-        indlhypothal = np.where((im_dil == 1) & (aseg_parc == vdcf_coder))
-        del (tmp)
-
-    elif parccode[5] == 'I':
-
-        # Thalamic parcellation based on Iglesias et al, 2019
-        vol_yparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.nii.gz')
-
-        if not vol_yparc:
-            vol_yparc = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_yparc = _fs_addon_parcellations(vol_yparc, fullid, fssubj_dir, 'hypothalamus', atlas_str)
-
-        # Reading the hypothalamus parcellation
-        temp_iparc = nib.load(vol_yparc[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hypi_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hypi_codesl, outparc_lh, st_lengtlh)
-
-    ##### ========== Selecting Cerebellum parcellation ============== #####
-    try:
-        atlas_str = parcdict["Cerebellum"][parccode[6]]["String"]
-        atlas_desc = parcdict["Cerebellum"][parccode[6]]["Description"]
-        atlas_cita = parcdict["Cerebellum"][parccode[6]]["Citation"]
-        atlas_volloc = parcdict["Cerebellum"][parccode[6]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Cerebellum")
-        sys.exit(1)
-
-    if parccode[6] == 'F':
-        # Right Hemisphere
-        outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, cerebf_codesr, outparc_rh, st_lengtrh)
-
-        # Left Hemisphere
-        outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, cerebf_codesl, outparc_lh, st_lengtlh)
-
-    ##### ========== Selecting Brainstem parcellation ============== #####
-    try:
-        atlas_str = parcdict["Brainstem"][parccode[7]]["String"]
-        atlas_desc = parcdict["Brainstem"][parccode[7]]["Description"]
-        atlas_cita = parcdict["Brainstem"][parccode[7]]["Citation"]
-        atlas_volloc = parcdict["Brainstem"][parccode[7]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("Brainstem")
-        sys.exit(1)
-
-    if parccode[7] == 'F':
-        # Adding Brainstem parcellation to the left parcellation
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, bstemf_codes, outparc_lh, st_lengtlh)
-
-    elif parccode[7] == 'I':
-        # Brainstem parcellation based on Iglesias et al, 2018
-        vol_bparc = glob(volatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.nii.gz')
-
-        if not vol_bparc:
-            vol_bparc = os.path.join(volatlas_dir, fullid, '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
-            vol_bparc = _fs_addon_parcellations(vol_yparc, fullid, fssubj_dir, 'brainstem', atlas_str)
-
-        # Reading the Brainstem parcellation
-        temp_iparc = nib.load(vol_bparc[0])
-        temp_iparc = temp_iparc.get_fdata()
-
-        # Adding Brainstem parcellation to the left parcellation
-        outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, bstemi_codes, outparc_lh, st_lengtlh)
-
-    ##### ========== Selecting white matter parcellation ============== #####
-    try:
-        atlas_str = parcdict["GyralWM"][parccode[8]]["String"]
-        atlas_desc = parcdict["GyralWM"][parccode[8]]["Description"]
-        atlas_cita = parcdict["Cortical"][parccode[8]]["Citation"]
-        atlas_volloc = parcdict["GyralWM"][parccode[8]]["OutVolLocation"]
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-
-    except:
-        _print_availab_parcels("GyralWM")
-        sys.exit(1)
-
-    if parccode[8] == 'F':
-        sss = 1
-
-
-    # Removing temporal aseg image
-    os.remove(aseg_nii)
-
-    parc_desc_lines.append("\n")
-
-    # Creating ouput directory
-    out_dir = os.path.join(deriv_dir, 'chimera-atlases', path_cad, 'anat')
-    if not os.path.isdir(out_dir):
-        try:
-            os.makedirs(out_dir)
-        except OSError:
-            print("Failed to make nested output directory")
-
-
-    # Loop around each parcellation
-    for i in np.arange(0, len(rh_cparc)):
-        right_sdata = nib.freesurfer.io.read_annot(rh_cparc[i], orig_ids=False)
-        rh_codes = right_sdata[0]
-        rh_colors = right_sdata[1][1:, 0:3]
-        rh_stnames = right_sdata[2][1:]
-
-        left_sdata = nib.freesurfer.io.read_annot(lh_cparc[i], orig_ids=False)
-        lh_codes = left_sdata[0]
-        lh_colors = left_sdata[1][1:, 0:3]
-        lh_stnames = left_sdata[2][1:]
-
-        fname = os.path.basename(rh_cparc[i])
-
-        temp = fname.split('_')
-        scaleid = [s for s in temp if "desc-" in s]  # Detect if the label key exist
-
-        # Selecting the volumetric parcellations for all the wm grow levels
-        if scaleid:
-            grow_parcs = [s for s in vol_cparc if scaleid[0] in s]
-        else:
-            grow_parcs = vol_cparc
-
-        nctx_rh = len(rh_stnames)  # Number of cortical regions in the right hemisphere
-        nctx_lh = len(lh_stnames)  # Number of cortical regions in the left hemisphere
-        nroi_right = nctx_rh + st_lengtrh  # Number of regions in the right hemisphere
-
-        rh_luttable = ["# Right Hemisphere. Cortical Structures"]
-        lh_luttable = ["# Left Hemisphere. Cortical Structures"]
-
-        ##### ========== LUT Cortical Surface (Right Hemisphere)============== #####
-        # rh_scode, rh_ctab,
-        for roi_pos, roi_name in enumerate(rh_stnames):
-            temp_name = 'ctx-rh-{}'.format(roi_name.decode("utf-8"))
-            rh_luttable.append(
-                '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(roi_pos + 1, temp_name, rh_colors[roi_pos, 0],
-                                                              rh_colors[roi_pos, 1], rh_colors[roi_pos, 2],
-                                                              0))
-        maxlab_rh = roi_pos + 1
-
-        for roi_pos, roi_name in enumerate(lh_stnames):
-            temp_name = 'ctx-lh-{}'.format(roi_name.decode("utf-8"))
-            lh_luttable.append(
-                '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(nroi_right + roi_pos + 1, temp_name,
-                                                              lh_colors[roi_pos, 0],
-                                                              lh_colors[roi_pos, 1], lh_colors[roi_pos, 2], 0))
-        maxlab_lh = nroi_right + roi_pos + 1
-
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+            aseg_parc = nib.load(vol_cparc[0])
+            dim = aseg_parc.shape
+
+        outparc_lh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the left hemisphere
+        outparc_rh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the right hemisphere
+
+        # Loading FIRST parcellation
+        if parccode[1] == 'R' or parccode[2] == 'R' or parccode[3] == 'R' or parccode[4] == 'R' or parccode[7] == 'R':
+            atlas_str = parcdict["Subcortical"]["R"]["String"]
+            atlas_desc = parcdict["Subcortical"]["R"]["Description"]
+            atlas_volloc = parcdict["Subcortical"]["R"]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+
+            first_parc = os.path.join(volatlas_dir, fullid + '_space-orig_atlas-' + atlas_str + '_dseg.nii.gz')
+            if not os.path.isfile(first_parc):
+
+                # Creating ouput directory
+                if not os.path.isdir(volatlas_dir):
+                    try:
+                        os.makedirs(volatlas_dir)
+                    except OSError:
+                        print("Failed to make nested output directory")
+
+                # Running FIRST subcortical parcellation
+                process = subprocess.run(
+                    ['run_first_all', '-i', t1, '-o', volatlas_dir + os.path.sep + 'temp'],
+                    stdout=subprocess.PIPE, universal_newlines=True)
+
+                # Changing name
+                process = subprocess.run(
+                    ['mv', 'temp_all_fast_firstseg.nii.gz', first_parc],
+                    stdout=subprocess.PIPE, universal_newlines=True)
+
+                # Deleting temporary files
+                process = subprocess.run(
+                    ['rm', '-rf', 'temp*'],
+                    stdout=subprocess.PIPE, universal_newlines=True)
+
+            first_parc = nib.load(first_parc)
+            first_parc = aseg_parc.get_fdata()
 
         ##### ========== Selecting Subcortical parcellation ============== #####
-        if parccode[1] == 'F' or parccode[1] == 'R':
-            rh_luttable.append("# Right Hemisphere. Subcortical Structures")
-            for roi_pos, roi_name in enumerate(subc_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 subc_colorsr[roi_pos, 0],
-                                                                                 subc_colorsr[roi_pos, 1],
-                                                                                 subc_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+        try:
+            atlas_str  = parcdict["Subcortical"][parccode[1]]["String"]
+            atlas_desc = parcdict["Subcortical"][parccode[1]]["Description"]
+            atlas_cita    = parcdict["Subcortical"][parccode[1]]["Citation"]
+            atlas_volloc = parcdict["Subcortical"][parccode[1]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
+        except:
+            _print_availab_parcels("Subcortical")
+            sys.exit(1)
 
-            lh_luttable.append("# Left Hemisphere. Subcortical Structures")
-            for roi_pos, roi_name in enumerate(subc_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 subc_colorsl[roi_pos, 0],
-                                                                                 subc_colorsl[roi_pos, 1],
-                                                                                 subc_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+        if parccode[1] == 'F':
 
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, subc_codesr, outparc_rh, 0)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, subc_codesl, outparc_lh, 0)
 
         elif parccode[1] == 'R':  # TODO
-            t = 1
+            # Volumetric subcortical parcellation
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(first_parc, subc_codesr, outparc_rh, 0)
 
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(first_parc, subc_codesl, outparc_lh, 0)
+
 
         ##### ========== Selecting Thalamic parcellation ============== #####
-        if parccode[2] == 'F' or parccode[2] == 'R':
+        try:
+            atlas_str = parcdict["Thalamus"][parccode[2]]["String"]
+            atlas_desc = parcdict["Thalamus"][parccode[2]]["Description"]
+            atlas_cita = parcdict["Thalamus"][parccode[2]]["Citation"]
+            atlas_volloc = parcdict["Thalamus"][parccode[2]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            rh_luttable.append("# Right Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thalf_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 thalf_colorsr[roi_pos, 0],
-                                                                                 thalf_colorsr[roi_pos, 1],
-                                                                                 thalf_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+        except:
+            _print_availab_parcels("Thalamus")
+            sys.exit(1)
 
-            lh_luttable.append("# Left Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thalf_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 thalf_colorsl[roi_pos, 0],
-                                                                                 thalf_colorsl[roi_pos, 1],
-                                                                                 thalf_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+        if parccode[2] == 'F':
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, thalf_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, thalf_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[2] == 'R':  # TODO
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(first_parc, thalf_codesr, outparc_rh, st_lengtrh)
 
-            # Volumetric thalamic parcellation
-            volatlas_dir = os.path.join(deriv_dir, 'fsl-subcparc', subjId, sesId,
-                                  'anat')  # Subcortical parcellation based on Patenaude et al, 2011
-            parc_desc_lines.append(
-                "# 3. Thalamic parcellation (R): FIRST thalamic parcellation")
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(first_parc, thalf_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[2] == 'I':
 
-            rh_luttable.append("# Right Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thali_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 thali_colorsr[roi_pos, 0],
-                                                                                 thali_colorsr[roi_pos, 1],
-                                                                                 thali_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            vol_tparc = glob(os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz'))
 
-            lh_luttable.append("# Left Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thali_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 thali_colorsl[roi_pos, 0],
-                                                                                 thali_colorsl[roi_pos, 1],
-                                                                                 thali_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            if not vol_tparc:
+                vol_tparc = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
+                vol_tparc = _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, 'thalamus', atlas_str)
+
+            # Reading the thalamic parcellation
+            temp_iparc = nib.load(vol_tparc[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, thali_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, thali_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[2] == 'M':
 
-            rh_luttable.append("# Right Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thalm_namesr):
-                rh_luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 thalm_colorsr[roi_pos, 0],
-                                                                                 thalm_colorsr[roi_pos, 1],
-                                                                                 thalm_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            # Thalamic parcellation based on Najdenovska et al, 2018
+            vol_tparc = glob(os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz'))
 
-            lh_luttable.append("# Left Hemisphere. Thalamic Structures")
-            for roi_pos, roi_name in enumerate(thalm_namesl):
-                lh_luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 thalm_colorsr[roi_pos, 0],
-                                                                                 thalm_colorsr[roi_pos, 1],
-                                                                                 thalm_colorsr[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            if not vol_tparc:
+                vol_tparc = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
 
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+                # Computing thalamic nuclei using atlas-based parcellation
+                vol_tparc = _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, path_cad, fullid, aseg_nii, atlas_str)
+
+            # Reading the thalamic parcellation
+            temp_iparc = nib.load(vol_tparc[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, thalm_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, thalm_codesl, outparc_lh, st_lengtlh)
 
         ##### ========== Selecting Amygdala parcellation ============== #####
-        if parccode[3] == 'F' or parccode[3] == 'R':
+        try:
+            atlas_str = parcdict["Amygdala"][parccode[3]]["String"]
+            atlas_desc = parcdict["Amygdala"][parccode[3]]["Description"]
+            atlas_cita = parcdict["Amygdala"][parccode[3]]["Citation"]
+            atlas_volloc = parcdict["Amygdala"][parccode[3]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            rh_luttable.append("# Right Hemisphere. Amygdala")
-            for roi_pos, roi_name in enumerate(amygf_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 amygf_colorsr[roi_pos, 0],
-                                                                                 amygf_colorsr[roi_pos, 1],
-                                                                                 amygf_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+        except:
+            _print_availab_parcels("Amygdala")
+            sys.exit(1)
 
-            lh_luttable.append("# Left Hemisphere. Amygdala")
-            for roi_pos, roi_name in enumerate(amygf_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 amygf_colorsl[roi_pos, 0],
-                                                                                 amygf_colorsl[roi_pos, 1],
-                                                                                 amygf_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+        if parccode[3] == 'F':
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, amygf_codesr, outparc_rh, st_lengtrh)
 
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, amygf_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[3] == 'I':
 
-            rh_luttable.append("# Right Hemisphere. Amygdala Nuclei")
-            for roi_pos, roi_name in enumerate(amygi_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 amygi_colorsr[roi_pos, 0],
-                                                                                 amygi_colorsr[roi_pos, 1],
-                                                                                 amygi_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            # # Volumetric amygdala parcellation (vol_aparc)
+            vol_aparc_lh = glob(os.path.join(volatlas_dir, fullid + '*L*' + atlas_str + '*.nii.gz'))
+            vol_aparc_rh = glob(os.path.join(volatlas_dir, fullid + '*R*' + atlas_str + '*.nii.gz'))
 
-            lh_luttable.append("# Left Hemisphere. Amygdala Nuclei")
-            for roi_pos, roi_name in enumerate(amygi_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 amygi_colorsl[roi_pos, 0],
-                                                                                 amygi_colorsl[roi_pos, 1],
-                                                                                 amygi_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            if not vol_aparc_lh or not vol_aparc_rh:
 
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+                vol_aparc_lh = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-L_desc-' + atlas_str + '_dseg.nii.gz')
+                vol_aparc_rh = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-R_desc-' + atlas_str + '_dseg.nii.gz')
+
+                # Computing amygdala nuclei
+                vol_tparc = _fs_addon_parcellations(vol_aparc_lh, fullid, fssubj_dir, 'amygdala', atlas_str)
+                vol_aparc_lh = [vol_tparc[0]]
+                vol_aparc_rh = [vol_tparc[1]]
+
+            # Reading the amygdala parcellation
+            temp_iparc = nib.load(vol_aparc_rh[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, amygi_codesr, outparc_rh, st_lengtrh)
+
+            # Reading the amygdala parcellation
+            temp_iparc = nib.load(vol_aparc_lh[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, amygi_codesl, outparc_lh, st_lengtlh)
+
+        elif parccode[3] == 'R':
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(first_parc, amygf_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(first_parc, amygf_codesl, outparc_lh, st_lengtlh)
+
 
         ##### ========== Selecting Hippocampus parcellation ============== #####
-        if parccode[4] == 'F' or parccode[4] == 'R':
+        try:
+            atlas_str = parcdict["Hippocampus"][parccode[4]]["String"]
+            atlas_desc = parcdict["Hippocampus"][parccode[4]]["Description"]
+            atlas_cita = parcdict["Hippocampus"][parccode[4]]["Citation"]
+            atlas_volloc = parcdict["Hippocampus"][parccode[4]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            rh_luttable.append("# Right Hemisphere. Hippocampus")
-            for roi_pos, roi_name in enumerate(hippf_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 hippf_colorsr[roi_pos, 0],
-                                                                                 hippf_colorsr[roi_pos, 1],
-                                                                                 hippf_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            if parccode[4] == 'H':
+                atlas_str_ig = parcdict["Hippocampus"]["I"]["String"]
+                atlas_volloc_ig = parcdict["Hippocampus"]["I"]["OutVolLocation"]
+                volatlas_dir_ig = os.path.join(deriv_dir, atlas_volloc_ig, path_cad, 'anat')
 
-            lh_luttable.append("# Left Hemisphere. Hippocampus")
-            for roi_pos, roi_name in enumerate(hippf_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 hippf_colorsl[roi_pos, 0],
-                                                                                 hippf_colorsl[roi_pos, 1],
-                                                                                 hippf_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+        except:
+            _print_availab_parcels("Hippocampus")
+            sys.exit(1)
+
+        if parccode[4] == 'F':
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, hippf_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, hippf_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[4] == 'I':
 
-            rh_luttable.append("# Right Hemisphere. Hippocampus subfields")
-            for roi_pos, roi_name in enumerate(hippi_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 hippi_colorsr[roi_pos, 0],
-                                                                                 hippi_colorsr[roi_pos, 1],
-                                                                                 hippi_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            # Hippocampus parcellation based on Iglesias et al, 2015
 
-            lh_luttable.append("# Left Hemisphere. Hippocampus subfields")
-            for roi_pos, roi_name in enumerate(hippi_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 hippi_colorsl[roi_pos, 0],
-                                                                                 hippi_colorsl[roi_pos, 1],
-                                                                                 hippi_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            vol_hparc_lh = glob(os.path.join(volatlas_dir, fullid + '*L*' + atlas_str + '*.nii.gz'))
+            vol_hparc_rh = glob(os.path.join(volatlas_dir, fullid + '*R*' + atlas_str + '*.nii.gz'))
+
+            if not vol_hparc_lh or not vol_hparc_rh:
+                vol_hparc_lh = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-L_desc-' + atlas_str + '_dseg.nii.gz')
+                vol_hparc_rh = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-R_desc-' + atlas_str + '_dseg.nii.gz')
+
+                # Computing thalamic nuclei using atlas-based parcellation
+                vol_tparc = _fs_addon_parcellations(vol_hparc_lh, fullid, fssubj_dir, 'hippocampus', atlas_str)
+                vol_hparc_lh = [vol_tparc[0]]
+                vol_hparc_rh = [vol_tparc[1]]
+
+            # Reading the hippocampus parcellation
+            temp_iparc = nib.load(vol_hparc_rh[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hippi_codesr, outparc_rh, st_lengtrh)
+
+            # Reading the hippocampus parcellation
+            temp_iparc = nib.load(vol_hparc_lh[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hippi_codesl, outparc_lh, st_lengtlh)
 
         elif parccode[4] == 'H':
 
-            rh_luttable.append(
-                "# Right Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure")
-            for roi_pos, roi_name in enumerate(hipph_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 hipph_colorsr[roi_pos, 0],
-                                                                                 hipph_colorsr[roi_pos, 1],
-                                                                                 hipph_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
+            # Detecting the parcellation of hippocampal subfields
+            atlas_str_ig = parcdict["Hippocampus"]["I"]["String"]
 
-            lh_luttable.append(
-                "# Left Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure")
-            for roi_pos, roi_name in enumerate(hipph_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 hipph_colorsl[roi_pos, 0],
-                                                                                 hipph_colorsl[roi_pos, 1],
-                                                                                 hipph_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            # Hippocampus parcellation based on Iglesias et al, 2015
+            vol_hparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str_ig + '*.nii.gz')
+            vol_hparc_rh = glob(volatlas_dir + os.path.sep + fullid + '*R*' + atlas_str_ig + '*.nii.gz')
 
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+            if not vol_hparc_lh or not vol_hparc_rh:
+                vol_hparc_lh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-L_desc-' + atlas_str_ig + '_dseg.nii.gz')
+                vol_hparc_rh = os.path.join(volatlas_dir, fullid, '_space-orig_hemi-R_desc-' + atlas_str_ig + '_dseg.nii.gz')
+
+                # Computing thalamic nuclei using atlas-based parcellation
+                vol_tparc = _fs_addon_parcellations(vol_hparc_lh, fullid, fssubj_dir, 'hippocampus', atlas_str)
+                vol_hparc_lh = [vol_tparc[0]]
+                vol_hparc_rh = [vol_tparc[1]]
+
+            # Reading the hippocampus parcellation
+            temp_iparc = nib.load(vol_hparc_rh[0])
+            temp_iparc = temp_iparc.get_fdata()
+            temp_iparc = _subfields2hbt(temp_iparc, hippi_codesr)
+
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hipph_codesr, outparc_rh, st_lengtrh)
+
+            # Reading the hippocampus parcellation
+            temp_iparc = nib.load(vol_hparc_lh[0])
+            temp_iparc = temp_iparc.get_fdata()
+            temp_iparc = _subfields2hbt(temp_iparc, hippi_codesl)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hipph_codesl, outparc_lh, st_lengtlh)
+
+        elif parccode[4] == 'R':
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, hippf_codesr, outparc_rh, st_lengtrh)
+
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, hippf_codesl, outparc_lh, st_lengtlh)
+
         ##### ========== Selecting Hypothalamus parcellation ============== #####
-        if parccode[5] == 'F':
+        try:
+            atlas_str = parcdict["Hypothalamus"][parccode[5]]["String"]
+            atlas_desc = parcdict["Hypothalamus"][parccode[5]]["Description"]
+            atlas_cita = parcdict["Hypothalamus"][parccode[5]]["Citation"]
+            atlas_volloc = parcdict["Hypothalamus"][parccode[5]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            # # Volumetric Hypothalamus parcellation (vol_yparc)
-            volatlas_dir = os.path.join(deriv_dir, 'freesurfer-volparc', subjId, sesId, 'anat')
-            vol_yparc = glob(volatlas_dir + os.path.sep + '*desikan*.nii.gz')
-            vol_yparc = vol_yparc[0]
+        except:
+            _print_availab_parcels("Hypothalamus")
+            sys.exit(1)
+
+        if parccode[5] == 'F':
+            print("This needs to be implemented")
+
+            im_tmp           = np.zeros(aseg_parc.shape)
+            ind_vent         = np.where(aseg_parc == vent3_code)
+            im_tmp[ind_vent] = 1
+            im_dil = mask_dilation(im_tmp, 5) # Dilating 5mm
+            thirdV = op.abspath('{}.nii.gz'.format("ventricle3"))
+            hdr = V.get_header()
+            hdr2 = hdr.copy()
+            hdr2.set_data_dtype(np.int16)
+            iflogger.info("    ... Image saved to {}".format(thirdV))
+            img = ni.Nifti1Image(tmp, V.get_affine(), hdr2)
+            ni.save(img, thirdV)
+
+            iflogger.info("  > Dilate the ventricule image")
+            thirdV_dil = op.abspath('{}_dil.nii.gz'.format("ventricle3"))
+            fslmaths_cmd = 'fslmaths {} -kernel sphere 5 -dilD {}'.format(thirdV, thirdV_dil)
+            iflogger.info("    ... Command: {}".format(fslmaths_cmd))
+            process = subprocess.Popen(fslmaths_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc_stdout = process.communicate()[0].strip()
+
+            tmp = ni.load(thirdV_dil).get_data()
+            indrhypothal = np.where((im_dil == 1) & (aseg_parc == vdcf_codel))
+            indlhypothal = np.where((im_dil == 1) & (aseg_parc == vdcf_coder))
+            del (tmp)
 
         elif parccode[5] == 'I':
-            rh_luttable.append("# Right Hemisphere. Hypothalamus nuclei")
-            for roi_pos, roi_name in enumerate(hypi_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 hypi_colorsr[roi_pos, 0],
-                                                                                 hypi_colorsr[roi_pos, 1],
-                                                                                 hypi_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
 
-            lh_luttable.append("# Left Hemisphere. Hypothalamus nuclei")
-            for roi_pos, roi_name in enumerate(hypi_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 hypi_colorsl[roi_pos, 0],
-                                                                                 hypi_colorsl[roi_pos, 1],
-                                                                                 hypi_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
+            # Thalamic parcellation based on Iglesias et al, 2019
+            vol_yparc = glob(os.path.join(volatlas_dir, fullid + '*' + atlas_str + '*.nii.gz'))
 
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
+            if not vol_yparc:
+                vol_yparc = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
+                vol_yparc = _fs_addon_parcellations(vol_yparc, fullid, fssubj_dir, 'hypothalamus', atlas_str)
 
-        ##### ========== Selecting Cerebellum parcellation ============== #####
-        if parccode[6] == 'F':
-            rh_luttable.append("# Right Hemisphere. Cerebellum")
-            for roi_pos, roi_name in enumerate(cerebf_namesr):
-                rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
-                                                                                 cerebf_colorsr[roi_pos, 0],
-                                                                                 cerebf_colorsr[roi_pos, 1],
-                                                                                 cerebf_colorsr[roi_pos, 2], 0))
-            maxlab_rh = maxlab_rh + roi_pos + 1
-
-            lh_luttable.append("# Left Hemisphere. Cerebellum")
-            for roi_pos, roi_name in enumerate(cerebf_namesl):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 cerebf_colorsl[roi_pos, 0],
-                                                                                 cerebf_colorsl[roi_pos, 1],
-                                                                                 cerebf_colorsl[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
-
-        rh_luttable.append('\n')
-        lh_luttable.append('\n')
-
-        ##### ========== Selecting Brainstem parcellation ============== #####
-        lh_luttable.append("# Left Hemisphere. BrainStem parcellation")
-        if parccode[7] == 'F' or parccode[7] == 'R':
-            for roi_pos, roi_name in enumerate(bstemf_names):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 bstemf_colors[roi_pos, 0],
-                                                                                 bstemf_colors[roi_pos, 1],
-                                                                                 bstemf_colors[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
-
-        elif parccode[7] == 'I':
-            for roi_pos, roi_name in enumerate(bstemi_names):
-                lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
-                                                                                 bstemi_colors[roi_pos, 0],
-                                                                                 bstemi_colors[roi_pos, 1],
-                                                                                 bstemi_colors[roi_pos, 2], 0))
-            maxlab_lh = maxlab_lh + roi_pos + 1
-
-        lh_luttable.append('\n')
-        ##### ========== Selecting White matter parcellation ============== #####
-        if parccode[8] == 'F':
-
-            # # Volumetric White matter parcellation (vol_wparc)
-            wm_luttable = ["# Global White Matter"]
-            wm_luttable.append(
-                '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(3000, wm_names[0], wm_colors[0, 0], wm_colors[0, 1],
-                                                              wm_colors[0, 2], 0))
-            wm_luttable.append('\n')
-            wm_luttable.append("# Right Hemisphere. Gyral White Matter Structures")
-
-            # rh_scode, rh_ctab,
-            for roi_pos, roi_name in enumerate(rh_stnames):
-                temp_name = 'wm-rh-{}'.format(roi_name.decode("utf-8"))
-                wm_luttable.append(
-                    '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(roi_pos + 3001, temp_name,
-                                                                  255 - rh_colors[roi_pos, 0],
-                                                                  255 - rh_colors[roi_pos, 1],
-                                                                  255 - rh_colors[roi_pos, 2],
-                                                                  0))
-            wm_luttable.append('\n')
-
-            wm_luttable.append("# Left Hemisphere. Gyral White Matter Structures")
-            for roi_pos, roi_name in enumerate(lh_stnames):
-                temp_name = 'wm-lh-{}'.format(roi_name.decode("utf-8"))
-                wm_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(nroi_right + roi_pos + 3001, temp_name,
-                                                                                 255 - lh_colors[roi_pos, 0],
-                                                                                 255 - lh_colors[roi_pos, 1],
-                                                                                 255 - lh_colors[roi_pos, 2], 0))
-
-        elif parccode[8] == 'N':
-            vol_wparc = []
-            parc_desc_lines.append("# 9. White matter parcellation (N): No WM segmentation.")
-
-        for gparc in grow_parcs:
-
-            # Reading the cortical parcellation
-            temp_iparc = nib.load(gparc)
-            affine = temp_iparc.affine
+            # Reading the hypothalamus parcellation
+            temp_iparc = nib.load(vol_yparc[0])
             temp_iparc = temp_iparc.get_fdata()
 
-            out_atlas = np.zeros(np.shape(temp_iparc), dtype='int16')
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(temp_iparc, hypi_codesr, outparc_rh, st_lengtrh)
 
-            # Adding cortical regions (Right Hemisphere)
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, hypi_codesl, outparc_lh, st_lengtlh)
 
-            ind = np.where(np.logical_and(temp_iparc > 2000, temp_iparc < 3000))
-            out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones((len(ind[0]),)) * 2000
+        ##### ========== Selecting Cerebellum parcellation ============== #####
+        try:
+            atlas_str = parcdict["Cerebellum"][parccode[6]]["String"]
+            atlas_desc = parcdict["Cerebellum"][parccode[6]]["Description"]
+            atlas_cita = parcdict["Cerebellum"][parccode[6]]["Citation"]
+            atlas_volloc = parcdict["Cerebellum"][parccode[6]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            # Adding the rest of the regions (Right Hemisphere)
-            ind = np.where(outparc_rh > 0)
-            out_atlas[ind[0], ind[1], ind[2]] = outparc_rh[ind[0], ind[1], ind[2]] + np.ones((len(ind[0]),)) * nctx_rh
+        except:
+            _print_availab_parcels("Cerebellum")
+            sys.exit(1)
 
-            # Adding cortical regions (Left Hemisphere)
-            ind = np.where(np.logical_and(temp_iparc > 1000, temp_iparc < 2000))
-            out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones(
-                (len(ind[0]),)) * 1000 + np.ones(
-                (len(ind[0]),)) * nroi_right
+        if parccode[6] == 'F':
+            # Right Hemisphere
+            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, cerebf_codesr, outparc_rh, st_lengtrh)
 
-            # Adding the rest of the regions (Left Hemisphere + Brainstem)
-            ind = np.where(outparc_lh > 0)
-            out_atlas[ind[0], ind[1], ind[2]] = outparc_lh[ind[0], ind[1], ind[2]] + np.ones(
-                (len(ind[0]),)) * nctx_lh + np.ones((len(ind[0]),)) * nroi_right
+            # Left Hemisphere
+            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, cerebf_codesl, outparc_lh, st_lengtlh)
 
-            # Adding global white matter
-            bool_ind = np.in1d(temp_iparc, wm_codes)
-            bool_ind = np.reshape(bool_ind, np.shape(temp_iparc))
-            ind      = np.where(bool_ind)
-            out_atlas[ind[0], ind[1], ind[2]] = 3000
+        ##### ========== Selecting Brainstem parcellation ============== #####
+        try:
+            atlas_str = parcdict["Brainstem"][parccode[7]]["String"]
+            atlas_desc = parcdict["Brainstem"][parccode[7]]["Description"]
+            atlas_cita = parcdict["Brainstem"][parccode[7]]["Citation"]
+            atlas_volloc = parcdict["Brainstem"][parccode[7]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
-            # Adding right white matter
-            ind      = np.where(np.logical_and(temp_iparc > 4000, temp_iparc < 5000))
+        except:
+            _print_availab_parcels("Brainstem")
+            sys.exit(1)
 
-            if parccode[8] == 'F':
-                out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones((len(ind[0]),)) * 1000
+        if parccode[7] == 'F':
+            # Adding Brainstem parcellation to the left parcellation
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, bstemf_codes, outparc_lh, st_lengtlh)
+
+        elif parccode[7] == 'I':
+            # Brainstem parcellation based on Iglesias et al, 2018
+            vol_bparc = glob(os.path.join(volatlas_dir, fullid + '*' + atlas_str + '*.nii.gz'))
+
+            if not vol_bparc:
+                vol_bparc = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + atlas_str + '_dseg.nii.gz')
+                vol_bparc = _fs_addon_parcellations(vol_bparc, fullid, fssubj_dir, 'brainstem', atlas_str)
+
+            # Reading the Brainstem parcellation
+            temp_iparc = nib.load(vol_bparc[0])
+            temp_iparc = temp_iparc.get_fdata()
+
+            # Adding Brainstem parcellation to the left parcellation
+            outparc_lh, st_lengtlh = _search_in_atlas(temp_iparc, bstemi_codes, outparc_lh, st_lengtlh)
+
+        ##### ========== Selecting white matter parcellation ============== #####
+        try:
+            atlas_str = parcdict["GyralWM"][parccode[8]]["String"]
+            atlas_desc = parcdict["GyralWM"][parccode[8]]["Description"]
+            atlas_cita = parcdict["Cortical"][parccode[8]]["Citation"]
+            atlas_volloc = parcdict["GyralWM"][parccode[8]]["OutVolLocation"]
+            volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+            parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
+
+        except:
+            _print_availab_parcels("GyralWM")
+            sys.exit(1)
+
+        if parccode[8] == 'F':
+            sss = 1
+
+
+        # Removing temporal aseg image
+        os.remove(aseg_nii)
+
+        parc_desc_lines.append("\n")
+
+        # Creating ouput directory
+        out_dir = os.path.join(deriv_dir, 'chimera-atlases', path_cad, 'anat')
+        if not os.path.isdir(out_dir):
+            try:
+                os.makedirs(out_dir)
+            except OSError:
+                print("Failed to make nested output directory")
+
+
+        # Loop around each parcellation
+        for i in np.arange(0, len(rh_cparc)):
+            right_sdata = nib.freesurfer.io.read_annot(rh_cparc[i], orig_ids=False)
+            rh_codes = right_sdata[0]
+            rh_colors = right_sdata[1][1:, 0:3]
+            rh_stnames = right_sdata[2][1:]
+
+            left_sdata = nib.freesurfer.io.read_annot(lh_cparc[i], orig_ids=False)
+            lh_codes = left_sdata[0]
+            lh_colors = left_sdata[1][1:, 0:3]
+            lh_stnames = left_sdata[2][1:]
+
+            fname = os.path.basename(rh_cparc[i])
+
+            temp = fname.split('_')
+            scaleid = [s for s in temp if "desc-" in s]  # Detect if the label key exist
+
+            # Selecting the volumetric parcellations for all the wm grow levels
+            if scaleid:
+                grow_parcs = [s for s in vol_cparc if scaleid[0] in s]
             else:
+                grow_parcs = vol_cparc
+
+            nctx_rh = len(rh_stnames)  # Number of cortical regions in the right hemisphere
+            nctx_lh = len(lh_stnames)  # Number of cortical regions in the left hemisphere
+            nroi_right = nctx_rh + st_lengtrh  # Number of regions in the right hemisphere
+
+            rh_luttable = ["# Right Hemisphere. Cortical Structures"]
+            lh_luttable = ["# Left Hemisphere. Cortical Structures"]
+
+            ##### ========== LUT Cortical Surface (Right Hemisphere)============== #####
+            # rh_scode, rh_ctab,
+            for roi_pos, roi_name in enumerate(rh_stnames):
+                temp_name = 'ctx-rh-{}'.format(roi_name.decode("utf-8"))
+                rh_luttable.append(
+                    '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(roi_pos + 1, temp_name, rh_colors[roi_pos, 0],
+                                                                rh_colors[roi_pos, 1], rh_colors[roi_pos, 2],
+                                                                0))
+            maxlab_rh = roi_pos + 1
+
+            for roi_pos, roi_name in enumerate(lh_stnames):
+                temp_name = 'ctx-lh-{}'.format(roi_name.decode("utf-8"))
+                lh_luttable.append(
+                    '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(nroi_right + roi_pos + 1, temp_name,
+                                                                lh_colors[roi_pos, 0],
+                                                                lh_colors[roi_pos, 1], lh_colors[roi_pos, 2], 0))
+            maxlab_lh = nroi_right + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Subcortical parcellation ============== #####
+            if parccode[1] == 'F' or parccode[1] == 'R':
+                rh_luttable.append("# Right Hemisphere. Subcortical Structures")
+                for roi_pos, roi_name in enumerate(subc_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    subc_colorsr[roi_pos, 0],
+                                                                                    subc_colorsr[roi_pos, 1],
+                                                                                    subc_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Subcortical Structures")
+                for roi_pos, roi_name in enumerate(subc_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    subc_colorsl[roi_pos, 0],
+                                                                                    subc_colorsl[roi_pos, 1],
+                                                                                    subc_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+
+            elif parccode[1] == 'R':  # TODO
+                t = 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Thalamic parcellation ============== #####
+            if parccode[2] == 'F' or parccode[2] == 'R':
+
+                rh_luttable.append("# Right Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thalf_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    thalf_colorsr[roi_pos, 0],
+                                                                                    thalf_colorsr[roi_pos, 1],
+                                                                                    thalf_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thalf_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    thalf_colorsl[roi_pos, 0],
+                                                                                    thalf_colorsl[roi_pos, 1],
+                                                                                    thalf_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            elif parccode[2] == 'R':  # TODO
+
+                # Volumetric thalamic parcellation
+                volatlas_dir = os.path.join(deriv_dir, 'fsl-subcparc', subjId, sesId,
+                                    'anat')  # Subcortical parcellation based on Patenaude et al, 2011
+                parc_desc_lines.append(
+                    "# 3. Thalamic parcellation (R): FIRST thalamic parcellation")
+
+            elif parccode[2] == 'I':
+
+                rh_luttable.append("# Right Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thali_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    thali_colorsr[roi_pos, 0],
+                                                                                    thali_colorsr[roi_pos, 1],
+                                                                                    thali_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thali_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    thali_colorsl[roi_pos, 0],
+                                                                                    thali_colorsl[roi_pos, 1],
+                                                                                    thali_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            elif parccode[2] == 'M':
+
+                rh_luttable.append("# Right Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thalm_namesr):
+                    rh_luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    thalm_colorsr[roi_pos, 0],
+                                                                                    thalm_colorsr[roi_pos, 1],
+                                                                                    thalm_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Thalamic Structures")
+                for roi_pos, roi_name in enumerate(thalm_namesl):
+                    lh_luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    thalm_colorsr[roi_pos, 0],
+                                                                                    thalm_colorsr[roi_pos, 1],
+                                                                                    thalm_colorsr[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Amygdala parcellation ============== #####
+            if parccode[3] == 'F' or parccode[3] == 'R':
+
+                rh_luttable.append("# Right Hemisphere. Amygdala")
+                for roi_pos, roi_name in enumerate(amygf_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    amygf_colorsr[roi_pos, 0],
+                                                                                    amygf_colorsr[roi_pos, 1],
+                                                                                    amygf_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Amygdala")
+                for roi_pos, roi_name in enumerate(amygf_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    amygf_colorsl[roi_pos, 0],
+                                                                                    amygf_colorsl[roi_pos, 1],
+                                                                                    amygf_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+
+            elif parccode[3] == 'I':
+
+                rh_luttable.append("# Right Hemisphere. Amygdala Nuclei")
+                for roi_pos, roi_name in enumerate(amygi_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    amygi_colorsr[roi_pos, 0],
+                                                                                    amygi_colorsr[roi_pos, 1],
+                                                                                    amygi_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Amygdala Nuclei")
+                for roi_pos, roi_name in enumerate(amygi_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    amygi_colorsl[roi_pos, 0],
+                                                                                    amygi_colorsl[roi_pos, 1],
+                                                                                    amygi_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Hippocampus parcellation ============== #####
+            if parccode[4] == 'F' or parccode[4] == 'R':
+
+                rh_luttable.append("# Right Hemisphere. Hippocampus")
+                for roi_pos, roi_name in enumerate(hippf_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    hippf_colorsr[roi_pos, 0],
+                                                                                    hippf_colorsr[roi_pos, 1],
+                                                                                    hippf_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Hippocampus")
+                for roi_pos, roi_name in enumerate(hippf_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    hippf_colorsl[roi_pos, 0],
+                                                                                    hippf_colorsl[roi_pos, 1],
+                                                                                    hippf_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            elif parccode[4] == 'I':
+
+                rh_luttable.append("# Right Hemisphere. Hippocampus subfields")
+                for roi_pos, roi_name in enumerate(hippi_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    hippi_colorsr[roi_pos, 0],
+                                                                                    hippi_colorsr[roi_pos, 1],
+                                                                                    hippi_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Hippocampus subfields")
+                for roi_pos, roi_name in enumerate(hippi_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    hippi_colorsl[roi_pos, 0],
+                                                                                    hippi_colorsl[roi_pos, 1],
+                                                                                    hippi_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            elif parccode[4] == 'H':
+
+                rh_luttable.append(
+                    "# Right Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure")
+                for roi_pos, roi_name in enumerate(hipph_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    hipph_colorsr[roi_pos, 0],
+                                                                                    hipph_colorsr[roi_pos, 1],
+                                                                                    hipph_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append(
+                    "# Left Hemisphere. Hippocampus subfields grouped in Head, Body, Tail and Fissure")
+                for roi_pos, roi_name in enumerate(hipph_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    hipph_colorsl[roi_pos, 0],
+                                                                                    hipph_colorsl[roi_pos, 1],
+                                                                                    hipph_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+            ##### ========== Selecting Hypothalamus parcellation ============== #####
+            if parccode[5] == 'F':
+
+                # # Volumetric Hypothalamus parcellation (vol_yparc)
+                volatlas_dir = os.path.join(deriv_dir, 'freesurfer-volparc', subjId, sesId, 'anat')
+                vol_yparc = glob(volatlas_dir + os.path.sep + '*desikan*.nii.gz')
+                vol_yparc = vol_yparc[0]
+
+            elif parccode[5] == 'I':
+                rh_luttable.append("# Right Hemisphere. Hypothalamus nuclei")
+                for roi_pos, roi_name in enumerate(hypi_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    hypi_colorsr[roi_pos, 0],
+                                                                                    hypi_colorsr[roi_pos, 1],
+                                                                                    hypi_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Hypothalamus nuclei")
+                for roi_pos, roi_name in enumerate(hypi_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    hypi_colorsl[roi_pos, 0],
+                                                                                    hypi_colorsl[roi_pos, 1],
+                                                                                    hypi_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Cerebellum parcellation ============== #####
+            if parccode[6] == 'F':
+                rh_luttable.append("# Right Hemisphere. Cerebellum")
+                for roi_pos, roi_name in enumerate(cerebf_namesr):
+                    rh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_rh + roi_pos + 1, roi_name,
+                                                                                    cerebf_colorsr[roi_pos, 0],
+                                                                                    cerebf_colorsr[roi_pos, 1],
+                                                                                    cerebf_colorsr[roi_pos, 2], 0))
+                maxlab_rh = maxlab_rh + roi_pos + 1
+
+                lh_luttable.append("# Left Hemisphere. Cerebellum")
+                for roi_pos, roi_name in enumerate(cerebf_namesl):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    cerebf_colorsl[roi_pos, 0],
+                                                                                    cerebf_colorsl[roi_pos, 1],
+                                                                                    cerebf_colorsl[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            rh_luttable.append('\n')
+            lh_luttable.append('\n')
+
+            ##### ========== Selecting Brainstem parcellation ============== #####
+            lh_luttable.append("# Left Hemisphere. BrainStem parcellation")
+            if parccode[7] == 'F' or parccode[7] == 'R':
+                for roi_pos, roi_name in enumerate(bstemf_names):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    bstemf_colors[roi_pos, 0],
+                                                                                    bstemf_colors[roi_pos, 1],
+                                                                                    bstemf_colors[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            elif parccode[7] == 'I':
+                for roi_pos, roi_name in enumerate(bstemi_names):
+                    lh_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(maxlab_lh + roi_pos + 1, roi_name,
+                                                                                    bstemi_colors[roi_pos, 0],
+                                                                                    bstemi_colors[roi_pos, 1],
+                                                                                    bstemi_colors[roi_pos, 2], 0))
+                maxlab_lh = maxlab_lh + roi_pos + 1
+
+            lh_luttable.append('\n')
+            ##### ========== Selecting White matter parcellation ============== #####
+            if parccode[8] == 'F':
+
+                # # Volumetric White matter parcellation (vol_wparc)
+                wm_luttable = ["# Global White Matter"]
+                wm_luttable.append(
+                    '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(3000, wm_names[0], wm_colors[0, 0], wm_colors[0, 1],
+                                                                wm_colors[0, 2], 0))
+                wm_luttable.append('\n')
+                wm_luttable.append("# Right Hemisphere. Gyral White Matter Structures")
+
+                # rh_scode, rh_ctab,
+                for roi_pos, roi_name in enumerate(rh_stnames):
+                    temp_name = 'wm-rh-{}'.format(roi_name.decode("utf-8"))
+                    wm_luttable.append(
+                        '{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(roi_pos + 3001, temp_name,
+                                                                    255 - rh_colors[roi_pos, 0],
+                                                                    255 - rh_colors[roi_pos, 1],
+                                                                    255 - rh_colors[roi_pos, 2],
+                                                                    0))
+                wm_luttable.append('\n')
+
+                wm_luttable.append("# Left Hemisphere. Gyral White Matter Structures")
+                for roi_pos, roi_name in enumerate(lh_stnames):
+                    temp_name = 'wm-lh-{}'.format(roi_name.decode("utf-8"))
+                    wm_luttable.append('{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format(nroi_right + roi_pos + 3001, temp_name,
+                                                                                    255 - lh_colors[roi_pos, 0],
+                                                                                    255 - lh_colors[roi_pos, 1],
+                                                                                    255 - lh_colors[roi_pos, 2], 0))
+
+            elif parccode[8] == 'N':
+                vol_wparc = []
+                parc_desc_lines.append("# 9. White matter parcellation (N): No WM segmentation.")
+
+            for gparc in grow_parcs:
+
+                # Reading the cortical parcellation
+                temp_iparc = nib.load(gparc)
+                affine = temp_iparc.affine
+                temp_iparc = temp_iparc.get_fdata()
+
+                out_atlas = np.zeros(np.shape(temp_iparc), dtype='int16')
+
+                # Adding cortical regions (Right Hemisphere)
+
+                ind = np.where(np.logical_and(temp_iparc > 2000, temp_iparc < 3000))
+                out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones((len(ind[0]),)) * 2000
+
+                # Adding the rest of the regions (Right Hemisphere)
+                ind = np.where(outparc_rh > 0)
+                out_atlas[ind[0], ind[1], ind[2]] = outparc_rh[ind[0], ind[1], ind[2]] + np.ones((len(ind[0]),)) * nctx_rh
+
+                # Adding cortical regions (Left Hemisphere)
+                ind = np.where(np.logical_and(temp_iparc > 1000, temp_iparc < 2000))
+                out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones(
+                    (len(ind[0]),)) * 1000 + np.ones(
+                    (len(ind[0]),)) * nroi_right
+
+                # Adding the rest of the regions (Left Hemisphere + Brainstem)
+                ind = np.where(outparc_lh > 0)
+                out_atlas[ind[0], ind[1], ind[2]] = outparc_lh[ind[0], ind[1], ind[2]] + np.ones(
+                    (len(ind[0]),)) * nctx_lh + np.ones((len(ind[0]),)) * nroi_right
+
+                # Adding global white matter
+                bool_ind = np.in1d(temp_iparc, wm_codes)
+                bool_ind = np.reshape(bool_ind, np.shape(temp_iparc))
+                ind      = np.where(bool_ind)
                 out_atlas[ind[0], ind[1], ind[2]] = 3000
 
-                # Adding left white matter
-            ind = np.where(np.logical_and(temp_iparc > 3000, temp_iparc < 4000))
+                # Adding right white matter
+                ind      = np.where(np.logical_and(temp_iparc > 4000, temp_iparc < 5000))
 
-            if parccode[8] == 'F':
-                out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] + np.ones((len(ind[0]),)) * nroi_right
-            else:
-                out_atlas[ind[0], ind[1], ind[2]] = 3000
+                if parccode[8] == 'F':
+                    out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] - np.ones((len(ind[0]),)) * 1000
+                else:
+                    out_atlas[ind[0], ind[1], ind[2]] = 3000
 
-            # Creating output filename using pybids
-            ######## ------------- Creating the full ID. It is used for a correct image file naming. ------------ #
-            # if 'session' in ent_dict.keys():
-            #     pattern = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.nii.gz"
-            #     patternlut = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.lut"
-            #     patterntsv = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.tsv"
-            # else:
-            #     pattern = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.nii.gz"
-            #     patternlut = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.lut"
-            #     patterntsv = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.tsv"
+                    # Adding left white matter
+                ind = np.where(np.logical_and(temp_iparc > 3000, temp_iparc < 4000))
 
-            fname            = os.path.basename(gparc)
-            templist         = fname.split('_')
-            tempVar          = [s for s in templist if "desc-" in s]  # Left cortical parcellation
-            descid           = tempVar[0].split('-')[1]
+                if parccode[8] == 'F':
+                    out_atlas[ind[0], ind[1], ind[2]] = temp_iparc[ind[0], ind[1], ind[2]] + np.ones((len(ind[0]),)) * nroi_right
+                else:
+                    out_atlas[ind[0], ind[1], ind[2]] = 3000
 
-            # laydict          = layout.parse_file_entities(gparc)
-            # laydict["atlas"] = 'chimera' + parccode
-            # laydict["desc"]  = descid
+                # Creating output filename using pybids
+                ######## ------------- Creating the full ID. It is used for a correct image file naming. ------------ #
+                # if 'session' in ent_dict.keys():
+                #     pattern = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.nii.gz"
+                #     patternlut = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.lut"
+                #     patterntsv = "sub-{subject}_ses-{session}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.tsv"
+                # else:
+                #     pattern = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.nii.gz"
+                #     patternlut = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.lut"
+                #     patterntsv = "sub-{subject}_run-{run}_space-{space}[_atlas-{atlas}][_desc-{desc}]_{suffix}.tsv"
 
-            base_id = fullid.split('_')
-            base_id.append('space-orig')
-            base_id.append('atlas-' + 'chimera' + parccode)
-            base_id.append('desc-' + descid)
+                fname            = os.path.basename(gparc)
+                templist         = fname.split('_')
+                tempVar          = [s for s in templist if "desc-" in s]  # Left cortical parcellation
+                descid           = tempVar[0].split('-')[1]
 
-            # Saving the parcellation
-            outparcFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.nii.gz')
-            imgcoll          = nib.Nifti1Image(out_atlas.astype('int16') , affine)
-            nib.save(imgcoll, outparcFilename)
+                # laydict          = layout.parse_file_entities(gparc)
+                # laydict["atlas"] = 'chimera' + parccode
+                # laydict["desc"]  = descid
 
-            # Saving the colorLUT
-            colorlutFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.lut')
+                base_id = fullid.split('_')
+                base_id.append('space-orig')
+                base_id.append('atlas-' + 'chimera' + parccode)
+                base_id.append('desc-' + descid)
 
-            now              = datetime.now()
-            date_time        = now.strftime("%m/%d/%Y, %H:%M:%S")
-            time_lines       = ['# $Id: {} {} \n'.format(colorlutFilename, date_time),
-                                '# Corresponding parcellation: ',
-                                '# ' + outparcFilename + '\n']
+                # Saving the parcellation
+                outparcFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.nii.gz')
+                imgcoll          = nib.Nifti1Image(out_atlas.astype('int16') , affine)
+                nib.save(imgcoll, outparcFilename)
 
-            hdr_lines        = ['{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format("#No.", "Label Name:", "R", "G", "B", "A")]
-            lut_lines        = time_lines + parc_desc_lines + hdr_lines + rh_luttable + lh_luttable + wm_luttable
-            with open(colorlutFilename, 'w') as colorLUT_f:
-                colorLUT_f.write('\n'.join(lut_lines))
+                # Saving the colorLUT
+                colorlutFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.lut')
 
-            st_codes_lut, st_names_lut, st_colors_lut = read_fscolorlut(colorlutFilename)
+                now              = datetime.now()
+                date_time        = now.strftime("%m/%d/%Y, %H:%M:%S")
+                time_lines       = ['# $Id: {} {} \n'.format(colorlutFilename, date_time),
+                                    '# Corresponding parcellation: ',
+                                    '# ' + outparcFilename + '\n']
 
-            # Saving the TSV
-            tsvFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.tsv')
-            _parc_tsv_table(st_codes_lut, st_names_lut, st_colors_lut, tsvFilename)
+                hdr_lines        = ['{:<4} {:<40} {:>3} {:>3} {:>3} {:>3}'.format("#No.", "Label Name:", "R", "G", "B", "A")]
+                lut_lines        = time_lines + parc_desc_lines + hdr_lines + rh_luttable + lh_luttable + wm_luttable
+                with open(colorlutFilename, 'w') as colorLUT_f:
+                    colorLUT_f.write('\n'.join(lut_lines))
+
+                st_codes_lut, st_names_lut, st_colors_lut = read_fscolorlut(colorlutFilename)
+
+                # Saving the TSV
+                tsvFilename = os.path.join(out_dir, '_'.join(base_id) + '_dseg.tsv')
+                _parc_tsv_table(st_codes_lut, st_names_lut, st_colors_lut, tsvFilename)
+
+
 
 def main():
     # 0. Handle inputs
@@ -2043,70 +2071,74 @@ def main():
     #
 
     # Getting the path of the current running python file
-    cwd        = os.getcwd()
-    bids_dir   = args.bidsdir[0]
-    deriv_dir  = args.derivdir[0]
-    parcodes  = args.parcodes[0].split(sep=',')
-    t1s2run_file = args.t1file[0]
-    growwm = args.growwm[0]
-    growwm = growwm.split(',')
-    # sId         = args.subjid[0]
-    # session     = args.sesid[0]
-    # run         = args.runid[0]
-
-    # temp = MyBIDs('/media/COSAS/Yasser/Work2Do/ReconVertDatabase/derivatives/mialabased-thalamicparc')
-
-    # Using pyBIDS
-    # layout = bids.BIDSLayout(bids_dir, validate=False, derivatives=False)
-    # t1s = layout.get(suffix='T1w' , extension='nii.gz', return_type='filename')
-
+    cwd          = os.getcwd()
+    bids_dirercts   = args.bidsdir[0].split(sep=',')
+    # deriv_dir    = args.derivdir[0]
+    deriv_dirercts   = args.derivdir[0].split(sep=',')
+    parcodes     = args.parcodes[0].split(sep=',')
+    t1s2run_file = args.t1s[0]
+    growwm       = args.growwm[0]
+    nthreads     = int(args.nthreads[0])
+    growwm       = growwm.split(',')
+    
     # Avoiding the layout to decrease indexing time
     suffix = "T1w"
     extension = 'nii'
     cad2look = '*_{}.{}*'.format(suffix, extension)
     t1s = []
-    for path, subdir, files in os.walk(bids_dir):
-        if not deriv_dir in path:
-            for file in glob(os.path.join(path, cad2look)):
-                t1s.append(file)
+
+    for cont, bids_dir in enumerate(bids_dirercts):
+        if len(bids_dirercts) == len(deriv_dirercts):
+            deriv_dir = deriv_dirercts[cont]
+        else:
+            deriv_dir = deriv_dirercts[0]
+
+        for path, subdir, files in os.walk(bids_dir):
+            if not deriv_dir in path:
+                for file in glob(os.path.join(path, cad2look)):
+                    t1s.append(file)
 
 
-    if os.path.isfile(t1s2run_file):
-        t1s = _select_t1s(t1s, t1s2run_file)
+        if os.path.isfile(t1s2run_file):
+            t1s = _select_t1s(t1s, t1s2run_file)
+        else:
+            t12run = t1s2run_file.split(',')
+            t1s = [s for s in t1s if any(xs in s for xs in t12run)]
 
-    # parcodes = ['KFMFIIFIF', 'SFMFIIFIF', 'CFMFIIFIF']
+        # parcodes = ['KFMFIIFIF', 'SFMFIIFIF', 'CFMFIIFIF']
+        # t1s = t1s[0:93]
+        Nparc = len(parcodes)
+        nsubj = len(t1s)
+        
+        for p, parccode in enumerate(parcodes):
+            failed = []
+            print("Parcellation: % d"% (p+1), "of % d"% (Nparc))
+            if nthreads == 1:
+                for i, t1 in enumerate(t1s):
+                    # ent_dict = layout.parse_file_entities(t1)
 
-    Nparc = len(parcodes)
-    nsubj = len(t1s)
+                    t1_name = os.path.basename(t1)
+                    temp = t1_name.split("_")
+                    fullid = '_'.join(temp[:-1])
+                    _printprogressbar(i + 1, nsubj,
+                                    'Processing T1w --> ' + fullid + ': ' + '(' + str(i + 1) + '/' + str(nsubj) + ')')
+                    # _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode)
+                    _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm)
+            else:
+                start_time = time.perf_counter()
+                ndwis = len(t1s)
+                ncores = os.cpu_count()
 
-    for p, parccode in enumerate(parcodes):
-        failed = []
-        print("Parcellation: % d"% (p+1), "of % d"% (Nparc))
+                if nthreads > 4:
+                    nthreads = nthreads - 4
+                with concurrent.futures.ProcessPoolExecutor(ncores) as executor:
+                #     results = [executor.submit(do_something, sec) for sec in secs]
+                    results = list(executor.map(_build_parcellation, t1s,
+                    [bids_dir] * ndwis, [deriv_dir] * ndwis, [parccode] * ndwis, [growwm] * ndwis))
 
-        for i, t1 in enumerate(t1s):
-            # ent_dict = layout.parse_file_entities(t1)
+                end_time = time.perf_counter()
 
-            t1_name = os.path.basename(t1)
-            temp = t1_name.split("_")
-            fullid = '_'.join(temp[:-1])
-            _printprogressbar(i + 1, nsubj,
-                              'Processing T1w --> ' + fullid + ': ' + '(' + str(i + 1) + '/' + str(nsubj) + ')')
-            # _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode)
-            _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm)
-
-        # for i, subjid in enumerate(subjids):
-        #     sesids = layout.get_session(return_type='id', target='session', subject=subjid)
-        #     # sesids = bidsdict[subjid]
-        #     if not sesids:
-        #
-        #     else:
-        #         for sesid in sesids:
-        #             try:
-        #                 build_parcellation(bids_dir, subjid, sesid, 'run-1', parccode)
-        #             except:
-        #                 failed.append(subjid + '_' + sesid)
-        #         printProgressBar(i + 1, nsubj,
-        #                      'Computing MaxProb Images: Subject ' + '(' + str(i + 1) + '/' + str(nsubj) + ')')
+                print(f'Finished in {end_time - start_time} seconds (s)...')
 
 
 if __name__ == "__main__":

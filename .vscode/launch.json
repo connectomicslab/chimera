@@ -1,0 +1,17 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--bidsdir", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset", "--derivdir", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset/derivatives", "--parcodes", "SFIIHIFIF,HFIIHIFIF,LFMIHIFIF,SFMIHIFIF,HFMIHIFIF", "-g", "wm,0,1,2","--t1s", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset/derivatives/allIds.txt","--nthreads","1"]
+        }
+    ]
+}
