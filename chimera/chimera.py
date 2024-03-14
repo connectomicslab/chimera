@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+
 import sys
 import numpy as np
 import pandas as pd
@@ -20,101 +21,9 @@ import scipy.ndimage as sc
 import concurrent.futures
 import time
 
-
-
-class SmartFormatter(argparse.HelpFormatter):
-
-    def _split_lines(self, text, width):
-        if text.startswith('R|'):
-            return text[2:].splitlines()
-        # this is the RawTextHelpFormatter._split_lines
-        return argparse.HelpFormatter._split_lines(self, text, width)
-
-
-class MyBIDs:
-    def __init__(self, bids_dir: str):
-        fold_list = os.listdir(bids_dir)
-        subjids = []
-        for it in fold_list:
-            if 'sub-' in it:
-                subjids.append(it)
-        subjids.sort()
-
-        bidsdict = {}
-
-        for subjid in subjids:
-            subjdir = os.path.join(bids_dir, subjid)
-            sesids = []
-            if os.path.isdir(subjdir):
-                fold_list = os.listdir(subjdir)
-                for it in fold_list:
-                    if 'ses-' in it:
-                        sesids.append(it)
-                sesids.sort()
-                bidsdict.__setitem__(subjid, sesids)
-        self.value = bidsdict
-
-    def add(self, key, value):
-        print(key)
-        print(value)
-        self[key] = value
-
-    def get_subjids(self, bids_dir: str):
-
-        fold_list = os.listdir(bids_dir)
-        subjids = []
-        for it in fold_list:
-            if 'sub-' in it:
-                subjids.append(it)
-        subjids.sort()
-        self.subjids = subjids
-        return subjids
-
-    def get_sesids(self, bids_dir: str, subjid):
-
-        sesids = []
-        subjdir = os.path.join(bids_dir, subjid)
-        if os.path.isdir(subjdir):
-            fold_list = os.listdir(subjdir)
-            for it in fold_list:
-                if 'ses-' in it:
-                    sesids.append(it)
-            sesids.sort()
-            self.sesids = sesids
-
-        return sesids
-
-# Print iterations progress
-def _printprogressbar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printend="\r"):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        printend    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledlength = int(length * iteration // total)
-    bar = fill * filledlength + '-' * (length - filledlength)
-    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printend)
-    # Print New Line on Complete
-    if iteration == total:
-        print()
-
-
-# Loading the JSON file containing the available parcellations
-def _load_parctype_json():
-    cwd = os.getcwd()
-    serJSON = os.path.join(cwd, 'parcTypes.json')
-    with open(serJSON) as f:
-        data = json.load(f)
-
-    return data
+import templateflow.api as tf
+import clabtoolkit.misctools as clabmisc
+import clabtoolkit.surfacetools as clabsurf
 
 def _build_args_parser():
 
@@ -122,7 +31,8 @@ def _build_args_parser():
 
     from argparse import ArgumentParser
 
-    p = argparse.ArgumentParser(formatter_class=SmartFormatter, description='\n Help \n')
+
+    p = argparse.ArgumentParser(formatter_class=clabut.SmartFormatter, description='\n Help \n')
 
     requiredNamed = p.add_argument_group('Required arguments')
     requiredNamed.add_argument('--regions', '-r', action='store_true', required=False,
@@ -205,7 +115,6 @@ def _build_args_parser():
         sys.exit()
 
     return p
-
 
 def _print_availab_parcels(reg_name=None):
 
