@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-
 import sys
 import numpy as np
 import pandas as pd
-import tqdm
 from pathlib import Path
 import bids
 from bids import BIDSLayout
@@ -19,11 +17,140 @@ import json
 import subprocess
 import scipy.ndimage as sc
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait
+from concurrent.futures import as_completed
 import time
+import copy
+from threading import Lock
 
-import templateflow.api as tf
-import clabtoolkit.misctools as clabmisc
-import clabtoolkit.surfacetools as clabsurf
+from templateflow import api as tflow
+import clabtoolkit.misctools as cltmisc
+import clabtoolkit.freesurfertools as cltfree
+import clabtoolkit.parcellationtools as cltparc
+from rich.progress import Progress
+
+
+
+# Loading the JSON file containing the available parcellations
+def _pipeline_info(json_file:str=None):
+    """
+    Load the JSON file containing the pipeline configuration.
+    
+    Parameters:
+    ----------
+
+    Returns:
+        _type_: _description_
+    """
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.path.dirname(cwd)
+    # Get the absolute of this file
+    if json_file is None:
+        pipe_json = os.path.join(cwd, 'config', 'pipe_config.json')
+    else:
+        if os.path.isfile(json_file):
+            pipe_json = json_file
+        else:
+            raise ValueError("Please, provide a valid JSON file containing the pipeline configuration dictionary.")
+    
+    with open(pipe_json) as f:
+        pipe_dict = json.load(f)
+    
+    return pipe_dict
+
+# Loading the JSON file containing the available parcellations
+def _load_parcellations_info(json_file:str=None):
+    """
+    Load the JSON file containing the available parcellations
+    
+    Parameters:
+    ----------
+
+    Returns:
+        _type_: _description_
+    """
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.path.dirname(cwd)
+    # Get the absolute of this file
+    if json_file is None:
+        parcdict_json = os.path.join(cwd, 'config', 'supraregions_dictionary.json')
+    else:
+        if os.path.isfile(json_file):
+            parcdict_json = json_file
+        else:
+            raise ValueError("Please, provide a valid JSON file containing the parcellation dictionary.")
+    
+    with open(parcdict_json) as f:
+        parc_dict = json.load(f)
+        
+    
+    # Read all the tsv files 
+    
+    spr_files = glob(os.path.join(cwd, 'config', 'supraregions', '*.tsv'))
+    supra_dict = {}
+    for spr in spr_files:
+        spr_name = os.path.basename(spr).split('.')[0]
+        temp_df = pd.read_csv(spr, sep='\t')
+        sp_ids = temp_df["supraregion"].unique().tolist()
+        
+        # Create a dictionary for each supraregion
+        supra_dict[spr_name] = {}
+        
+        sint_dict = {} # Create a dictionary for each supraregion
+        for sid in sp_ids:
+            
+            # Create a sub dataframe for each supraregion
+            sub_df = temp_df.loc[temp_df["supraregion"] == sid]
+            
+            # For each supraregion id get the methods used to parcellate it
+            st_methods = temp_df.loc[temp_df["supraregion"] == sid, "method"].tolist()
+            st_methods = np.unique(st_methods).tolist()
+            
+            method_dict = {} # Create a dictionary for each method
+            for mid in st_methods:
+                
+                # Create a sub dataframe for each method
+                sub_df2 = sub_df.loc[sub_df["method"] == mid]
+                
+                # Get the hemispheres
+                st_hemi = sub_df2["hemi"].tolist()
+                
+                # Get the unique hemispheres
+                st_hemi = np.unique(st_hemi).tolist()
+                
+                hemi_dict = {} # Create a dictionary for each hemisphere
+                for hemi in st_hemi:
+                    
+                    # Create a sub dataframe for each hemisphere
+                    sub_df3 = sub_df2.loc[sub_df2["hemi"] == hemi]
+                    
+                    # Get the indexes of the regions
+                    indexes = sub_df3["index"].tolist()
+                    
+                    # Get the names of the regions
+                    names = sub_df3["name"].tolist()
+                    
+                    # Get the colors of the regions
+                    colors = sub_df3["color"].tolist()
+                    
+                    # Create a dictionary for each hemisphere
+                    temp_dict = {"index": indexes, "name": names, "color": colors}
+                    
+                    # Add the dictionary to the hemi_dict
+                    hemi_dict[hemi] = temp_dict
+                
+                # Add the dictionary to the method_dict
+                method_dict[mid] = hemi_dict
+            
+            # Add the dictionary to the supra_dict
+            sint_dict[sid] = method_dict
+        
+        # Add the dictionary to the supra_dict
+        supra_dict[spr_name] = sint_dict
+        
+        
+    return parc_dict, supra_dict    
 
 def _build_args_parser():
 
@@ -31,8 +158,7 @@ def _build_args_parser():
 
     from argparse import ArgumentParser
 
-
-    p = argparse.ArgumentParser(formatter_class=clabut.SmartFormatter, description='\n Help \n')
+    p = argparse.ArgumentParser(formatter_class=cltmisc.SmartFormatter, description='\n Help \n')
 
     requiredNamed = p.add_argument_group('Required arguments')
     requiredNamed.add_argument('--regions', '-r', action='store_true', required=False,
@@ -67,7 +193,7 @@ def _build_args_parser():
                                     "Use the --regions or -r options to show all the available parcellations for eact supra-region.\n"
                                     "\n")
     requiredNamed.add_argument('--nthreads', '-n', action='store', required=False, metavar='NTHREADS', type=str, nargs=1,
-                                help="R| Number of processes to run in parallel. \n", default=['1'])
+                                help="R| Number of processes to run in parallel (default= Number of cores - 4). \n", default=['auto'])
 
     requiredNamed.add_argument('--growwm', '-g', action='store', required=False, metavar='GROWWM', type=str, nargs=1,
                                 help="R| Grow of GM labels inside the white matter in mm. \n", default=['2'])
@@ -80,7 +206,7 @@ def _build_args_parser():
                                     "   sub-00001_ses-0001_run-2 \n"
                                     "   sub-00001_ses-0003_run-1\n"
                                     "   sub-00001_ses-post_acq-mprage\n"
-                                    " \n", default='None')
+                                    " \n", default=None)
     requiredNamed.add_argument('--force', '-f', action='store_true', required=False,
                                 help="R| Overwrite the results. \n"
                                     "\n")
@@ -118,7 +244,7 @@ def _build_args_parser():
 
 def _print_availab_parcels(reg_name=None):
 
-    data = _load_parctype_json()
+    data, supra_dict = _load_parcellations_info()
 
     if reg_name is None:
         supra_keys = data.keys()
@@ -128,7 +254,7 @@ def _print_availab_parcels(reg_name=None):
             parc_help = '{} "{}:\n"'.format(parc_help, sup)
             print(sup + ':')
             for opts in parc_opts:
-                desc = data[sup][opts]["Atlas"]
+                desc = data[sup][opts]["Name"]
                 cita = data[sup][opts]["Citation"]
                 parc_help = '{} "{}: {} {}\n"'.format(parc_help, opts, desc, cita)
                 print('     {}: {} {}'.format(opts, desc, cita))
@@ -137,67 +263,10 @@ def _print_availab_parcels(reg_name=None):
         parc_opts = data[reg_name]
         print(reg_name + ':')
         for opts in parc_opts:
-            desc = data[reg_name][opts]["Atlas"]
+            desc = data[reg_name][opts]["Name"]
             cita = data[reg_name][opts]["Citation"]
             print('     {}: {} {}'.format(opts, desc, cita))
         print('')
-
-
-def _get_region_features(im_parc, st_codes, st_names, st_red, st_green, st_blue):
-    # Extract the code, name and RGB triplet from colorLUT file for the structures appearing in the image im_parc
-    temp    = np.unique(im_parc)
-    ind_non = np.nonzero(temp)
-    temp    = temp[ind_non[0]]
-    temp    = temp.astype(int)
-    pos     = search(st_codes, temp)
-
-    reg_codes = list(itemgetter(*pos)(st_codes))
-    reg_names = list(itemgetter(*pos)(st_names))
-    reg_red   = list(itemgetter(*pos)(st_red))
-    reg_green = list(itemgetter(*pos)(st_green))
-    reg_blue  = list(itemgetter(*pos)(st_blue))
-
-    return reg_codes, reg_names, reg_red, reg_green, reg_blue
-
-
-def _my_ismember(a, b):
-    values, indices = np.unique(a, return_inverse=True)
-    is_in_list = np.isin(a, b)
-    idx = indices[is_in_list].astype(int)
-
-    return values, idx
-
-def _parc_tsv_table(codes, names, colors, tsv_filename):
-    # Table for parcellation
-    # 1. Converting colors to hexidecimal string
-    seg_hexcol = []
-    nrows, ncols = colors.shape
-    for i in np.arange(0, nrows):
-        seg_hexcol.append(rgb2hex(colors[i, 0], colors[i, 1], colors[i, 2]))
-
-    bids_df = pd.DataFrame(
-        {
-            'index': np.asarray(codes),
-            'name': names,
-            'color': seg_hexcol
-        }
-    )
-    #     print(bids_df)
-    # Save the tsv table
-    with open(tsv_filename, 'w+') as tsv_file:
-        tsv_file.write(bids_df.to_csv(sep='\t', index=False))
-
-
-# Find Structures
-def _search_in_atlas(in_atlas, st_tolook, out_atlas, labmax):
-    for i, v in enumerate(st_tolook):
-        result = np.where(in_atlas == v)
-        out_atlas[result[0], result[1], result[2]] = i + labmax + 1
-    #         print('%u === %u', v, i + labmax + 1)
-
-    labmax = labmax + len(st_tolook)
-    return out_atlas, labmax
-
 
 # Search the value inside a vector
 def search(values, st_tolook):
@@ -206,21 +275,6 @@ def search(values, st_tolook):
         index = values.index(v)
         ret.append(index)
     return ret
-
-
-def rgb2hex(r, g, b):
-    return "#{:02x}{:02x}{:02x}".format(r, g, b)
-
-
-def hex2rgb(hexcode):
-    return tuple(map(ord, hexcode[1:].decode('hex')))
-
-
-def _find_images_in_path(new_path, str_ext):
-    # This function finds images in a folder that contain certain string in its file name
-    temp_var = glob(new_path + os.path.sep + str_ext)
-
-    return temp_var
 
 
 def _subfields2hbt(temp_ip, hipp_codes):
@@ -263,60 +317,52 @@ def _select_t1s(t1s, t1file):
     return out_t1s
 
 
-def tissue_seg_table(tsv_filename):
-    # Table for tissue segmentation
-    # 1. Default values for tissues segmentation table
-    seg_rgbcol = np.array([[172, 0, 0], [0, 153, 76], [0, 102, 204]])
-    seg_codes = np.array([1, 2, 3])
-    seg_names = ['cerebro_spinal_fluid', 'gray_matter', 'white_matter']
-    seg_acron = ['CSF', 'GM', 'WM']
 
-    # 2. Converting colors to hexidecimal string
-    seg_hexcol = []
-    nrows, ncols = seg_rgbcol.shape
-    for i in np.arange(0, nrows):
-        seg_hexcol.append(rgb2hex(seg_rgbcol[i, 0], seg_rgbcol[i, 1], seg_rgbcol[i, 2]))
-
-    bids_df = pd.DataFrame(
-        {
-            'index': seg_codes,
-            'name': seg_names,
-            'abbreviation': seg_acron,
-            'color': seg_hexcol
-        }
-    )
-    # Save the tsv table
-    with open(tsv_filename, 'w+') as tsv_file:
-        tsv_file.write(bids_df.to_csv(sep='\t', index=False))
-
-
-def read_fscolorlut(lutFile):
-    # Readind a color LUT file
-    fid = open(lutFile)
-    LUT = fid.readlines()
-    fid.close()
-
-    # Make dictionary of labels
-    LUT = [row.split() for row in LUT]
-    st_names = []
-    st_codes = []
-    cont = 0
-    for row in LUT:
-        if len(row) > 1 and row[0][0] != '#' and row[0][0] != '\\\\':  # Get rid of the comments
-            st_codes.append(int(row[0]))
-            st_names.append(row[1])
-            if cont == 0:
-                st_colors = np.array([[int(row[2]), int(row[3]), int(row[4])]])
-            else:
-                ctemp = np.array([[int(row[2]), int(row[3]), int(row[4])]])
-                st_colors = np.append(st_colors, ctemp, axis=0)
-            cont = cont + 1
-
-    return st_codes, st_names, st_colors
-
-
-def _launch_annot2ind(fs_annot, ind_annot, hemi, out_dir, fullid, atlas):
-
+def _launch_annot2ind(fssubj_dir: str,
+                        fs_annot: str, 
+                        ind_annot: str, 
+                        hemi: str, 
+                        out_dir: str, 
+                        fullid: str, 
+                        atlas: str,
+                        cont_tech: str = "local",
+                        cont_image: str = None):
+    """
+    Map ANNOT parcellation files to individual space.
+    
+    Parameters:
+    ----------
+    fssubj_dir : str
+        FreeSurfer subjects directory
+        
+    fs_annot : str
+        FreeSurfer GCS parcellation file
+        
+    ind_annot : str
+        Individual space annotation file
+        
+    hemi : str
+        Hemisphere id ("lh" or "rh")
+        
+    out_dir : str
+        Output directory
+        
+    fullid : str
+        FreeSurfer ID
+        
+    atlas : str
+        Atlas ID
+        
+    cont_tech : str
+        Container technology ("singularity", "docker", "local")
+        
+    cont_image: str
+        Container image to use    
+        
+    """
+    
+    os.environ["SUBJECTS_DIR"] = fssubj_dir
+    
     # Creating the hemisphere id
     if hemi == 'lh':
         hemicad = 'L'
@@ -324,18 +370,71 @@ def _launch_annot2ind(fs_annot, ind_annot, hemi, out_dir, fullid, atlas):
         hemicad = 'R'
 
     # Moving the Annot to individual space
-    subprocess.run(['mri_surf2surf', '--srcsubject', 'fsaverage', '--trgsubject', fullid,
+    cmd_bashargs = ['mri_surf2surf', '--srcsubject', 'fsaverage', '--trgsubject', fullid,
                             '--hemi', hemi, '--sval-annot', fs_annot,
-                            '--tval', ind_annot],
-                            stdout=subprocess.PIPE, universal_newlines=True)
+                            '--tval', ind_annot]
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+
 
     # Copying the resulting annot to the output folder
-    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dparc.annot')
-    subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
-
+    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dseg.label.annot')
+    cmd_bashargs = ['cp', ind_annot, out_annot]    
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+    
+    # Correcting the parcellation file in order to refill the parcellation with the correct labels    
+    cort_parc = cltfree.AnnotParcellation(annot_file=out_annot)
+    label_file = os.path.join(fssubj_dir, fullid, 'label', hemi + '.cortex.label')
+    surf_file = os.path.join(fssubj_dir, fullid, 'surf', hemi + '.inflated')
+    cort_parc._fill_parcellation(corr_annot=out_annot, label_file=label_file, surf_file=surf_file)
+    
+    
     return out_annot
-
-def _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, hemi, out_dir, fullid, atlas):
+ 
+def _launch_gcs2ind(fssubj_dir: str, 
+                    fs_gcs: str, 
+                    ind_annot: str, 
+                    hemi: str, 
+                    out_dir: str, 
+                    fullid: str, 
+                    atlas: str, 
+                    cont_tech: str = "local", 
+                    cont_image: str = None):
+    """
+    Map GCS parcellation files to individual space.
+    
+    Parameters:
+    ----------
+    fssubj_dir : str
+        FreeSurfer subjects directory
+        
+    fs_gcs : str
+        FreeSurfer GCS parcellation file
+        
+    ind_annot : str
+        Individual space annotation file
+        
+    hemi : str
+        Hemisphere id ("lh" or "rh")
+        
+    out_dir : str
+        Output directory
+        
+    fullid : str
+        FreeSurfer ID
+        
+    atlas : str
+        Atlas ID
+        
+    cont_tech : str
+        Container technology ("singularity", "docker", "local")
+        
+    cont_image: str
+        Container image to use    
+        
+        
+    """
 
     # Creating the hemisphere id
     if hemi == 'lh':
@@ -346,29 +445,95 @@ def _launch_gcs2ind(fssubj_dir, fs_gcs, ind_annot, hemi, out_dir, fullid, atlas)
     # Moving the GCS to individual space
     cort_file = os.path.join(fssubj_dir, fullid, 'label', hemi + '.cortex.label')
     sph_file  = os.path.join(fssubj_dir, fullid, 'surf', hemi + '.sphere.reg')
-    subprocess.run(['mris_ca_label', '-l', cort_file, fullid, hemi, sph_file,
-                    fs_gcs, ind_annot], stdout=subprocess.PIPE, universal_newlines=True)
-
+    
+    cmd_bashargs = ['mris_ca_label', '-l', cort_file, fullid, hemi, sph_file,
+                    fs_gcs, ind_annot]
+    
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+    
     # Copying the resulting annot to the output folder
-    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dparc.annot')
-    subprocess.run(['cp', ind_annot, out_annot],
-                    stdout=subprocess.PIPE, universal_newlines=True)
+    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dseg.label.annot')
+    
+    cmd_bashargs = ['cp', ind_annot, out_annot]
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+
 
     return out_annot
 
-def _launch_freesurfer(t1file:str, fssubj_dir:str, fullid:str):
+def _launch_freesurfer(t1file:str, 
+                        fssubj_dir:str, 
+                        fullid:str, 
+                        cont_tech: str = "local", 
+                        cont_image: str = None):
+    """
+    Function to launch FreeSurfer recon-all for a given T1 image
+    
+    Parameters:
+    ----------
+    t1file : str
+        T1 image file
+    
+    fssubj_dir : str
+        FreeSurfer subjects directory
+        
+    fullid : str
+        Full subject id
+        
+    cont_tech : str
+        Container technology ("singularity", "docker", "local")
+        
+    cont_image: str
+        Container image to use
 
-
+    """
+    
+    # Setting the FreeSurfer subjects directory
     os.environ["SUBJECTS_DIR"] = fssubj_dir
+    cmd_bashargs = ['recon-all', '-subjid', '-i', t1file, fullid, '-all']
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
-    # Computing FreeSurfer
-    subprocess.run(['recon-all', '-subjid', '-i', t1file, fullid, '-all'],
-                    stdout=subprocess.PIPE, universal_newlines=True)
 
     return
 
 
-def _launch_surf2vol(fssubj_dir, out_dir, fullid, atlas, gm_grow):
+def _launch_surf2vol(fssubj_dir: str, 
+                        out_dir: str, 
+                        fullid: str, 
+                        atlas: str, 
+                        gm_grow: str, 
+                        cont_tech: str = "local", 
+                        cont_image: str = "local"):
+    
+    """
+    Create volumetric parcellation from annot files.
+    
+    Parameters:
+    ----------
+    fssubj_dir : str
+        FreeSurfer subjects directory
+
+    out_dir : str
+        Output directory
+        
+    fullid : str
+        FreeSurfer ID
+    
+    atlas : str
+        Atlas ID   
+        
+    gm_grow : str
+        Amount of milimiters to grow the GM labels
+        
+    cont_tech : str
+        Container technology ("singularity", "docker", "local")
+        
+    cont_image: str
+        Container image to use
+        
+    """
 
     if 'desc' not in atlas:
         atlas_str = atlas + '_desc-'
@@ -386,35 +551,109 @@ def _launch_surf2vol(fssubj_dir, out_dir, fullid, atlas, gm_grow):
 
         if g == '0':
             # Creating the volumetric parcellation using the annot files
-            subprocess.run(['mri_aparc2aseg', '--s', fullid, '--annot', atlas,
-                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol],
-                            stdout=subprocess.PIPE, universal_newlines=True)
+
+            cmd_bashargs = ['mri_aparc2aseg', '--s', fullid, '--annot', atlas,
+                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol]
+            cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+            subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
         else:
             # Creating the volumetric parcellation using the annot files
-            subprocess.run(['mri_aparc2aseg', '--s', fullid, '--annot', atlas, '--wmparc-dmax', g, '--labelwm',
-                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol],
-                            stdout=subprocess.PIPE, universal_newlines=True)
-
+            cmd_bashargs = ['mri_aparc2aseg', '--s', fullid, '--annot', atlas, '--wmparc-dmax', g, '--labelwm',
+                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol]
+            cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+            subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
         # Moving the resulting parcellation from conform space to native
         raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
-        subprocess.run(['mri_vol2vol', '--mov', out_vol, '--targ', raw_vol,
-                        '--regheader', '--o', out_vol, '--no-save-reg', '--interp', 'nearest'],
-                        stdout=subprocess.PIPE, universal_newlines=True)
-
+        
+        cmd_bashargs = ['mri_vol2vol', '--mov', out_vol, '--targ', raw_vol,
+                        '--regheader', '--o', out_vol, '--no-save-reg', '--interp', 'nearest']
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
         out_parc.append(out_vol)
 
     return out_parc
 
-def _parc_conform2native(cform_mgz, nat_nii, fssubj_dir, fullid):
+def _conform2native(cform_mgz: str, 
+                            nat_nii: str, 
+                            fssubj_dir: str, 
+                            fullid: str,
+                            interp_method: str = "nearest", 
+                            cont_tech: str = "local", 
+                            cont_image: str = "local"):
+    """
+    Moving image in comform space to native space
+    
+    Parameters:
+    ----------
+    cform_mgz : str
+        Image in conform space
+
+    nat_nii : str
+        Image in native space
+        
+    fssubj_dir : str
+        FreeSurfer subjects directory
+    
+    fullid : str
+        FreeSurfer ID   
+    
+    interp_method: str
+        Interpolation method ("nearest", "trilinear", "cubic")
+    
+    cont_tech : str
+        Container technology ("singularity", "docker", "local")
+        
+    cont_image: str
+        Container image to use
+        
+    """
+    
     # Moving the resulting parcellation from conform space to native
     raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
-    subprocess.run(['mri_vol2vol', '--mov', cform_mgz, '--targ', raw_vol,
-                    '--regheader', '--o', nat_nii, '--no-save-reg', '--interp', 'nearest'],
-                    stdout=subprocess.PIPE, universal_newlines=True)
+
+    cmd_bashargs = ['mri_vol2vol', '--mov', cform_mgz, '--targ', raw_vol,
+                    '--regheader', '--o', nat_nii, '--no-save-reg', '--interp', interp_method]
+    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
 def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_nii, out_str):
+    """
+    Compute atlas-based thalamic parcellation. 
+    
+    Parameters:
+    ----------
+    t1 : str
+        T1 image file
+        
+    vol_tparc : str
+        Output thalamic parcellation file
+        
+    deriv_dir : str
+        Derivative directory
+        
+    pathcad : str
+        Path to the CAD directory
+        
+    fullid : str
+        Full subject id
+        
+    aseg_nii : str
+        ASEG file
+        
+    out_str : str
+        Output string
+        
+    Returns:
+    --------
+    mial_thalparc : str
+        MIAL thalamic parcellation file
+        
+    
+    """
+    
 
     cwd = os.getcwd()
     thal_spam = os.path.join(cwd, 'thalamic_nuclei_MIALatlas', 'Thalamus_Nuclei-HCP-4DSPAMs.nii.gz')
@@ -431,9 +670,13 @@ def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_ni
     defFile = os.path.join(stransf_dir, fullid + '_space-MNI152NLin2009cAsym_')
     if not os.path.isfile(defFile + 'desc-t12mni_1InverseWarp.nii.gz'):
         # Registration to MNI template
-        subprocess.run(['antsRegistrationSyN.sh', '-d', '3', '-f', t1_temp, '-m', t1, '-t', 's',
-                        '-o', defFile + 'desc-t12mni_'],
-                        stdout=subprocess.PIPE, universal_newlines=True)
+        
+        cmd_bashargs = ['antsRegistrationSyN.sh', '-d', '3', '-f', t1_temp, '-m', t1, '-t', 's',
+                        '-o', defFile + 'desc-t12mni_']
+
+        cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        # subprocess.run(,
+        #                 stdout=subprocess.PIPE, universal_newlines=True)
 
     mial_dir = os.path.dirname(vol_tparc)
     # Creating ouput directory
@@ -459,6 +702,13 @@ def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_ni
     return mial_thalparc
 
 def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
+    
+    
+    
+    
+    
+    
+    
 
     volatlas_dir = os.path.dirname(vol_tparc)
 
@@ -478,7 +728,7 @@ def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
         thal_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'ThalamicNuclei.v12.T1.mgz')
 
         # Moving Thalamic parcellation to native space
-        _parc_conform2native(thal_mgz, vol_tparc, fssubj_dir, fullid)
+        _conform2native(thal_mgz, vol_tparc, fssubj_dir, fullid)
 
         out_parc = [vol_tparc]
 
@@ -491,11 +741,11 @@ def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
         # Moving Hippocampal and amygdala parcellation to native space
         lh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'lh.hippoAmygLabels-T1.v21.mgz')
         lh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-L_desc-' + out_str + '_dseg.nii.gz')
-        _parc_conform2native(lh_mgz, lh_gz, fssubj_dir, fullid)
+        _conform2native(lh_mgz, lh_gz, fssubj_dir, fullid)
 
         rh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'rh.hippoAmygLabels-T1.v21.mgz')
         rh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-R_desc-' + out_str + '_dseg.nii.gz')
-        _parc_conform2native(rh_mgz, rh_gz, fssubj_dir, fullid)
+        _conform2native(rh_mgz, rh_gz, fssubj_dir, fullid)
         out_parc = [lh_gz, rh_gz]
 
     elif parcid == 'hypothalamus':
@@ -509,7 +759,7 @@ def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
         # Moving Hypothalamus to native space
         hypo_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'hypothalamic_subunits_seg.v1.mgz')
         hypo_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-        _parc_conform2native(hypo_mgz, hypo_gz, fssubj_dir, fullid)
+        _conform2native(hypo_mgz, hypo_gz, fssubj_dir, fullid)
         out_parc = [hypo_gz]
 
     elif parcid == 'brainstem':
@@ -524,7 +774,7 @@ def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
         # Moving Hypothalamus to native space
         bs_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'brainstemSsLabels.v12.mgz')
         bs_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-        _parc_conform2native(bs_mgz, bs_gz, fssubj_dir, fullid)
+        _conform2native(bs_mgz, bs_gz, fssubj_dir, fullid)
         out_parc = [bs_gz]
 
     return out_parc
@@ -628,37 +878,39 @@ def _spams2maxprob(spamImage:str, thresh:float=0.05, maxpName:str=None, thalMask
 # def _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode):
 def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
-    # layout = bids.BIDSLayout(bids_dir, validate=False)
+    global layout
 
+    # Detecting the entities of the T1 image
+    ent_dict = layout.parse_file_entities(t1)
+    
+    if 'session' in ent_dict.keys():
+        pattern_fullid = "sub-{subject}_ses-{session}_run-{run}"
+        path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
+    else:
+        pattern_fullid = "sub-{subject}_run-{run}"
+        path_cad       = "sub-" + ent_dict["subject"]
+    
+    
     anat_dir = os.path.dirname(t1)
     t1_name = os.path.basename(t1)
     temp_entities = t1_name.split('_')[:-1]
     fullid = "_".join(temp_entities)
 
+    
+    if len(parccode) != 9:  # Length of the parcellation string
+        parccode = parccode.ljust(9, 'N')
+        
+    # Checking if the code is correct
+    bool_exit = False
+    supra_reg_names = list(parc_dict.keys())
+    for ord, sp in enumerate(supra_reg_names):
+        if parccode[ord] not in parc_dict[sp].keys() and parccode[ord] != 'N':
+            bool_exit = True
+            print(f"The parcellation code for the {sp} ({parccode[ord]}) is not correct.")
+            _print_availab_parcels(sp)
 
-
-    if "ses" in fullid:
-        ses_index = [i for i, s in enumerate(temp_entities) if 'ses' in s]
-        path_cad = temp_entities[0] + os.path.sep + temp_entities[ses_index[0]]
-    else:
-        path_cad = temp_entities[0]
-
-    # layout = BIDSLayout(anat_dir, validate=False)
-    # ent_dict = layout.parse_file_entities(t1)
-
-    # ######## ------------- Creating the full ID. It is used for a correct image file naming. ------------ #
-    # if 'session' in ent_dict.keys():
-    #     pattern_fullid = "sub-{subject}_ses-{session}_run-{run}"
-    #     path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
-    # else:
-    #     pattern_fullid = "sub-{subject}_run-{run}"
-    #     path_cad       = "sub-" + ent_dict["subject"]
-
-
-    # fullid             = os.path.basename(layout.build_path(ent_dict, pattern_fullid, validate=False))
-
-    ######## ------------- Reading the parcellation dictionary ------------ #
-    parcdict = _load_parctype_json()
+    if bool_exit:
+        raise ValueError("Incorrect parcellation code. Please, check the available codes.")
 
     ######## ------------- Detecting FreeSurfer Subjects Directory  ------------ #
     fshome_dir = os.getenv('FREESURFER_HOME')
@@ -669,262 +921,23 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
         print("The freesurfer subjects directory is not inside the derivative folder.")
         sys.exit()
 
-    ######## ------------- Reading FreeSurfer color lut table ------------ #
-    lutFile = os.path.join(fshome_dir, 'FreeSurferColorLUT.txt')
-    st_codes, st_names, st_colors = read_fscolorlut(lutFile)
-
-    ######## ------------- Labelling the structures ------------ #
-    # 1. ---------------- Detecting White matter  ------------------------- #
-    wm_codesl = np.array([2, 5001])
-    idx = search(st_codes, wm_codesl)
-    wm_namesl = ['wm-lh-brain-segmented', 'wm-lh-brain-unsegmented']
-    wm_colorsl = st_colors[idx]
-
-    wm_codesr = np.array([41, 5002])
-    idx = search(st_codes, wm_codesr)
-    wm_namesr = ['wm-rh-brain-segmented', 'wm-rh-brain-unsegmented']
-    wm_colorsr = st_colors[idx]
-
-    cc_codes = np.array([250, 251, 252, 253, 254, 255])
-    idx = search(st_codes, cc_codes)
-    cc_names = np.array(st_names)[idx].tolist()
-    prefix = 'wm-brain-'
-    cc_names = [prefix + s.lower() for s in cc_names]
-    cc_names = [s.replace('_', '-').lower() for s in cc_names]
-    cc_colors = st_colors[idx]
-
-    wm_codes = np.concatenate((wm_codesl.astype(int), wm_codesr.astype(int), cc_codes.astype(int)))
-    wm_names = ['wm-brain-white_matter']
-    wm_colors = np.array([[255, 255, 255]])
-
-    # 2. ---------------- Detecting Subcortical structures (Freesurfer) ------------------------- #
-    subc_codesl = np.array([11, 12, 13, 26])
-    idx = search(st_codes, subc_codesl)
-    subc_namesl = np.array(st_names)[idx].tolist()
-    subc_namesl = [s.replace('Left-', 'subc-lh-').lower() for s in subc_namesl]
-    subc_colorsl = st_colors[idx]
-
-    subc_codesr = np.array([50, 51, 52, 58])
-    idx = search(st_codes, subc_codesr)
-    subc_namesr = np.array(st_names)[idx].tolist()
-    subc_namesr = [s.replace('Right-', 'subc-rh-').lower() for s in subc_namesr]
-    subc_colorsr = st_colors[idx]
-
-    # 3. ---------------- Detecting Thalamic structures (Freesurfer) ------------------------- #
-    thalf_codesl = np.ones((1,), dtype=int) * 10
-    idx = [st_codes.index(thalf_codesl)]
-    # idx                = search(st_codes, thalf_codesl)
-    thalf_namesl = np.array(st_names)[idx].tolist()
-    thalf_namesl = [s.replace('Left-', 'thal-lh-').lower() for s in thalf_namesl]
-    thalf_colorsl = st_colors[idx]
-
-    thalf_codesr = np.ones((1,), dtype=int) * 49
-    idx = [st_codes.index(thalf_codesr)]
-    # idx                = search(st_codes, thalf_codesr)
-    thalf_namesr = np.array(st_names)[idx].tolist()
-    thalf_namesr = [s.replace('Right-', 'thal-rh-').lower() for s in thalf_namesr]
-    thalf_colorsr = st_colors[idx]
-
-    # 3. ---------------- Detection of Thalamic nuclei (Iglesias)------------ #
-    thali_codesl = np.array(
-        [8103, 8104, 8105, 8106, 8108, 8109, 8110, 8111, 8112, 8113, 8115, 8116, 8117, 8118, 8119, 8120, 8121, 8122,
-            8123, 8125, 8126, 8127, 8128, 8129, 8130, 8133, 8134])
-    thali_codesr = np.array(
-        [8203, 8204, 8205, 8206, 8208, 8209, 8210, 8211, 8212, 8213, 8215, 8216, 8217, 8218, 8219, 8220, 8221, 8222,
-            8223, 8225, 8226, 8227, 8228, 8229, 8230, 8233, 8234])
-
-    idx = search(st_codes, thali_codesl)
-    thali_namesl = np.array(st_names)[idx].tolist()
-    thali_colorsl = st_colors[idx]
-    thali_namesl = [s.replace('_', '-') for s in thali_namesl]
-    thali_namesl = [s.replace('Left-', 'thal-lh-').lower() for s in thali_namesl]
-
-    idx = search(st_codes, thali_codesr)
-    thali_namesr = np.array(st_names)[idx].tolist()
-    thali_colorsr = st_colors[idx]
-    thali_namesr = [s.replace('_', '-') for s in thali_namesr]
-    thali_namesr = [s.replace('Right-', 'thal-rh-').lower() for s in thali_namesr]
-
-    # 3. ---------------- Detection of Thalamic nuclei (MIAL)------------ #
-    thalm_codesl = np.array([1, 2, 3, 4, 5, 6, 7])
-    thalm_codesr = np.array([8, 9, 10, 11, 12, 13, 14])
-    thalm_names = ['pulvinar', 'ventral-anterior', 'mediodorsal', 'lateral-posterior-ventral-posterior-group',
-                    'pulvinar-medial-centrolateral-group', 'ventrolateral', 'ventral-posterior-ventrolateral-group']
-    prefix = "thal-lh-"
-    thalm_namesl = [prefix + s.lower() for s in thalm_names]
-    prefix = "thal-rh-"
-    thalm_namesr = [prefix + s.lower() for s in thalm_names]
-    thalm_colorsl = np.array(
-        [[255, 0, 0], [0, 255, 0], [255, 255, 0], [255, 123, 0], [0, 255, 255], [255, 0, 255], [0, 0, 255]])
-    thalm_colorsr = thalm_colorsl
-
-    # 4. ---------------- Detecting Amygdala structures (Freesurfer) ------------------------- #
-    amygf_codesl = np.ones((1,), dtype=int) * 18
-    idx = [st_codes.index(amygf_codesl)]
-
-    # idx                = search(st_codes, amygf_codesl)
-    amygf_namesl = np.array(st_names)[idx].tolist()
-    amygf_namesl = [s.replace('Left-', 'amygd-lh-').lower() for s in amygf_namesl]
-    amygf_colorsl = st_colors[idx]
-
-    amygf_codesr = np.ones((1,), dtype=int) * 54
-    idx = [st_codes.index(amygf_codesr)]
-
-    # idx                = search(st_codes, amygf_codesr)
-    amygf_namesr = np.array(st_names)[idx].tolist()
-    amygf_namesr = [s.replace('Right-', 'amygd-rh-').lower() for s in amygf_namesr]
-    amygf_colorsr = st_colors[idx]
-
-    # 4. ---------------- Detecting Amygdala nuclei (Iglesias) ------------------------- #
-    amygi_codesl = np.array([7001, 7003, 7005, 7006, 7007, 7008, 7009, 7010, 7015])
-    idx = search(st_codes, amygi_codesl)
-    amygi_namesl = np.array(st_names)[idx].tolist()
-    amygi_colorsl = st_colors[idx]
-
-    amygi_codesr = amygi_codesl
-    amygi_namesr = amygi_namesl
-    amygi_colorsr = amygi_colorsl
-
-    prefix = "amygd-lh-"
-    amygi_namesl = [prefix + s.lower() for s in amygi_namesl]
-    amygi_namesl = [s.replace('_', '-') for s in amygi_namesl]
-
-    prefix = "amygd-rh-"
-    amygi_namesr = [prefix + s.lower() for s in amygi_namesr]
-    amygi_namesr = [s.replace('_', '-') for s in amygi_namesr]
-
-    # 5. ---------------- Detecting Hippocampus structures (Freesurfer) ------------------------- #
-    hippf_codesl = np.ones((1,), dtype=int) * 17
-    idx = [st_codes.index(hippf_codesl)]
-
-    # idx                = search(st_codes, hippf_codesl)
-    hippf_namesl = np.array(st_names)[idx].tolist()
-    hippf_namesl = [s.replace('Left-', 'hipp-lh-').lower() for s in hippf_namesl]
-    hippf_colorsl = st_colors[idx]
-
-    hippf_codesr = np.ones((1,), dtype=int) * 53
-    idx = [st_codes.index(hippf_codesr)]
-
-    # idx                = search(st_codes, hippf_codesr)
-    hippf_namesr = np.array(st_names)[idx].tolist()
-    hippf_namesr = [s.replace('Right-', 'hipp-rh-').lower() for s in hippf_namesr]
-    hippf_colorsr = st_colors[idx]
-
-    # 5. ---------------- Detecting Hippocampus nuclei (Iglesias) ------------------------- #
-    hippi_codesl = np.array(
-        [203, 233, 235, 237, 239, 241, 243, 245, 211, 234, 236, 238, 240, 242, 244, 246, 212, 226, 215])
-    idx = search(st_codes, hippi_codesl)
-    hippi_namesl = np.array(st_names)[idx].tolist()
-    hippi_colorsl = st_colors[idx]
-
-    hippi_codesr = hippi_codesl
-    hippi_namesr = hippi_namesl
-    hippi_colorsr = hippi_colorsl
-
-    prefix = "hipp-lh-"
-    hippi_namesl = [prefix + s.lower() for s in hippi_namesl]
-    hippi_namesl = [s.replace('_', '-') for s in hippi_namesl]
-
-    prefix = "hipp-rh-"
-    hippi_namesr = [prefix + s.lower() for s in hippi_namesr]
-    hippi_namesr = [s.replace('_', '-') for s in hippi_namesr]
-
-    # 5. ---------------- Detecting Hippocampus nuclei and grouping in Head, Body and Tail (Iglesias) ------------------------- #
-    hipph_codesl = np.array([1, 2, 3, 4])
-    hipph_namesl = ['hipp-lh-hippocampus-head', 'hipp-lh-hippocampus-body', 'hipp-lh-hippocampus-tail',
-                    'hipp-lh-hippocampus-fissure']
-    hipph_colorsl = np.array([[255, 0, 0], [0, 255, 0], [255, 255, 0], [255, 123, 0]])
-
-    hipph_codesr = np.array([1, 2, 3, 4])
-    hipph_namesr = ['hipp-rh-hippocampus-head', 'hipp-rh-hippocampus-body', 'hipp-rh-hippocampus-tail',
-                    'hipp-rh-hippocampus-fissure']
-    hipph_colorsr = np.array([[255, 0, 0], [0, 255, 0], [255, 255, 0], [255, 123, 0]])
-
-    # 6. ---------------- Segmenting the hypothalamus using the VentralDC (Connectomics Lab) ------------ #
-    # Ventral DC Left
-    vdcf_codel = 28
-    vdcf_namesl = ["vdc-lh-ventraldc"]
-    vdcf_colorsl = np.array([[165, 42, 42]])
-
-    # Ventral DC Right
-    vdc_coder = 60
-    vdcf_namesr = ["vdc-rh-ventraldc"]
-    vdcf_colorsr = np.array([[165, 42, 42]])
-
-    # Third Ventricle
-    vent3_code = 14
-
-    # Hypothalamus
-    hypf_namesl  = ["hypo-lh-hypothalamus"]
-    hypf_colorsl = np.array([[204, 182, 142]])
-
-    hypf_namesr  = ["hypo-rh-hypothalamus"]
-    hypf_colorsr = np.array([[204, 182, 142]])
-
-    # 6. ---------------- Detection of hypothalamic nuclei (Iglesias) ------------ #
-    hypi_codesl = np.array([801, 802, 803, 804, 805])
-    hypi_codesr = np.array([806, 807, 808, 809, 810])
-
-    idx = search(st_codes, hypi_codesl)
-    hypi_namesl = np.array(st_names)[idx].tolist()
-    hypi_colorsl = st_colors[idx]
-    hypi_namesl = [s.replace('_', '-') for s in hypi_namesl]
-    hypi_namesl = [s.replace('L-hypothalamus-', 'hypo-lh-').lower() for s in hypi_namesl]
-
-    idx = search(st_codes, hypi_codesr)
-    hypi_namesr = np.array(st_names)[idx].tolist()
-    hypi_colorsr = st_colors[idx]
-    hypi_namesr = [s.replace('_', '-') for s in hypi_namesr]
-    hypi_namesr = [s.replace('R-hypothalamus-', 'hypo-rh-').lower() for s in hypi_namesr]
-
-    # 7. ---------------- Detecting Cerbellum structures (Freesurfer) ------------------------- #
-    cerebf_codesl = np.ones((1,), dtype=int) * 8
-    idx = [st_codes.index(cerebf_codesl)]
-    cerebf_namesl = ['cer-lh-cerebellum']
-    cerebf_colorsl = st_colors[idx]
-
-    cerebf_codesr = np.ones((1,), dtype=int) * 47
-    idx = [st_codes.index(cerebf_codesr)]
-    cerebf_namesr = ['cer-rh-cerebellum']
-    cerebf_colorsr = st_colors[idx]
-
-    # 8. ---------------- Detection of Brainstem (FreeSurfer) ------------ #
-    bstemf_codes = np.ones((1,), dtype=int) * 16
-    idx = search(st_codes, bstemf_codes)
-    bstemf_names = ['brain-stem-brainstem']
-    bstemf_colors = st_colors[idx]
-
-    # 8. ---------------- Detection of Brainstem (Iglesias) ------------ #
-    bstemi_codes = np.array([173, 174, 175, 178])
-    idx = search(st_codes, bstemi_codes)
-    bstemi_names = np.array(st_names)[idx].tolist()
-    bstemi_colors = st_colors[idx]
-    prefix = "brain-stem-"
-    bstemi_names = [prefix + s.lower() for s in bstemi_names]
-
-    ## ================ Creating the new parcellation
+    ## ================ Starting the global color lut table
     lut_lines = ['{:<4} {:<40} {:>3} {:>3} {:>3} {:>3} \n \n'.format("#No.", "Label Name:", "R", "G", "B", "A")]
     parc_desc_lines = ["# Parcellation code: " + parccode]
 
-    if len(parccode) != 9:  # Length of the parcellation string
-        parccode = parccode.ljust(9, 'N')
 
     ##### ========== Selecting the cortical parcellation ============== #####
-    try:
-        atlas_str     = parcdict["Cortical"][parccode[0]]["String"]
-        atlas_desc    = parcdict["Cortical"][parccode[0]]["Description"]
-        atlas_cita    = parcdict["Cortical"][parccode[0]]["Citation"]
-        atlas_type    = parcdict["Cortical"][parccode[0]]["Type"]
-        atlas_names   = parcdict["Cortical"][parccode[0]]["Name"]
-        atlas_surfloc = parcdict["Cortical"][parccode[0]]["OutSurfLocation"]
-        atlas_volloc  = parcdict["Cortical"][parccode[0]]["OutVolLocation"]
-        surfatlas_dir = os.path.join(deriv_dir, atlas_surfloc, path_cad, 'anat')
-        volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
-        parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-    except:
-        print("Incorrect cortical parcellation. The available parcellations are: ")
-        _print_availab_parcels("Cortical")
-        sys.exit(1)
+    atlas_str     = parc_dict["Cortical"][parccode[0]]["Atlas"]
+    atlas_desc    = parc_dict["Cortical"][parccode[0]]["Description"]
+    atlas_cita    = parc_dict["Cortical"][parccode[0]]["Citation"]
+    atlas_type    = parc_dict["Cortical"][parccode[0]]["Type"]
+    atlas_names   = parc_dict["Cortical"][parccode[0]]["Parcels"]
+    atlas_surfloc = parc_dict["Cortical"][parccode[0]]["OutSurfLocation"]
+    atlas_volloc  = parc_dict["Cortical"][parccode[0]]["OutVolLocation"]
+    surfatlas_dir = os.path.join(deriv_dir, atlas_surfloc, path_cad, 'anat')
+    volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
+    parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
+    
 
     # Finding FreeSurfer folder
     fs_indivdir = os.path.join(fssubj_dir, fullid)
@@ -937,7 +950,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
         out_sparc = glob(surfatlas_dir + os.path.sep + fullid + '*' + atlas_str + '*.annot')
 
         if len(out_sparc) != len(atlas_names)*2:
-            print("The selected cortical parcellation (" +  parcdict["Cortical"][parccode[0]]["Atlas"] + ") is not computed.")
+            print("The selected cortical parcellation (" +  parc_dict["Cortical"][parccode[0]]["Name"] + ") is not computed.")
             print("Trying to compute the correponding cortical parcellation.")
 
             cwd = os.getcwd()
@@ -955,7 +968,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                 # Mapping the annot file to individual space
                 # 1. Left Hemisphere
                 ind_annot     = os.path.join(fssubj_dir, fullid, 'label', 'lh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
-                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas + '_dparc.annot')
+                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas + '_dseg.label.annot')
                 if not os.path.isfile(out_annot):
                     if atlas_type == 'annot':
                         fs_annot  = os.path.join(atlas_dir,
@@ -975,7 +988,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                         elif atlas == "aparc.a2009s":
                             atlas_str = "atlas-destrieux_desc-a2009s"
 
-                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas_str + '_dparc.annot')
+                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-L_space-orig_' + atlas_str + '_dseg.label.annot')
                         subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
 
 
@@ -983,7 +996,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
                 # 2. Right Hemisphere
                 ind_annot = os.path.join(fssubj_dir, fullid, 'label', 'rh.' + atlas + '.annot') # Annot in individual space (freesurfer subject's directory)
-                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas + '_dparc.annot')
+                out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas + '_dseg.label.annot')
                 if not os.path.isfile(out_annot):
                     if atlas_type == 'annot':
                         fs_annot  = os.path.join(atlas_dir,
@@ -998,11 +1011,11 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                     elif atlas_type == 'freesurfer':
                         # Copying the resulting annot to the output folder
                         if atlas == "aparc":
-                            atlas_str = "atlas-desikan_desc-aparc"
+                            atlas_str = "atlas-Desikan2006"
                         elif atlas == "aparc.a2009s":
-                            atlas_str = "atlas-destrieux_desc-a2009s"
+                            atlas_str = "atlas-Destrieux2009"
 
-                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas_str + '_dparc.annot')
+                        out_annot = os.path.join(surfatlas_dir, fullid + '_hemi-R_space-orig_' + atlas_str + '_dseg.label.annot')
                         subprocess.run(['cp', ind_annot, out_annot], stdout=subprocess.PIPE, universal_newlines=True)
 
                 out_sparc.append(out_annot) # Annot in individual space (Atlases subject's directory)
@@ -1076,26 +1089,26 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                                     stdout=subprocess.PIPE, universal_newlines=True)
             temp_file = Path(aseg_nii)
             if temp_file.is_file():
-                aseg_parc = nib.load(temp_file)
-                aseg_parc = aseg_parc.get_fdata()
+                aseg_parc = cltparc.Parcellation(parc_file=vol_cparc[0])
+
             else:
                 print("Error: Cannot create the parcellation because there are missing files.\n")
                 sys.exit(1)
 
         if 'aseg_parc' in locals():
-            dim = aseg_parc.shape
+            dim = aseg_parc.data.shape
         else:
-            aseg_parc = nib.load(vol_cparc[0])
-            dim = aseg_parc.shape
+            aseg_parc = cltparc.Parcellation(parc_file=vol_cparc[0])
+            dim = aseg_parc.data.shape.shape
 
-        outparc_lh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the left hemisphere
-        outparc_rh = np.zeros((dim[0], dim[1], dim[2]), dtype='int16')  # Temporal parcellation for the right hemisphere
+        outparc_lh = np.zeros((dim[0], dim[1], dim[2]), dtype='uint16')  # Temporal parcellation for the left hemisphere
+        outparc_rh = np.zeros((dim[0], dim[1], dim[2]), dtype='uint16')  # Temporal parcellation for the right hemisphere
 
         # Loading FIRST parcellation
         if parccode[1] == 'R' or parccode[2] == 'R' or parccode[3] == 'R' or parccode[4] == 'R' or parccode[7] == 'R':
-            atlas_str = parcdict["Subcortical"]["R"]["String"]
-            atlas_desc = parcdict["Subcortical"]["R"]["Description"]
-            atlas_volloc = parcdict["Subcortical"]["R"]["OutVolLocation"]
+            atlas_str = parc_dict["Subcortical"]["R"]["Atlas"]
+            atlas_desc = parc_dict["Subcortical"]["R"]["Description"]
+            atlas_volloc = parc_dict["Subcortical"]["R"]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
 
             first_parc = os.path.join(volatlas_dir, fullid + '_space-orig_atlas-' + atlas_str + '_dseg.nii.gz')
@@ -1123,44 +1136,66 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                     ['rm', '-rf', 'temp*'],
                     stdout=subprocess.PIPE, universal_newlines=True)
 
-            first_parc = nib.load(first_parc)
+            first_parc = cltparc.Parcellation(parc_file=first_parc)
             first_parc = aseg_parc.get_fdata()
 
+
+        
+        
+        
+
+
         ##### ========== Selecting Subcortical parcellation ============== #####
-        try:
-            atlas_str  = parcdict["Subcortical"][parccode[1]]["String"]
-            atlas_desc = parcdict["Subcortical"][parccode[1]]["Description"]
-            atlas_cita    = parcdict["Subcortical"][parccode[1]]["Citation"]
-            atlas_volloc = parcdict["Subcortical"][parccode[1]]["OutVolLocation"]
+        if parccode[1] in parc_dict["Subcortical"].keys():
+            atlas_str = parc_dict["Subcortical"][parccode[1]]["Atlas"]
+            atlas_desc = parc_dict["Subcortical"][parccode[1]]["Description"]
+            atlas_cita = parc_dict["Subcortical"][parccode[1]]["Citation"]
+            atlas_volloc = parc_dict["Subcortical"][parccode[1]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
-        except:
+        else:
+            print("Incorrect subcortical parcellation. The available parcellations are: ")
             _print_availab_parcels("Subcortical")
             sys.exit(1)
 
+        # Get the regions index 
+        subc_codesl = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["lh"]["index"]
+        subc_namesl = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["lh"]["name"]
+        subc_colorsl = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["lh"]["color"]
+        
+        subc_codesr = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["rh"]["index"]
+        subc_namesr = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["rh"]["name"]
+        subc_colorsr = supra_dict["Subcortical"]["Subcortical"][parccode[1]]["rh"]["color"]
+        
         if parccode[1] == 'F':
+            
+            # Creating the left hemisphere
+            outparc_lh = copy.deepcopy(aseg_parc)
+            outparc_lh._keep_by_code(codes2look=subc_codesl, rearrange=True)
+            lh_lut = cltparc.Parcellation.write_luttable(codes=subc_codesl, names=subc_namesl, colors=subc_colorsl, headerlines=[" "])
+                        
+            # Creating the right hemisphere
+            outparc_rh = copy.deepcopy(aseg_parc)
+            outparc_rh._keep_by_code(codes2look=subc_codesr, rearrange=True)
+            rh_lut = cltparc.Parcellation.write_luttable(codes=subc_codesr, names=subc_namesr, colors=subc_colorsr, headerlines=[" "])
 
-            # Right Hemisphere
-            outparc_rh, st_lengtrh = _search_in_atlas(aseg_parc, subc_codesr, outparc_rh, 0)
-
-            # Left Hemisphere
-            outparc_lh, st_lengtlh = _search_in_atlas(aseg_parc, subc_codesl, outparc_lh, 0)
 
         elif parccode[1] == 'R':  # TODO
-            # Volumetric subcortical parcellation
-            # Right Hemisphere
-            outparc_rh, st_lengtrh = _search_in_atlas(first_parc, subc_codesr, outparc_rh, 0)
-
-            # Left Hemisphere
-            outparc_lh, st_lengtlh = _search_in_atlas(first_parc, subc_codesl, outparc_lh, 0)
+            # Creating the left hemisphere
+            outparc_lh = copy.deepcopy(first_parc)
+            outparc_lh._keep_by_code(codes2look=subc_codesl, rearrange=True)
+            
+            # Creating the right hemisphere
+            outparc_rh = copy.deepcopy(first_parc)
+            outparc_rh._keep_by_code(codes2look=subc_codesr, rearrange=True)
 
 
         ##### ========== Selecting Thalamic parcellation ============== #####
         try:
-            atlas_str = parcdict["Thalamus"][parccode[2]]["String"]
-            atlas_desc = parcdict["Thalamus"][parccode[2]]["Description"]
-            atlas_cita = parcdict["Thalamus"][parccode[2]]["Citation"]
-            atlas_volloc = parcdict["Thalamus"][parccode[2]]["OutVolLocation"]
+            atlas_str = parc_dict["Thalamus"][parccode[2]]["Atlas"]
+            atlas_desc = parc_dict["Thalamus"][parccode[2]]["Description"]
+            atlas_cita = parc_dict["Thalamus"][parccode[2]]["Citation"]
+            atlas_volloc = parc_dict["Thalamus"][parccode[2]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1223,10 +1258,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Amygdala parcellation ============== #####
         try:
-            atlas_str = parcdict["Amygdala"][parccode[3]]["String"]
-            atlas_desc = parcdict["Amygdala"][parccode[3]]["Description"]
-            atlas_cita = parcdict["Amygdala"][parccode[3]]["Citation"]
-            atlas_volloc = parcdict["Amygdala"][parccode[3]]["OutVolLocation"]
+            atlas_str = parc_dict["Amygdala"][parccode[3]]["Atlas"]
+            atlas_desc = parc_dict["Amygdala"][parccode[3]]["Description"]
+            atlas_cita = parc_dict["Amygdala"][parccode[3]]["Citation"]
+            atlas_volloc = parc_dict["Amygdala"][parccode[3]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1281,16 +1316,16 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Hippocampus parcellation ============== #####
         try:
-            atlas_str = parcdict["Hippocampus"][parccode[4]]["String"]
-            atlas_desc = parcdict["Hippocampus"][parccode[4]]["Description"]
-            atlas_cita = parcdict["Hippocampus"][parccode[4]]["Citation"]
-            atlas_volloc = parcdict["Hippocampus"][parccode[4]]["OutVolLocation"]
+            atlas_str = parc_dict["Hippocampus"][parccode[4]]["Atlas"]
+            atlas_desc = parc_dict["Hippocampus"][parccode[4]]["Description"]
+            atlas_cita = parc_dict["Hippocampus"][parccode[4]]["Citation"]
+            atlas_volloc = parc_dict["Hippocampus"][parccode[4]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
             if parccode[4] == 'H':
-                atlas_str_ig = parcdict["Hippocampus"]["I"]["String"]
-                atlas_volloc_ig = parcdict["Hippocampus"]["I"]["OutVolLocation"]
+                atlas_str_ig = parc_dict["Hippocampus"]["I"]["Atlas"]
+                atlas_volloc_ig = parc_dict["Hippocampus"]["I"]["OutVolLocation"]
                 volatlas_dir_ig = os.path.join(deriv_dir, atlas_volloc_ig, path_cad, 'anat')
 
         except:
@@ -1338,7 +1373,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
         elif parccode[4] == 'H':
 
             # Detecting the parcellation of hippocampal subfields
-            atlas_str_ig = parcdict["Hippocampus"]["I"]["String"]
+            atlas_str_ig = parc_dict["Hippocampus"]["I"]["Atlas"]
 
             # Hippocampus parcellation based on Iglesias et al, 2015
             vol_hparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str_ig + '*.nii.gz')
@@ -1378,10 +1413,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Hypothalamus parcellation ============== #####
         try:
-            atlas_str = parcdict["Hypothalamus"][parccode[5]]["String"]
-            atlas_desc = parcdict["Hypothalamus"][parccode[5]]["Description"]
-            atlas_cita = parcdict["Hypothalamus"][parccode[5]]["Citation"]
-            atlas_volloc = parcdict["Hypothalamus"][parccode[5]]["OutVolLocation"]
+            atlas_str = parc_dict["Hypothalamus"][parccode[5]]["Atlas"]
+            atlas_desc = parc_dict["Hypothalamus"][parccode[5]]["Description"]
+            atlas_cita = parc_dict["Hypothalamus"][parccode[5]]["Citation"]
+            atlas_volloc = parc_dict["Hypothalamus"][parccode[5]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1437,10 +1472,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Cerebellum parcellation ============== #####
         try:
-            atlas_str = parcdict["Cerebellum"][parccode[6]]["String"]
-            atlas_desc = parcdict["Cerebellum"][parccode[6]]["Description"]
-            atlas_cita = parcdict["Cerebellum"][parccode[6]]["Citation"]
-            atlas_volloc = parcdict["Cerebellum"][parccode[6]]["OutVolLocation"]
+            atlas_str = parc_dict["Cerebellum"][parccode[6]]["Atlas"]
+            atlas_desc = parc_dict["Cerebellum"][parccode[6]]["Description"]
+            atlas_cita = parc_dict["Cerebellum"][parccode[6]]["Citation"]
+            atlas_volloc = parc_dict["Cerebellum"][parccode[6]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1457,10 +1492,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Brainstem parcellation ============== #####
         try:
-            atlas_str = parcdict["Brainstem"][parccode[7]]["String"]
-            atlas_desc = parcdict["Brainstem"][parccode[7]]["Description"]
-            atlas_cita = parcdict["Brainstem"][parccode[7]]["Citation"]
-            atlas_volloc = parcdict["Brainstem"][parccode[7]]["OutVolLocation"]
+            atlas_str = parc_dict["Brainstem"][parccode[7]]["Atlas"]
+            atlas_desc = parc_dict["Brainstem"][parccode[7]]["Description"]
+            atlas_cita = parc_dict["Brainstem"][parccode[7]]["Citation"]
+            atlas_volloc = parc_dict["Brainstem"][parccode[7]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1489,10 +1524,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting white matter parcellation ============== #####
         try:
-            atlas_str = parcdict["GyralWM"][parccode[8]]["String"]
-            atlas_desc = parcdict["GyralWM"][parccode[8]]["Description"]
-            atlas_cita = parcdict["Cortical"][parccode[8]]["Citation"]
-            atlas_volloc = parcdict["GyralWM"][parccode[8]]["OutVolLocation"]
+            atlas_str = parc_dict["GyralWM"][parccode[8]]["Atlas"]
+            atlas_desc = parc_dict["GyralWM"][parccode[8]]["Description"]
+            atlas_cita = parc_dict["Cortical"][parccode[8]]["Citation"]
+            atlas_volloc = parc_dict["GyralWM"][parccode[8]]["OutVolLocation"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1964,6 +1999,236 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
                 _parc_tsv_table(st_codes_lut, st_names_lut, st_colors_lut, tsvFilename)
 
 
+# simple progress indicator callback function
+def progress_indicator(future):
+    """
+    A simple progress indicator for the concurrent futures
+    :param future: future object
+    
+    """
+    global lock, n_subj, n_comp, pb, pb1, parccode
+    # obtain the lock
+    with lock:
+        # update the counter
+        n_comp += 1
+        # report progress
+        # print(f'{tasks_completed}/{n_subj} completed, {n_subj-tasks_completed} remain.')
+        # pb.update(task_id=pb1, description= f'[red]Completed {n_comp}/{n_subj}', completed=n_subj)
+        pb.update(task_id=pb1, description= f'[red]{parccode}: Finished ({n_comp}/{n_subj})', completed=n_comp) 
+
+def test(name):
+    
+    
+    # Create folders with the name of the task
+    os.system('cp ' + name + ' /home/yaleman/Test/')
+    time.sleep(1)
+
+
+def code2table(code:str, 
+            lut_file:str=None, boolsave:bool=False):
+    """
+    Extract the LUT information from the LUT file.
+    
+    Parameters
+    ----------
+    code : str
+        The code of the parcellation.
+
+    lut_file : str
+        The LUT file.
+        
+    Returns
+    -------
+    st_codes_lut : list
+        List of codes.
+
+    st_names_lut : list
+        List of names.
+        
+    st_colors_lut : list
+        List of colors.
+        
+    """
+    
+    # Reading the parcellations dictionary
+    parc_dict, supra_dict = _load_parcellations_info()
+    
+    
+    
+    
+    
+
+def chimera_parcellation(bids_dir:str, 
+                        deriv_dir:str, 
+                        parcodes:list, 
+                        t1s2run_file:str = None, 
+                        growwm:list = [], 
+                        nthreads:int = 1):
+    """
+    Preparing chimera to build the parcellations.
+    
+    Parameters
+    ----------
+    bids_dir : str
+        The directory with the input dataset formatted according to the BIDS standard.
+        
+    deriv_dir : str
+        The directory where the output files are stored.
+        
+    parcodes : list
+        List of parcellations codes.
+        
+    t1s2run_file : str
+        File containing the list of T1w images to be processed.
+        
+    growwm : list
+        List of values, in mm, to grow the GM regions inside the WM.
+        
+    nthreads : int
+        Number of threads to be used.
+        
+    """
+
+    # Declaring global variables
+    global layout, pb, pb1, n_subj, n_comp, lock, parccode
+    
+    
+    ######## -- Reading the parcellation dictionary and supraregion tables ------------ #
+    parc_dict, supra_dict = _load_parcellations_info()
+    
+    ######## -- Reading the configuration dictionary  ------------ #
+    pipe_dict = _pipeline_info()
+
+    ######## ------------ Selecting the templates  ------------ #
+    if pipe_dict["templates"]["reference"]["tool"] == "templateflow":
+        ###########################################################
+        ################ Downloading the templates ################
+        ###########################################################
+        
+        # Setting templateflow home directory
+        tflow_dir = pipe_dict["packages"]["templateflow"]["home_dir"]
+        
+        if tflow_dir == "local":
+            
+            tflow_dir = os.environ.get('TEMPLATEFLOW_HOME')
+            
+            if tflow_dir is None:
+                # Setting the templateflow home directory in the same directory as the script
+                temp_dir = os.path.dirname(os.path.realpath(__file__))
+                
+                # Select the directory before 
+                temp_dir = os.path.dirname(temp_dir)
+                tflow_dir = os.path.join(temp_dir, 'templateflow')
+        
+        # Create the directory if it does not exist using the library Path
+        tflow_dir = Path(tflow_dir)
+        
+        # If the directory does not exist create the directory and if it fails because it does not have write access send an error
+        try:
+            tflow_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            print("The TemplateFlow directory does not have write access.")
+            sys.exit()
+            
+        if os.path.isdir(tflow_dir):        
+            # Setting the templateflow home directory
+            os.environ["TEMPLATEFLOW_HOME"] = tflow_dir.as_posix()
+            reload(api)
+            
+        else:
+            print("The TemplateFlow directory does not exist.")
+            sys.exit()
+            
+        # Getting the templates
+        # Reference space
+        temp_cad = pipe_dict["templates"]["reference"]["space"]
+        t1_temp = tflow.get(temp_cad, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
+        
+        # Getting the thalamic nuclei spams 
+        atlas_cad = pipe_dict["templates"]["spams"]["atlas"]
+        thal_spam = tflow.get(temp_cad, desc=None, resolution=1,atlas=atlas_cad, suffix='probseg', extension='nii.gz')
+        
+    else:
+        t1_temp = pipe_dict["templates"]["reference"]["space"]
+        if not os.path.isfile(t1_temp):
+            print("The template file does not exist.")
+            sys.exit()
+        
+        thal_spam = pipe_dict["templates"]["spams"]["atlas"]
+        if not os.path.isfile(thal_spam):
+            print("The thalamic atlas file does not exist.")
+            sys.exit()
+        
+        temp_cad = "CustomSpace"
+        atlas_cad = "CustomParc"
+    
+
+    # Selecting all the T1w images for each BIDS directory
+    layout = BIDSLayout(bids_dir, validate=False)
+    t1s = layout.get( extension=['nii.gz', 'nii'], suffix='T1w', return_type='filename')
+
+    # Filtering the T1w images to be processed
+    if os.path.isfile(t1s2run_file):
+        t1s = cltmisc._select_ids_from_file(t1s, t1s2run_file)
+    else:
+        t12run = t1s2run_file.split(',')
+        t1s = [s for s in t1s if any(xs in s for xs in t12run)]
+
+    n_parc = len(parcodes)
+    n_subj = len(t1s)
+
+
+    with Progress() as pb:
+        pb2 = pb.add_task('[green]Parcellation: ', total=n_parc)
+
+        # Loop around each parcellation
+        for p, parccode in enumerate(parcodes):
+            
+            # create a lock for the counter
+            lock = Lock()
+
+            # Completed subjects
+            n_comp = 0
+            failed = []
+            
+            pb.update(task_id=pb2, description= f'[green]Parcellation: {parccode} ({p+1}/{n_parc})', completed=p+1)
+            
+            # print("Parcellation: % d"% (p+1), "of % d"% (n_parc))
+            if nthreads == 1:
+                
+                pb1 = pb.add_task(f'[red]Processing: Parcellation {parccode} ({p + 1}/{n_parc}) ', total=n_subj)
+                for i, t1 in enumerate(t1s):
+                    # ent_dict = layout.parse_file_entities(t1)
+                    
+                    t1_name = os.path.basename(t1)
+                    temp = t1_name.split("_")
+                    full_id = '_'.join(temp[:-1])
+                    _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm)
+                    pb.update(task_id=pb1, description= f'[red]{parccode}: {full_id} ({i+1}/{n_subj})', completed=i+1) 
+                
+            else:
+                start_time = time.perf_counter()
+                
+                # create a progress bar for the subjects
+                pb1 = pb.add_task(f'[red]Processing: Parcellation {parccode} ({p + 1}/{n_parc}) ', total=n_subj)
+
+                # Adjusting the number of threads to the number of subjects
+                if n_subj < nthreads:
+                    nthreads = n_subj
+                    
+                # start the thread pool
+                with ThreadPoolExecutor(nthreads) as executor:
+                    # send in the tasks
+                    # futures = [executor.submit(_build_parcellation, t1s[i],
+                    # bids_dir, deriv_dir, parccode, growwm) for i in range(n_subj)]
+                    
+                    futures = [executor.submit(test, t1s[i]) for i in range(n_subj)]
+                    
+                    # register the progress indicator callback
+                    for future in futures:
+                        future.add_done_callback(progress_indicator)
+                    # wait for all tasks to complete
+
 
 def main():
     # 0. Handle inputs
@@ -1986,15 +2251,33 @@ def main():
     # deriv_dir    = args.derivdir[0]
     deriv_dirercts   = args.derivdir[0].split(sep=',')
     parcodes     = args.parcodes[0].split(sep=',')
-    t1s2run_file = args.t1s[0]
+    
+    if args.t1s is not None:
+        t1s2run_file = args.t1s[0]
+    else:
+        t1s2run_file = ''
+    
+    
     growwm       = args.growwm[0]
-    nthreads     = int(args.nthreads[0])
+    
+    # Detecting the number of cores to be used
+    ncores = os.cpu_count()
+    nthreads = args.nthreads[0]
+    if nthreads == 'auto':
+        nthreads = ncores
+        if nthreads > 4:
+            nthreads = nthreads - 4
+        else:
+            nthreads = 1
+    else:
+        nthreads     = int(args.nthreads[0])
+        
     growwm       = growwm.split(',')
     
+    # Removing empty elements from the parcellation list
+    parcodes = [x for x in parcodes if x]
+    
     # Avoiding the layout to decrease indexing time
-    suffix = "T1w"
-    extension = 'nii'
-    cad2look = '*_{}.{}*'.format(suffix, extension)
     t1s = []
 
     for cont, bids_dir in enumerate(bids_dirercts):
@@ -2002,54 +2285,14 @@ def main():
             deriv_dir = deriv_dirercts[cont]
         else:
             deriv_dir = deriv_dirercts[0]
-
-        for path, subdir, files in os.walk(bids_dir):
-            if not deriv_dir in path:
-                for file in glob(os.path.join(path, cad2look)):
-                    t1s.append(file)
-
-
-        if os.path.isfile(t1s2run_file):
-            t1s = _select_t1s(t1s, t1s2run_file)
-        else:
-            t12run = t1s2run_file.split(',')
-            t1s = [s for s in t1s if any(xs in s for xs in t12run)]
-
-        # parcodes = ['KFMFIIFIF', 'SFMFIIFIF', 'CFMFIIFIF']
-        # t1s = t1s[0:93]
-        Nparc = len(parcodes)
-        nsubj = len(t1s)
         
-        for p, parccode in enumerate(parcodes):
-            failed = []
-            print("Parcellation: % d"% (p+1), "of % d"% (Nparc))
-            if nthreads == 1:
-                for i, t1 in enumerate(t1s):
-                    # ent_dict = layout.parse_file_entities(t1)
-
-                    t1_name = os.path.basename(t1)
-                    temp = t1_name.split("_")
-                    fullid = '_'.join(temp[:-1])
-                    _printprogressbar(i + 1, nsubj,
-                                    'Processing T1w --> ' + fullid + ': ' + '(' + str(i + 1) + '/' + str(nsubj) + ')')
-                    # _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode)
-                    _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm)
-            else:
-                start_time = time.perf_counter()
-                ndwis = len(t1s)
-                ncores = os.cpu_count()
-
-                if nthreads > 4:
-                    nthreads = nthreads - 4
-                with concurrent.futures.ProcessPoolExecutor(ncores) as executor:
-                #     results = [executor.submit(do_something, sec) for sec in secs]
-                    results = list(executor.map(_build_parcellation, t1s,
-                    [bids_dir] * ndwis, [deriv_dir] * ndwis, [parccode] * ndwis, [growwm] * ndwis))
-
-                end_time = time.perf_counter()
-
-                print(f'Finished in {end_time - start_time} seconds (s)...')
-
+        chimera_parcellation(bids_dir, 
+                        deriv_dir, 
+                        parcodes, 
+                        t1s2run_file, 
+                        growwm, 
+                        nthreads)
+            
 
 if __name__ == "__main__":
     main()

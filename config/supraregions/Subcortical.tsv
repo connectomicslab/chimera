@@ -1,0 +1,17 @@
+supraregion	method	hemi	index	name	color
+Subcortical	F	lh	11	subc-lh-caudate	#7abadc
+Subcortical	F	lh	12	subc-lh-putamen	#ec0db0
+Subcortical	F	lh	13	subc-lh-pallidum	#0c30ff
+Subcortical	F	lh	26	subc-lh-accumbens-area	#ffa500
+Subcortical	R	lh	11	subc-lh-caudate	#7abadc
+Subcortical	R	lh	12	subc-lh-putamen	#ec0db0
+Subcortical	R	lh	13	subc-lh-pallidum	#0c30ff
+Subcortical	R	lh	26	subc-lh-accumbens-area	#ffa500
+Subcortical	F	rh	50	subc-rh-caudate	#7abadc
+Subcortical	F	rh	51	subc-rh-putamen	#ec0db0
+Subcortical	F	rh	52	subc-rh-pallidum	#0d30ff
+Subcortical	F	rh	58	subc-rh-accumbens-area	#ffa500
+Subcortical	R	rh	50	subc-rh-caudate	#7abadc
+Subcortical	R	rh	51	subc-rh-putamen	#ec0db0
+Subcortical	R	rh	52	subc-rh-pallidum	#0d30ff
+Subcortical	R	rh	58	subc-rh-accumbens-area	#ffa500

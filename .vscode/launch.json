@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--bidsdir", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset", "--derivdir", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset/derivatives", "--parcodes", "SFIIHIFIF,HFIIHIFIF,LFMIHIFIF,SFMIHIFIF,HFMIHIFIF", "-g", "wm,0,1,2","--t1s", "/media/yaleman/Database/LEENARDS/DLB_LEENAARDS/BIDsDataset/derivatives/allIds.txt","--nthreads","1"]
+            "args": ["--bidsdir", "/media/COSAS/Yasser/Work2Do/ReconVertDatabase/BIDsDataset/", "--derivdir", "/media/COSAS/Yasser/Work2Do/ReconVertDatabase/derivatives", "--parcodes", "LFMIHIFIF,SFMIHIFIF,", "-g", "2", "-n", "1"]
         }
     ]
 }

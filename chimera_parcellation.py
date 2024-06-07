@@ -20,8 +20,6 @@ import scipy.ndimage as sc
 import concurrent.futures
 import time
 
-
-
 class SmartFormatter(argparse.HelpFormatter):
 
     def _split_lines(self, text, width):

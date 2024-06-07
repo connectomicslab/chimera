@@ -77,7 +77,7 @@
             "Description":"# 1. Cortical parcellation (H): HCP-MMP1 cortical parcellation (Glasser et al, 2016).",
             "Citation":"(Glasser et al, 2016)",
             "Type":"gcs",
-            "Name":["atlas-hcpmm_desc-7p1"],
+            "Name":["atlas-hcpmm_desc-5p3","atlas-hcpmm_desc-6p0","atlas-hcpmm_desc-7p1"],
             "OutSurfLocation":"atlases-surfparc",
             "OutVolLocation":"atlases-volparc"},
 
@@ -86,7 +86,7 @@
             "Description":"# 1. Cortical parcellation (S): Schaefer multi-scale cortical parcellation. Ten scales going from 100 to 1000 parcels that are match with Yeo networks.",
             "Citation":"(Schaefer et al, 2018)",
             "Type":"annot",
-            "Name":["atlas-scha2018_desc-100p7n","atlas-scha2018_desc-200p7n"],
+            "Name":["atlas-scha2018_desc-100p7n","atlas-scha2018_desc-200p7n","atlas-scha2018_desc-300p7n","atlas-scha2018_desc-400p7n","atlas-scha2018_desc-500p7n","atlas-scha2018_desc-600p7n","atlas-scha2018_desc-700p7n","atlas-scha2018_desc-800p7n","atlas-scha2018_desc-900p7n","atlas-scha2018_desc-1000p7n","atlas-scha2018_desc-100p17n","atlas-scha2018_desc-200p17n","atlas-scha2018_desc-300p17n","atlas-scha2018_desc-400p17n","atlas-scha2018_desc-500p17n","atlas-scha2018_desc-600p17n","atlas-scha2018_desc-700p17n","atlas-scha2018_desc-800p17n","atlas-scha2018_desc-900p17n","atlas-scha2018_desc-1000p17n","atlas-scha2018_desc-100pkong17n","atlas-scha2018_desc-200pkong17n","atlas-scha2018_desc-300pkong17n","atlas-scha2018_desc-400pkong17n","atlas-scha2018_desc-500pkong17n","atlas-scha2018_desc-600pkong17n","atlas-scha2018_desc-700pkong17n","atlas-scha2018_desc-800pkong17n","atlas-scha2018_desc-900pkong17n","atlas-scha2018_desc-1000pkong17n"],
             "OutSurfLocation":"atlases-surfparc",
             "OutVolLocation":"atlases-volparc"},
 
@@ -224,7 +224,7 @@
               "Atlas":"FSHypoThalParc",
               "Description":"# 6. Hypothalamus parcellation (I): Hypothalamus parcellation.",
               "Citation":"(Billot et al, 2020)",
-              "OutVolLocation":"freesurfer-hypothalmicparc"}
+              "OutVolLocation":"freesurfer-hypothalmicparc"},
     },
 
     "Cerebellum": {

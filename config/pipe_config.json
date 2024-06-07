@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "force_overwrite": false,
+    "packages": 
+        {   
+            "templateflow": 
+            {
+                "home_dir": "local"
+            },         
+            "ants": 
+            {
+                "con_tech": "local",
+                "version": "2.3.1",
+                "container": "local"
+            },
+            "freesurfer": 
+            {
+                "con_tech": "local",
+                "version": "7.4.0",
+                "container": "local"
+            },
+            "fsl": 
+            {
+                "con_tech": "local",
+                "version": "6.10.0",
+                "container": "local"
+            }
+        },
+        "templates": 
+        {
+            "annots": 
+            {
+                "tool": "templateflow",
+                "space": "fsaverage7",
+                "folder": "ANNOT_Atlases"
+            },
+            "gcs":
+            {
+                "tool": "local",
+                "space": "fsaverage7",
+                "folder": "GCS_Atlases"
+            },
+            "volume": 
+            {
+                "tool": "templateflow",
+                "space": "MNI152NLin2009cAsym",
+                "folder": "Annot_Atlases"
+            }
+        }
+}

@@ -1,0 +1,11 @@
+supraregion	method	hemi	index	name	color
+Hypothalamus	I	lh	801	hypo-lh-anterior-inferior	#faff32
+Hypothalamus	I	lh	802	hypo-lh-anterior-superior	#50c8ff
+Hypothalamus	I	lh	803	hypo-lh-posterior	#ffa000
+Hypothalamus	I	lh	804	hypo-lh-tubular-inferior	#ffa0c8
+Hypothalamus	I	lh	805	hypo-lh-tubular-superior	#14b482
+Hypothalamus	I	rh	806	hypo-rh-anterior-inferior	#faff32
+Hypothalamus	I	rh	807	hypo-rh-anterior-superior	#50c8ff
+Hypothalamus	I	rh	808	hypo-rh-posterior	#ffa000
+Hypothalamus	I	rh	809	hypo-rh-tubular-inferior	#ffa0c8
+Hypothalamus	I	rh	810	hypo-rh-tubular-superior	#14b482
