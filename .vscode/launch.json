@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": ["--bidsdir", "/media/COSAS/Yasser/Work2Do/ReconVertDatabase/BIDsDataset/", "--derivdir", "/media/COSAS/Yasser/Work2Do/ReconVertDatabase/derivatives", "--parcodes", "LFMIHIFIF,SFMIHIFIF,", "-g", "2", "-n", "1"]
         }
     ]

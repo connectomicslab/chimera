@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+from os import PathLike
 import sys
 import numpy as np
 import pandas as pd
@@ -12,6 +13,8 @@ from glob import glob
 from operator import itemgetter
 from datetime import datetime
 import argparse
+from typing import Union
+
 import csv
 import json
 import subprocess
@@ -31,27 +34,287 @@ import clabtoolkit.parcellationtools as cltparc
 from rich.progress import Progress
 
 
+# Define the Chimera class. This class will be used to create and work with Chimera objects
+class Chimera:
+    """
+    Class to create and work with Chimera objects.
+    
+    Parameters
+    ----------
+    parc_code : str
+        Parcellation code.
+    parc_dict_file : str
+        Parcellation dictionary file.
+    supra_folder : str
+        Folder containing the supraregions TSV files.
+        
+    Returns
+    -------
+    Chimera object
+    
+    
+    """
+
+    def __init__(self, parc_code,
+                        scale: Union[str, list]  = None,
+                        seg: Union[str, list]  = None,
+                        parc_dict_file: str = None, 
+                        supra_folder: str = None):
+        """
+        Initialize the Chimera class
+        
+        Parameters
+        ----------
+        parc_code : str
+            Parcellation code.
+        parc_dict_file : str
+            Parcellation dictionary file.
+        supra_folder : str
+            Folder containing the supraregions TSV files.
+            
+        Returns
+        -------
+        Chimera object
+
+        """
+
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        chim_dir = os.path.dirname(cwd)
+
+        # Rise an error if the parcellation code is not provided
+        if parc_code is None:
+            raise ValueError("Please provide a parcellation code")
+        
+        
+        if parc_dict_file is not None:
+            if not os.path.isfile(parc_dict_file):
+                raise ValueError("The parcellation dictionary file does not exist")
+        else:
+            parc_dict_file = os.path.join(chim_dir, 'config', 'supraregions_dictionary.json')
+        
+        if supra_folder is not None:
+            if not os.path.isdir(supra_folder):
+                raise ValueError("The the folder containing the supra-regions TSV files is not valid")
+            else:
+                self.suprafolder = supra_folder
+        else:
+            self.suprafolder = os.path.join(chim_dir, 'config', 'supraregions')
+        
+        self.parc_dict, self.supra_dict = _load_parcellations_info(parc_json=parc_dict_file, supra_folder=supra_folder)
+
+        self.parc_code = parc_code
+        self.scale = scale
+        self.seg = seg
+
+
+    def _create_table(self, ):
+
+        # Reading the names of the supra-regions
+        supra_names = list(self.parc_dict.keys())
+
+        lh_all_codes  = []
+        rh_all_codes  = []
+        lh_all_names  = []
+        rh_all_names  = []
+        lh_all_colors = []
+        rh_all_colors = []
+        bs_all_codes  = []
+        bs_all_names  = []
+        bs_all_colors = []
+
+        # Getting the information of the cortical parcellation
+        atlas_str     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Atlas"]
+        atlas_desc    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Description"]
+        atlas_cita    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Citation"]
+        atlas_src     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Source"]
+        atlas_ref     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Reference"]
+        atlas_type    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Type"]
+        atlas_names   = self.parc_dict[supra_names[0]][self.parc_code[0]]["Parcels"]
+        atlas_surfloc = self.parc_dict[supra_names[0]][self.parc_code[0]]["OutSurfLocation"]
+        atlas_volloc  = self.parc_dict[supra_names[0]][self.parc_code[0]]["OutVolLocation"]
+
+        if atlas_src == 'templateflow':
+            ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
+            ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
+            
+            # Convert the list of PosfixPath to strings
+            if isinstance(ctx_parc_lh, list):
+                ctx_parc_lh = [str(x) for x in ctx_parc_lh]
+            elif isinstance(ctx_parc_lh, PathLike):
+                ctx_parc_lh = [str(ctx_parc_lh)]
+            
+            if isinstance(ctx_parc_rh, list):
+                ctx_parc_rh = [str(x) for x in ctx_parc_rh]
+            elif isinstance(ctx_parc_rh, PathLike):
+                ctx_parc_rh = [str(ctx_parc_rh)]
+
+
+
+
+            
+            # Select the files that contain the atlas names
+            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+            
+        elif atlas_src == 'local':
+            cwd = os.path.dirname(os.path.abspath(__file__))
+            chim_dir = os.path.dirname(cwd)
+
+            if atlas_type == 'annot':
+                atlas_dir = os.path.join(chim_dir, 'ANNOT_atlases')
+                atlas_ext = '.annot'
+
+            elif atlas_type == 'gcs':
+                atlas_dir = os.path.join(chim_dir, 'GCS_atlases')
+                atlas_ext = '.gcs'
+                
+            ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
+            ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
+            
+            # Filtering for selecting the correct cortical parcellation
+            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+            
+        if self.scale is not None:
+            
+            # Find if the scale contains the string '_scale-'
+
+
+            if isinstance(self.scale , list):
+                # If the scale is a list do a loop over the elements and
+                # verify if the scale contains the string '_scale-'
+                scale_tmp = []
+                for sc in self.scale :
+                    if '_scale-' not in sc:
+                        scale_tmp.append('_scale-' + sc)
+                
+            elif isinstance(self.scale , str):
+                if '_scale-' not in self.scale :
+                    scale_tmp = '_scale-' + self.scale 
+
+            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, scale_tmp, boolcase=False)
+            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, scale_tmp, boolcase=False)
+
+        if self.seg is not None:
+
+            if isinstance(self.seg, list):
+                # If the seg is a list do a loop over the elements and
+                # verify if the seg contains the string '_seg-'
+                seg_tmp = []
+                for sc in self.seg:
+                    if '_seg-' not in sc:
+                        seg_tmp.append('_seg-' + sc)
+                
+            elif isinstance(self.seg, str):
+                if '_seg-' not in self.seg:
+                    seg_tmp = '_seg-' + self.seg
+
+            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, seg_tmp, boolcase=False)
+            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, seg_tmp, boolcase=False)
+
+        # Creating the table for the rest of the structures
+        for i in range(len(self.parc_code)):
+            
+            if supra_names[i+1] in self.supra_dict.keys():
+                meth_dict = self.supra_dict[supra_names[i+1]][supra_names[i+1]]
+                
+                if self.parc_code[i+1] in meth_dict.keys():
+                    st_dict = self.supra_dict[supra_names[i+1]][supra_names[i+1]][self.parc_code[i+1]]
+                    
+                    if len(st_dict) == 1:
+                        bs_all_codes = bs_all_codes + st_dict['none']['index']
+                        bs_all_names = bs_all_names + st_dict['none']['name']
+                        bs_all_colors = bs_all_colors + st_dict['none']['color']
+                        
+                    elif len(st_dict) == 2:
+                        lh_all_codes = lh_all_codes + st_dict['lh']['index']
+                        rh_all_codes = rh_all_codes + st_dict['rh']['index']
+                        
+                        lh_all_names = lh_all_names + st_dict['lh']['name']
+                        rh_all_names = rh_all_names + st_dict['rh']['name']
+                        
+                        lh_all_colors = lh_all_colors + st_dict['lh']['color']
+                        rh_all_colors = rh_all_colors + st_dict['rh']['color']
+                else:
+                    # Print a message that the parcellation code is not present in the dictionary
+                    print("The parcellation code {} is not present in the dictionary".format(parccode[i+1]))
+                    print("Please, check the available parcellations because it will not be included in the table")
+                    
+        tab_list = []
+        for i, parc_file in enumerate(ctx_parc_lh):
+            
+            lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
+            rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
+
+            df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
+            df_rh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-rh-')
+
+            # Convert the column name of the dataframe to a list
+            ctx_lh_name = df_lh['name'].tolist()
+            ctx_rh_name = df_rh['name'].tolist()
+
+            # Convert the column color of the dataframe to a list
+            ctx_lh_color = df_lh['color'].tolist()
+            ctx_rh_color = df_rh['color'].tolist()
+
+            # Concatenating the lists
+            lh_all_names =  ctx_lh_name +  lh_all_names  + bs_all_names
+            rh_all_names =  ctx_rh_name +  rh_all_names
+
+            lh_all_colors =  ctx_lh_color +  lh_all_colors + bs_all_colors
+            rh_all_colors =  ctx_rh_color +  rh_all_colors
+
+            # Concatenating the hemispheres
+            all_names = rh_all_names + lh_all_names
+            all_colors = rh_all_colors + lh_all_colors 
+
+            # Regions to remove
+            st2del = ['ctx-lh-unknown', 'ctx-rh-unknown', 'ctx-lh-Unknown', 'ctx-rh-Unknown','ctx-lh-corpuscallosum', 'ctx-rh-corpuscallosum']
+
+            # Deleting the unknown regions
+            ind2del = [i for i in range(len(all_names)) if all_names[i] in st2del]
+
+            # Deleting the unknown regions
+            all_names = [i for j, i in enumerate(all_names) if j not in ind2del]
+
+            # Deleting the colors for the unknown regions
+            all_colors = [i for j, i in enumerate(all_colors) if j not in ind2del]
+
+            # Creatin a list of indexes that goes from 1 to the number of regions
+            index = np.arange(1, len(all_names)+1).tolist()
+
+            # Generating a dataframe
+            tab_df = pd.DataFrame({'index': index, 'name': all_names, 'color': all_colors})
+
+            tab_list.append(tab_df)
+
+            self.regtable = tab_list    
+
+
 
 # Loading the JSON file containing the available parcellations
-def _pipeline_info(json_file:str=None):
+def _pipeline_info(pipe_json:str=None):
     """
     Load the JSON file containing the pipeline configuration.
     
     Parameters:
     ----------
+    pipe_json : str
+        JSON file containing the pipeline configuration dictionary.
 
     Returns:
-        _type_: _description_
+    --------
+    pipe_dict : dict
+        Dictionary containing the pipeline information
+
     """
     cwd = os.path.dirname(os.path.abspath(__file__))
     cwd = os.path.dirname(cwd)
     # Get the absolute of this file
-    if json_file is None:
+    if pipe_json is None:
         pipe_json = os.path.join(cwd, 'config', 'pipe_config.json')
     else:
-        if os.path.isfile(json_file):
-            pipe_json = json_file
-        else:
+        if not os.path.isfile(pipe_json):
             raise ValueError("Please, provide a valid JSON file containing the pipeline configuration dictionary.")
     
     with open(pipe_json) as f:
@@ -60,34 +323,48 @@ def _pipeline_info(json_file:str=None):
     return pipe_dict
 
 # Loading the JSON file containing the available parcellations
-def _load_parcellations_info(json_file:str=None):
+def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
     """
     Load the JSON file containing the available parcellations
     
     Parameters:
     ----------
+    parc_json : str
+        JSON file containing the parcellation dictionary.
+
+    supra_folder : str
+        Folder containing the supraregions TSV files.
 
     Returns:
-        _type_: _description_
+    --------
+    parc_dict : dict
+        Dictionary containing the parcellation information
+
+    supra_dict : dict
+        Dictionary containing the supraregions information
+
     """
     cwd = os.path.dirname(os.path.abspath(__file__))
     cwd = os.path.dirname(cwd)
     # Get the absolute of this file
-    if json_file is None:
-        parcdict_json = os.path.join(cwd, 'config', 'supraregions_dictionary.json')
+    if parc_json is None:
+        parc_json = os.path.join(cwd, 'config', 'supraregions_dictionary.json')
     else:
-        if os.path.isfile(json_file):
-            parcdict_json = json_file
-        else:
+        if not os.path.isfile(parc_json):
             raise ValueError("Please, provide a valid JSON file containing the parcellation dictionary.")
     
-    with open(parcdict_json) as f:
+    with open(parc_json) as f:
         parc_dict = json.load(f)
         
-    
     # Read all the tsv files 
-    
-    spr_files = glob(os.path.join(cwd, 'config', 'supraregions', '*.tsv'))
+    if supra_folder is None:
+        spr_files = glob(os.path.join(cwd, 'config', 'supraregions', '*.tsv'))
+    else:
+        if os.path.isdir(supra_folder):
+            spr_files = glob(os.path.join(supra_folder, '*.tsv'))
+        else:
+            raise ValueError("Please, provide a valid folder containing the supraregions TSV files.")
+        
     supra_dict = {}
     for spr in spr_files:
         spr_name = os.path.basename(spr).split('.')[0]
