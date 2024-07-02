@@ -1,0 +1,11 @@
+supraregion	method	hemi	index	name	color
+WhiteMatter	F	lh	2	wm-lh-brain-segmented	#f5f5f5
+WhiteMatter	F	lh	5001	wm-lh-brain-unsegmented	#141e28
+WhiteMatter	F	rh	41	wm-rh-brain-segmented	#f5f5f5
+WhiteMatter	F	rh	5002	wm-rh-brain-unsegmented	#141e28
+WhiteMatter	F	cc	250	wm-brain-fornix	#ff0000
+WhiteMatter	F	cc	251	wm-brain-cc-posterior	#000040
+WhiteMatter	F	cc	252	wm-brain-cc-mid-posterior	#000070
+WhiteMatter	F	cc	253	wm-brain-cc-central	#0000a0
+WhiteMatter	F	cc	254	wm-brain-cc-mid-anterior	#0000d0
+WhiteMatter	F	cc	255	wm-brain-cc-anterior	#0000ff

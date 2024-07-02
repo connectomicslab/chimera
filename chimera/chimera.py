@@ -85,7 +85,6 @@ class Chimera:
         if parc_code is None:
             raise ValueError("Please provide a parcellation code")
         
-        
         if parc_dict_file is not None:
             if not os.path.isfile(parc_dict_file):
                 raise ValueError("The parcellation dictionary file does not exist")
@@ -101,196 +100,933 @@ class Chimera:
             self.suprafolder = os.path.join(chim_dir, 'config', 'supraregions')
         
         self.parc_dict, self.supra_dict = _load_parcellations_info(parc_json=parc_dict_file, supra_folder=supra_folder)
+        
+        ####  Filtering the parcellation dictionary according to the parcellation code ####
+        supra_names = list(self.parc_dict.keys())
+        
+        temp_dict = {}
+        for i in range(len(parc_code)):
+            if parc_code[i] in self.parc_dict[supra_names[i]].keys():
+                
+                # Defining the dictionary for the method
+                meth_dict = {}
+                meth_dict["code"] = parc_code[i] # Add the parcellation code
+                
+                # Append the information of the parcellation using that method
+                meth_dict.update(self.parc_dict[supra_names[i]][parc_code[i]])
 
+                # Filtering the parcellation names by the scale and segmentation
+                if i == 0:
+                    parcel_names = meth_dict['parcels']
+                    
+                    # Filtering the parcellation names by the scale 
+                    if scale is not None:
+                        if isinstance(scale , list):
+                            # If the scale is a list do a loop over the elements and
+                            # verify if the scale contains the string '_scale-'
+                            scale_tmp = []
+                            for sc in scale :
+                                if '_scale-' not in sc:
+                                    scale_tmp.append('_scale-' + sc)
+                            
+                        elif isinstance(scale , str):
+                            if '_scale-' not in scale :
+                                scale_tmp = '_scale-' + scale 
+
+                        parcel_names = cltmisc._filter_by_substring(parcel_names, scale_tmp, boolcase=False)
+
+                    # Filtering the parcellation names by the segmentation
+                    if seg is not None:
+                        if isinstance(seg, list):
+                            # If the seg is a list do a loop over the elements and
+                            # verify if the seg contains the string '_seg-'
+                            seg_tmp = []
+                            for sc in seg:
+                                if '_seg-' not in sc:
+                                    seg_tmp.append('_seg-' + sc)
+                            
+                        elif isinstance(seg, str):
+                            if '_seg-' not in seg:
+                                seg_tmp = '_seg-' + seg
+
+                        parcel_names = cltmisc._filter_by_substring(parcel_names, seg_tmp, boolcase=False)
+                    
+                    # Saving the new parcels names
+                    meth_dict['Parcels'] = parcel_names
+            
+                # Adding the dictionary to the temp_dict
+                temp_dict[supra_names[i]] = meth_dict
+                
+            else:
+                # Print a message that the parcellation code is not present in the dictionary
+                print("The parcellation code {} is not present in the dictionary for the supra-region {}.".format(parc_code[i],supra_names[i]))
+                # Error message and exit
+                #sys.exit(1)
+    
+        self.parc_dict = temp_dict
         self.parc_code = parc_code
         self.scale = scale
         self.seg = seg
+    
+    def _prepare_templates(self, fssubj_dir:str = None):
+        """
+        This method prepares the templates for the Chimera parcellation.
+        Based on the code of the parcellation, it will download the necessary templates
+        from the TemplateFlow repository or set up the templates directory for each supra region.
+        
+        Parameters
+        ----------
+        fssubj_dir : str
+            FreeSurfer directory.
+        
+        """
+        
+        global pipe_dict
+        
+        # Setting up the FreeSurfer directory
+        cltfree.FreeSurferSubject._set_freesurfer_directory(fssubj_dir)
+        
+        # Create the simlink to the FreeSurfer directory
+        
+        cltfree._create_fsaverage_links(fssubj_dir, fsavg_dir=None, refsubj_name=self.parc_dict["Cortical"]["reference"])
+        
+        
+        # Detecting the base directory
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        chim_dir = os.path.dirname(cwd)
+        
+        # Reading the names of the supra-regions
+        supra_names = list(self.parc_dict.keys())
+        
+        for supra in supra_names:
 
+            atlas_src     = self.parc_dict[supra]["source"]
+            atlas_str     = self.parc_dict[supra]["atlas"]
+            atlas_ref     = self.parc_dict[supra]["reference"]
+            
+            if supra == 'Cortical':
+                
+                # Atributes for the cortical parcellation
+                atlas_type    = self.parc_dict[supra]["type"]
+                atlas_names   = self.parc_dict[supra]["parcels"]
+                
+                # Selecting the source and downloading the parcellation
+                if atlas_src == 'templateflow':
+                    atlas_ext = '.gii'
+                    method = 'annot2indiv'
+                    ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
+                    ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
+                    
+                    # Convert the list of PosfixPath to strings
+                    if isinstance(ctx_parc_lh, list):
+                        ctx_parc_lh = [str(x) for x in ctx_parc_lh]
+                        
+                    elif isinstance(ctx_parc_lh, PathLike):
+                        ctx_parc_lh = [str(ctx_parc_lh)]
+                    
+                    if isinstance(ctx_parc_rh, list):
+                        ctx_parc_rh = [str(x) for x in ctx_parc_rh]
+                        
+                    elif isinstance(ctx_parc_rh, PathLike):
+                        ctx_parc_rh = [str(ctx_parc_rh)]
 
-    def _create_table(self, ):
+                    # Select the files that contain the atlas names
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+                    ctx_parc_lh_annot = []
+                    ctx_parc_rh_annot = []
+                    for i, parc_file in enumerate(ctx_parc_lh):
+                        
+                        # Detect which element in atlas_names is in the string ctx_parc_lh
+                        at_name = [s for s in atlas_names if s in ctx_parc_lh[i]]
+                        
+                        if at_name:
+                            
+                            # Moving the gifti to native space
+                            tmp_annot = os.path.join(fssubj_dir, atlas_ref,'label','lh.' + at_name[0] + '.annot')
+                            tmp_refsurf = os.path.join(fssubj_dir, atlas_ref,'surf','lh.white')
+                            ctx_parc_lh_annot.append(tmp_annot)
+                            lh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = parc_file,
+                                                                        ref_surf = tmp_refsurf,
+                                                                        annot_file = tmp_annot, 
+                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                        cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+                            
+                            tmp_annot   = os.path.join(fssubj_dir, atlas_ref,'label','rh.' + at_name[0] + '.annot')
+                            tmp_refsurf = os.path.join(fssubj_dir, atlas_ref,'surf','rh.white')
+                            ctx_parc_rh_annot.append(tmp_annot)
+                            rh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = ctx_parc_rh[i],
+                                                                        ref_surf = tmp_refsurf,
+                                                                        annot_file = tmp_annot, 
+                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                        cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+                    
+                    if not ctx_parc_lh_annot or not ctx_parc_rh_annot:
+                        raise ValueError("Cortical parcellations should be supplied for both hemispheres.")
+                    else: 
+                        meth_dict = {'method': method,'reference': atlas_ref,
+                                                                'labels': {'lh': ctx_parc_lh_annot, 'rh': ctx_parc_rh_annot}}
 
+                elif atlas_src == 'local':
+
+                    if atlas_type == 'annot':
+                        atlas_dir = os.path.join(chim_dir, 'data','annot_atlases')
+                        atlas_ext = '.annot'
+                        method = 'annot2indiv'
+                        
+                    elif atlas_type == 'gcs':
+                        atlas_dir = os.path.join(chim_dir, 'data', 'gcs_atlases')
+                        atlas_ext = '.gcs'
+                        method = 'gcs2indiv'
+                        
+                    ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
+                    ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
+                    
+                    # Filtering for selecting the correct cortical parcellation
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+                    if not ctx_parc_lh_annot or not ctx_parc_rh_annot:
+                        raise ValueError("Cortical parcellations should be supplied for both hemispheres.")
+                    
+                    else:
+                    
+                        meth_dict = {'method': method,'reference': atlas_ref,
+                                            'labels': {'lh': ctx_parc_lh, 'rh': ctx_parc_rh}}
+                    
+                    
+            else:
+                atlas_cad = self.parc_dict[supra]['atlas']
+                type_cad = self.parc_dict[supra]['type']
+                atlas_ref = self.parc_dict[supra]["reference"] 
+                
+                if atlas_src == 'templateflow':
+                    
+                    # Getting the templates
+                    # Reference space
+                    
+                    t1_temp = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
+                    
+                    # Getting the thalamic nuclei spams 
+                    if type_cad == 'spam':
+                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_cad, suffix='probseg', extension='nii.gz')
+                        
+                    elif type_cad == 'maxprob':
+                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_cad, suffix='dseg', extension='nii.gz')
+                        
+                    meth_dict = {'method': 'atlasbased','type':type_cad,'reference': str(t1_temp),
+                                            'labels': str(atlas_file)}
+                
+                elif atlas_src == 'local':
+                    atlas_dir = os.path.join(chim_dir, 'data', 'vol_atlases')
+                    
+                    t1_temp = glob(os.path.join(atlas_dir, '*' + atlas_cad + '*_T1w.nii.gz'))
+                    
+                    if type_cad == 'spam':
+                        atlas_file = glob(os.path.join(atlas_dir, '*' + atlas_cad + '*_probseg.nii.gz'))
+                        
+                    elif type_cad == 'maxprob':
+                        atlas_file = glob(os.path.join(atlas_dir, '*' + atlas_cad + '*_dseg.nii.gz'))
+                
+                    meth_dict = {'method': 'atlasbased','type':type_cad,'reference': str(t1_temp),
+                                            'labels': str(atlas_file)}
+                    
+                elif atlas_src == 'freesurfer':
+                    meth_dict = {'method': 'comform2native','type':None,'reference': 'native',
+                                            'labels': None}
+                else:
+                    meth_dict = {'method': None, 'type':None,'reference': 'native', 'labels': None}
+            
+            self.parc_dict[supra]["Processing"] = meth_dict
+    
+    def _create_table(self, wm_index_offset:int = 3000, 
+                    reg2rem:Union[list, str] = ['unknown', 'medialwall', 'corpuscallosum']):
+        """
+        This method creates a table with the regions that will be created using the Chimera parcellation.
+        It allows to verify the region distribution for a specified parcelation code.
+        
+        Parameters
+        ----------
+        wm_index_offset : int
+            Index offset for the white matter parcellation (default = 3000).
+        
+        reg2rem : list
+            List of regions to remove from the parcellation.
+
+        """
+        
+        # Detecting the base directory
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        chim_dir = os.path.dirname(cwd)
+
+        
         # Reading the names of the supra-regions
         supra_names = list(self.parc_dict.keys())
 
-        lh_all_codes  = []
-        rh_all_codes  = []
-        lh_all_names  = []
-        rh_all_names  = []
-        lh_all_colors = []
-        rh_all_colors = []
-        bs_all_codes  = []
-        bs_all_names  = []
-        bs_all_colors = []
+        lh_noctx_codes  = []
+        rh_noctx_codes  = []
+        lh_noctx_names  = []
+        rh_noctx_names  = []
+        lh_noctx_colors = []
+        rh_noctx_colors = []
+        bs_noctx_codes  = []
+        bs_noctx_names  = []
+        bs_noctx_colors = []
 
-        # Getting the information of the cortical parcellation
-        atlas_str     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Atlas"]
-        atlas_desc    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Description"]
-        atlas_cita    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Citation"]
-        atlas_src     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Source"]
-        atlas_ref     = self.parc_dict[supra_names[0]][self.parc_code[0]]["Reference"]
-        atlas_type    = self.parc_dict[supra_names[0]][self.parc_code[0]]["Type"]
-        atlas_names   = self.parc_dict[supra_names[0]][self.parc_code[0]]["Parcels"]
-        atlas_surfloc = self.parc_dict[supra_names[0]][self.parc_code[0]]["OutSurfLocation"]
-        atlas_volloc  = self.parc_dict[supra_names[0]][self.parc_code[0]]["OutVolLocation"]
-
-        if atlas_src == 'templateflow':
-            ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
-            ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
+        ctx_parc_lh = []
+        ctx_parc_rh = []
+        
+        desc_noctx = []
+        for supra in supra_names:
             
-            # Convert the list of PosfixPath to strings
-            if isinstance(ctx_parc_lh, list):
-                ctx_parc_lh = [str(x) for x in ctx_parc_lh]
-            elif isinstance(ctx_parc_lh, PathLike):
-                ctx_parc_lh = [str(ctx_parc_lh)]
+            # Getting the information of the common atributes
+            atlas_code    = self.parc_dict[supra]["code"]
+            atlas_str     = self.parc_dict[supra]["atlas"]
+            atlas_desc    = self.parc_dict[supra]["description"]
+            atlas_cita    = self.parc_dict[supra]["citation"]
+            atlas_src     = self.parc_dict[supra]["source"]
+            atlas_ref     = self.parc_dict[supra]["reference"]
             
-            if isinstance(ctx_parc_rh, list):
-                ctx_parc_rh = [str(x) for x in ctx_parc_rh]
-            elif isinstance(ctx_parc_rh, PathLike):
-                ctx_parc_rh = [str(ctx_parc_rh)]
-
-
-
-
-            
-            # Select the files that contain the atlas names
-            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
-            
-        elif atlas_src == 'local':
-            cwd = os.path.dirname(os.path.abspath(__file__))
-            chim_dir = os.path.dirname(cwd)
-
-            if atlas_type == 'annot':
-                atlas_dir = os.path.join(chim_dir, 'ANNOT_atlases')
-                atlas_ext = '.annot'
-
-            elif atlas_type == 'gcs':
-                atlas_dir = os.path.join(chim_dir, 'GCS_atlases')
-                atlas_ext = '.gcs'
+            if supra == 'Cortical':
                 
-            ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
-            ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
-            
-            # Filtering for selecting the correct cortical parcellation
-            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
-            
-        if self.scale is not None:
-            
-            # Find if the scale contains the string '_scale-'
-
-
-            if isinstance(self.scale , list):
-                # If the scale is a list do a loop over the elements and
-                # verify if the scale contains the string '_scale-'
-                scale_tmp = []
-                for sc in self.scale :
-                    if '_scale-' not in sc:
-                        scale_tmp.append('_scale-' + sc)
+                # Atributes for the cortical parcellation
+                atlas_type    = self.parc_dict[supra]["type"]
+                atlas_names   = self.parc_dict[supra]["parcels"]
                 
-            elif isinstance(self.scale , str):
-                if '_scale-' not in self.scale :
-                    scale_tmp = '_scale-' + self.scale 
-
-            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, scale_tmp, boolcase=False)
-            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, scale_tmp, boolcase=False)
-
-        if self.seg is not None:
-
-            if isinstance(self.seg, list):
-                # If the seg is a list do a loop over the elements and
-                # verify if the seg contains the string '_seg-'
-                seg_tmp = []
-                for sc in self.seg:
-                    if '_seg-' not in sc:
-                        seg_tmp.append('_seg-' + sc)
-                
-            elif isinstance(self.seg, str):
-                if '_seg-' not in self.seg:
-                    seg_tmp = '_seg-' + self.seg
-
-            ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, seg_tmp, boolcase=False)
-            ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, seg_tmp, boolcase=False)
-
-        # Creating the table for the rest of the structures
-        for i in range(len(self.parc_code)):
-            
-            if supra_names[i+1] in self.supra_dict.keys():
-                meth_dict = self.supra_dict[supra_names[i+1]][supra_names[i+1]]
-                
-                if self.parc_code[i+1] in meth_dict.keys():
-                    st_dict = self.supra_dict[supra_names[i+1]][supra_names[i+1]][self.parc_code[i+1]]
+                # Selecting the source and downloading the parcellation
+                if atlas_src == 'templateflow':
+                    ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
+                    ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
                     
+                    # Convert the list of PosfixPath to strings
+                    if isinstance(ctx_parc_lh, list):
+                        ctx_parc_lh = [str(x) for x in ctx_parc_lh]
+                        
+                    elif isinstance(ctx_parc_lh, PathLike):
+                        ctx_parc_lh = [str(ctx_parc_lh)]
+                    
+                    if isinstance(ctx_parc_rh, list):
+                        ctx_parc_rh = [str(x) for x in ctx_parc_rh]
+                        
+                    elif isinstance(ctx_parc_rh, PathLike):
+                        ctx_parc_rh = [str(ctx_parc_rh)]
+
+                    # Select the files that contain the atlas names
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+                elif atlas_src == 'local':
+
+                    if atlas_type == 'annot':
+                        atlas_dir = os.path.join(chim_dir, 'data','annot_atlases')
+                        atlas_ext = '.annot'
+
+                    elif atlas_type == 'gcs':
+                        atlas_dir = os.path.join(chim_dir, 'data', 'gcs_atlases')
+                        atlas_ext = '.gcs'
+                        
+                    ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
+                    ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
+                    
+                    # Filtering for selecting the correct cortical parcellation
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+            else:
+                
+                desc_noctx.append(atlas_desc)
+                # Selecting the source and downloading the parcellation
+                if atlas_src == 'templateflow':
+
+                    # Reference space
+                    ref_img = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
+                    
+                    # Getting the thalamic nuclei spams 
+                    parc_img = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_str, suffix=atlas_type, extension='nii.gz')
+                    
+                if supra in self.supra_dict.keys():
+                    meth_dict = self.parc_dict[supra]
+                    st_dict = self.supra_dict[supra][supra][meth_dict["code"]]
                     if len(st_dict) == 1:
-                        bs_all_codes = bs_all_codes + st_dict['none']['index']
-                        bs_all_names = bs_all_names + st_dict['none']['name']
-                        bs_all_colors = bs_all_colors + st_dict['none']['color']
-                        
+                            bs_noctx_codes = bs_noctx_codes + st_dict['none']['index']
+                            bs_noctx_names = bs_noctx_names + st_dict['none']['name']
+                            bs_noctx_colors = bs_noctx_colors + st_dict['none']['color']
+                            
                     elif len(st_dict) == 2:
-                        lh_all_codes = lh_all_codes + st_dict['lh']['index']
-                        rh_all_codes = rh_all_codes + st_dict['rh']['index']
+                        lh_noctx_codes = lh_noctx_codes + st_dict['lh']['index']
+                        rh_noctx_codes = rh_noctx_codes + st_dict['rh']['index']
                         
-                        lh_all_names = lh_all_names + st_dict['lh']['name']
-                        rh_all_names = rh_all_names + st_dict['rh']['name']
+                        lh_noctx_names = lh_noctx_names + st_dict['lh']['name']
+                        rh_noctx_names = rh_noctx_names + st_dict['rh']['name']
                         
-                        lh_all_colors = lh_all_colors + st_dict['lh']['color']
-                        rh_all_colors = rh_all_colors + st_dict['rh']['color']
-                else:
-                    # Print a message that the parcellation code is not present in the dictionary
-                    print("The parcellation code {} is not present in the dictionary".format(parccode[i+1]))
-                    print("Please, check the available parcellations because it will not be included in the table")
-                    
+                        lh_noctx_colors = lh_noctx_colors + st_dict['lh']['color']
+                        rh_noctx_colors = rh_noctx_colors + st_dict['rh']['color']
+
+        if rh_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    rh_noctx_names.pop(i)
+                    rh_noctx_codes.pop(i)
+                    rh_noctx_colors.pop(i)
+
+        if lh_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    lh_noctx_names.pop(i)
+                    lh_noctx_codes.pop(i)
+                    lh_noctx_colors.pop(i)
+        
+        if bs_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    bs_noctx_names.pop(i)
+                    bs_noctx_codes.pop(i)
+                    bs_noctx_codes.pop(i)
+        
+
+        # Creating the list of dataframes for the different parcellations
         tab_list = []
-        for i, parc_file in enumerate(ctx_parc_lh):
-            
-            lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
-            rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
-
-            df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
-            df_rh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-rh-')
-
-            # Convert the column name of the dataframe to a list
-            ctx_lh_name = df_lh['name'].tolist()
-            ctx_rh_name = df_rh['name'].tolist()
-
-            # Convert the column color of the dataframe to a list
-            ctx_lh_color = df_lh['color'].tolist()
-            ctx_rh_color = df_rh['color'].tolist()
-
-            # Concatenating the lists
-            lh_all_names =  ctx_lh_name +  lh_all_names  + bs_all_names
-            rh_all_names =  ctx_rh_name +  rh_all_names
-
-            lh_all_colors =  ctx_lh_color +  lh_all_colors + bs_all_colors
-            rh_all_colors =  ctx_rh_color +  rh_all_colors
-
-            # Concatenating the hemispheres
-            all_names = rh_all_names + lh_all_names
-            all_colors = rh_all_colors + lh_all_colors 
-
-            # Regions to remove
-            st2del = ['ctx-lh-unknown', 'ctx-rh-unknown', 'ctx-lh-Unknown', 'ctx-rh-Unknown','ctx-lh-corpuscallosum', 'ctx-rh-corpuscallosum']
-
-            # Deleting the unknown regions
-            ind2del = [i for i in range(len(all_names)) if all_names[i] in st2del]
-
-            # Deleting the unknown regions
-            all_names = [i for j, i in enumerate(all_names) if j not in ind2del]
-
-            # Deleting the colors for the unknown regions
-            all_colors = [i for j, i in enumerate(all_colors) if j not in ind2del]
-
-            # Creatin a list of indexes that goes from 1 to the number of regions
-            index = np.arange(1, len(all_names)+1).tolist()
-
-            # Generating a dataframe
-            tab_df = pd.DataFrame({'index': index, 'name': all_names, 'color': all_colors})
-
+        desc_list = []
+        parc_id = 'atlas-chimera' + self.parc_code
+        parc_id_list = []
+        
+        # If ctx_parc_lh is empty, it means that the parcellation is not available
+        if len(ctx_parc_lh) == 0:
+            all_names  = rh_noctx_names  + lh_noctx_names  + bs_noctx_names
+            all_colors = rh_noctx_colors + lh_noctx_colors + bs_noctx_colors
+            index      = np.arange(1, len(all_names)+1).tolist()
+            tab_df     = pd.DataFrame({'index': index, 'name': all_names, 'color': all_colors})
             tab_list.append(tab_df)
+            
+            gen_desc = ["# Parcellation code: " + self.parc_code ]
+            gen_desc.append(desc_noctx)
+            
+            parc_id_list.append(parc_id)
+            
+        else:
+            for i, parc_file in enumerate(ctx_parc_lh):
+                
+                gen_desc = ["# Parcellation code: " + self.parc_code ]
+                
+                tmp_name = os.path.basename(ctx_parc_lh[i])
+                tmp_ent = tmp_name.split('_')[:-1]
+                
+                # Get the element that contains the string 'scale' and extract it
+                scale_ent = [s for s in tmp_ent if 'scale' in s]
+                if scale_ent:
+                    scale_ent = scale_ent[0]
+                    scale_ent = scale_ent.split('-')[1]
+                    parc_id = parc_id + '_scale-' + scale_ent
+                
+                    # Add a the segmentation to to the string of the general description list
+                    gen_desc[0] = gen_desc[0] + ". Scale: " + scale_ent
+                
+                # Get the element that contains the string 'seg' and extract it 
+                seg_ent = [s for s in tmp_ent if 'seg' in s]
+                
+                if seg_ent:
+                    seg_ent = seg_ent[0]
+                    seg_ent = seg_ent.split('-')[1]
+                    parc_id = parc_id + '_seg-' + seg_ent
+                    
+                    # Add a the segmentation to to the string of the general description list
+                    gen_desc[0] = gen_desc[0] + ". Segmentation: " + seg_ent
+                    
+                gen_desc.append(self.parc_dict["Cortical"]["description"])
+                gen_desc = gen_desc + desc_noctx
+                    
+                # Reading the cortical parcellations
+                lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
+                rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
 
-            self.regtable = tab_list    
+                df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
+                df_rh, out_tsv = rh_obj._export_to_tsv(prefix2add='ctx-rh-')
 
+                # Convert the column name of the dataframe to a list
+                lh_ctx_name = df_lh['name'].tolist()
+                rh_ctx_name = df_rh['name'].tolist()
 
+                # Convert the column color of the dataframe to a list
+                lh_ctx_color = df_lh['color'].tolist()
+                rh_ctx_color = df_rh['color'].tolist()
+                
+                ## Removing elements from the table according to their name for both
+                indexes = cltmisc._get_indexes_by_substring(lh_ctx_name, reg2rem).tolist()
+                if indexes:
+                    for i in indexes:
+                        lh_ctx_name.pop(i)
+                        lh_ctx_color.pop(i)
+                
+                indexes = cltmisc._get_indexes_by_substring(rh_ctx_name, reg2rem).tolist()
+                if indexes:
+                    for i in indexes:
+                        rh_ctx_name.pop(i)
+                        rh_ctx_color.pop(i)
+
+                # Concatenating the lists
+                if 'GyralWM' in self.parc_dict.keys():
+                    gen_desc.append(self.parc_dict['GyralWM']["description"])
+                    
+                    wm_rh_name = cltmisc._correct_names(rh_ctx_name, replace=['ctx-rh-','wm-rh-'])
+                    wm_rh_indexes = np.arange(1, len(wm_rh_name)+1) + wm_index_offset
+                    wm_rh_indexes = wm_rh_indexes.tolist()
+                    
+                    wm_lh_name = cltmisc._correct_names(lh_ctx_name, replace=['ctx-lh-','wm-lh-'])
+                    wm_lh_indexes = np.arange(1, len(wm_lh_name)+1) + len(rh_ctx_name) + len(rh_noctx_names) + wm_index_offset
+                    wm_lh_indexes = wm_lh_indexes.tolist()
+                    
+                    wm_rh_color = rh_ctx_color
+                    wm_lh_color = lh_ctx_color
+
+                else:
+                    wm_lh_indexes = []
+                    wm_rh_indexes = []
+                    wm_lh_name = []
+                    wm_rh_name = []
+                    wm_lh_color = []
+                    wm_rh_color = []
+
+                # Right hemisphere
+                rh_all_names =  rh_ctx_name + rh_noctx_names
+                rh_all_indexes = np.arange(1, len(rh_all_names)+1).tolist()
+                
+                # Left hemisphere
+                lh_all_names =  lh_ctx_name +  lh_noctx_names  + bs_noctx_names + wm_rh_name + wm_lh_name
+                lh_all_indexes = np.arange(1, len(lh_ctx_name +  lh_noctx_names  + bs_noctx_names)+1) + np.max(rh_all_indexes)
+                lh_all_indexes = lh_all_indexes.tolist()
+                
+                rh_all_colors =  rh_ctx_color +  rh_noctx_colors
+                lh_all_colors =  lh_ctx_color +  lh_noctx_colors + bs_noctx_colors + wm_rh_color + wm_lh_color
+
+                # Concatenating the hemispheres
+                all_names = rh_all_names + lh_all_names
+                all_colors = rh_all_colors + lh_all_colors
+                all_indexes = rh_all_indexes + lh_all_indexes + wm_rh_indexes + wm_lh_indexes
+
+                # Generating a dataframe
+                tab_df = pd.DataFrame({'index': all_indexes, 'name': all_names, 'color': all_colors})
+                tab_list.append(tab_df)
+                desc_list.append(gen_desc)
+                parc_id_list.append(parc_id)
+
+        # Add the tab_list as an attribute of the class
+        self.regtable = {"parc_id": parc_id_list, "desc": desc_list, "table": tab_list}
+        
+    def _export_table(self, out_basename:str = None, format:Union[list, str] = 'tsv'):
+        """
+        This method exports the table of the regions to a TSV or a LUT file.
+        
+        Parameters
+        ----------
+        out_basename : str
+            Output basename for the TSV or LUT file.
+        
+        format : str or list
+            Format of the output file. It can be 'tsv', 'lut' or ['tsv, lut'].
+        
+        """
+        
+        if out_basename is None:
+            # Exit if the output basename is not provided
+            raise ValueError("Please provide an output basename for the TSV or LUT file.")
+        
+        out_name = os.path.basename(out_basename)
+        
+        out_dir = os.path.dirname(out_basename)
+        out_dir = Path(out_dir)
+        
+        # Create the output directory if it does not exist
+        out_dir.mkdir(parents=True, exist_ok=True)
+        
+        parc_ids = self.regtable["parc_id"]
+        parc_desc = self.regtable["desc"]
+        parc_tables = self.regtable["table"]
+        
+        # Export the table to a TSV file
+        for i, tab_df in enumerate(parc_tables):
+            
+            if isinstance(format, list):
+                if 'tsv' in format:
+                    out_file_tsv = os.path.join(str(out_dir), out_name + '_' + parc_ids[i] + '.tsv')
+                    cltparc.Parcellation.write_tsvtable(tsv_df=tab_df,out_file=out_file_tsv, force=True)
+
+                if 'lut' in format:
+                    out_file_lut = os.path.join(str(out_dir), out_name + '_' + parc_ids[i] + '.lut')
+                    codes = tab_df['index'].tolist()
+                    names = tab_df['name'].tolist()
+                    colors = tab_df['color'].tolist()
+                    cltparc.Parcellation.write_luttable(codes=codes, names=names, colors=colors, out_file=out_file_lut, headerlines=parc_desc, force=True)
+            else:
+                if format == 'tsv':
+                    out_file_tsv = os.path.join(str(out_dir), out_name + '_' + parc_ids[i] + '.tsv')
+                    cltparc.Parcellation.write_tsvtable(tsv_df=tab_df,out_file=out_file_tsv, force=True)
+
+                if format == 'lut':
+                    out_file_lut = os.path.join(str(out_dir), out_name + '_' + parc_ids[i] + '.lut')
+                    codes = tab_df['index'].tolist()
+                    names = tab_df['name'].tolist()
+                    colors = tab_df['color'].tolist()
+                    cltparc.Parcellation.write_luttable(codes=codes, names=names, colors=colors, out_file=out_file_lut, headerlines=parc_desc, force=True)
+    
+    def _build_parcellation1(self, t1:str, bids_dir:str, 
+                            deriv_dir:str = None,
+                            fssubj_dir:str = None,
+                            growwm:Union[str, int] = None, 
+                            force:bool = False):
+        """
+        This method builds the parcellation for the selected parcellation code.
+        
+        Parameters
+        ----------
+        bids_dir : str
+            BIDs dataset directory.
+        
+        deriv_dir : str
+            BIDs derivative directory.
+            
+            fssub
+        
+        growwm : str or int
+            Grow of GM labels inside the white matter in mm.
+        
+        force : bool
+            Overwrite the results.
+        
+        """
+        global pipe_dict, layout
+        
+        # Detecting the base directory
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        chim_dir = os.path.dirname(cwd)
+        
+        if not os.path.isfile(t1):
+            raise ValueError("Please provide a valid T1 image.")
+
+        # Detecting the entities of the T1 image
+        ent_dict = layout.parse_file_entities(t1)
+        
+        # Getting the entities from the name 
+        anat_dir = os.path.dirname(t1)
+        t1_name = os.path.basename(t1)
+        temp_entities = t1_name.split('_')[:-1]
+        fullid = "_".join(temp_entities)
+        
+        if 'session' in ent_dict.keys():
+            path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
+        else:
+            path_cad       = "sub-" + ent_dict["subject"]
+            
+        # Creating Chimera directories
+        if deriv_dir is None:
+            chim_dir = os.path.join(bids_dir, 'derivatives', 'chimera', path_cad)
+        else:
+            chim_dir = os.path.join(deriv_dir,'chimera', path_cad)
+        
+        # Create the Chimera directory if it does not exist
+        chim_dir = Path(chim_dir)
+        chim_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create the anat directory if it does not exist
+        tmp_dir = os.path.join(str(chim_dir), 'tmp')
+        tmp_dir = Path(tmp_dir)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        ######## ----------- Detecting FREESURFER_HOME directory ------------- #
+        fshome_dir = os.getenv('FREESURFER_HOME')
+        fslut_file = os.path.join(fshome_dir, 'FreeSurferColorLUT.txt')
+        
+        ######## ------------- Reading FreeSurfer color lut table ------------ #
+        st_codes, st_names, st_colors = cltparc.Parcellation.read_luttable(fslut_file)
+        
+        ######## ----- Running FreeSurfer if it was not previously computed ------ #
+    
+        sub2proc = cltfree.FreeSurferSubject(fullid, subjs_dir=fssubj_dir)
+        supra_names = self.parc_dict.keys()
+        
+        if 'F' in self.parc_code:
+            sub2proc._launch_freesurfer(force=force, 
+                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                        cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+            
+        for supra in supra_names:
+            
+            # Getting the information of the common atributes
+            atlas_code    = self.parc_dict[supra]["code"]
+            atlas_str     = self.parc_dict[supra]["atlas"]
+            atlas_desc    = self.parc_dict[supra]["description"]
+            atlas_cita    = self.parc_dict[supra]["citation"]
+            atlas_src     = self.parc_dict[supra]["source"]
+            atlas_ref     = self.parc_dict[supra]["reference"]
+            
+            if supra == 'Cortical':
+                
+                # Atributes for the cortical parcellation
+                atlas_type    = self.parc_dict[supra]["type"]
+                atlas_names   = self.parc_dict[supra]["parcels"]
+                
+                proc_dict = self.parc_dict["Cortical"]["Processing"]
+                
+                            
+                
+                
+                
+                # Selecting the source and downloading the parcellation
+                if atlas_src == 'templateflow':
+                    ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
+                    ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
+                    
+                    # Convert the list of PosfixPath to strings
+                    if isinstance(ctx_parc_lh, list):
+                        ctx_parc_lh = [str(x) for x in ctx_parc_lh]
+                        
+                    elif isinstance(ctx_parc_lh, PathLike):
+                        ctx_parc_lh = [str(ctx_parc_lh)]
+                    
+                    if isinstance(ctx_parc_rh, list):
+                        ctx_parc_rh = [str(x) for x in ctx_parc_rh]
+                        
+                    elif isinstance(ctx_parc_rh, PathLike):
+                        ctx_parc_rh = [str(ctx_parc_rh)]
+
+                    # Select the files that contain the atlas names
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+                    for i, parc_file in enumerate(ctx_parc_lh):
+                        # Reading the cortical parcellations
+                        tmp_annot = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id,'label','lh.tmp.annot')
+                        lh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = parc_file,
+                                                                    ref_surf = sub2proc.fs_files["surf"]["lh"]["white"],
+                                                                    annot_file = tmp_annot, 
+                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                    cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+                        
+                        tmp_annot = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id,'label','rh.tmp.annot')
+                        rh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = ctx_parc_rh[i],
+                                                                    ref_surf = sub2proc.fs_files["surf"]["rh"]["white"],
+                                                                    annot_file = tmp_annot, 
+                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                    cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+                        
+                        # Create freesurfer
+                        
+                        
+
+                elif atlas_src == 'local':
+
+                    if atlas_type == 'annot':
+                        atlas_dir = os.path.join(chim_dir, 'data','annot_atlases')
+                        atlas_ext = '.annot'
+
+                    elif atlas_type == 'gcs':
+                        atlas_dir = os.path.join(chim_dir, 'data', 'gcs_atlases')
+                        atlas_ext = '.gcs'
+                        
+                    ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
+                    ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
+                    
+                    # Filtering for selecting the correct cortical parcellation
+                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    
+            else:
+                
+                # Selecting the source and downloading the parcellation
+                if atlas_src == 'templateflow':
+
+                    # Reference space
+                    ref_img = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
+                    
+                    # Getting the thalamic nuclei spams 
+                    parc_img = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_str, suffix=atlas_type, extension='nii.gz')
+                    
+                if supra in self.supra_dict.keys():
+                    meth_dict = self.parc_dict[supra]
+                    st_dict = self.supra_dict[supra][supra][meth_dict["code"]]
+                    if len(st_dict) == 1:
+                            bs_noctx_codes = bs_noctx_codes + st_dict['none']['index']
+                            bs_noctx_names = bs_noctx_names + st_dict['none']['name']
+                            bs_noctx_colors = bs_noctx_colors + st_dict['none']['color']
+                            
+                    elif len(st_dict) == 2:
+                        lh_noctx_codes = lh_noctx_codes + st_dict['lh']['index']
+                        rh_noctx_codes = rh_noctx_codes + st_dict['rh']['index']
+                        
+                        lh_noctx_names = lh_noctx_names + st_dict['lh']['name']
+                        rh_noctx_names = rh_noctx_names + st_dict['rh']['name']
+                        
+                        lh_noctx_colors = lh_noctx_colors + st_dict['lh']['color']
+                        rh_noctx_colors = rh_noctx_colors + st_dict['rh']['color']
+
+        if rh_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    rh_noctx_names.pop(i)
+                    rh_noctx_codes.pop(i)
+                    rh_noctx_colors.pop(i)
+
+        if lh_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    lh_noctx_names.pop(i)
+                    lh_noctx_codes.pop(i)
+                    lh_noctx_colors.pop(i)
+        
+        if bs_noctx_names:
+            indexes = cltmisc._get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
+            # Remove the elements in all_names and all_colors
+            if indexes:
+                for i in indexes:
+                    bs_noctx_names.pop(i)
+                    bs_noctx_codes.pop(i)
+                    bs_noctx_codes.pop(i)
+        
+
+        # Creating the list of dataframes for the different parcellations
+        tab_list = []
+        desc_list = []
+        parc_id = 'atlas-chimera' + self.parc_code
+        parc_id_list = []
+        
+        # If ctx_parc_lh is empty, it means that the parcellation is not available
+        if len(ctx_parc_lh) == 0:
+            all_names  = rh_noctx_names  + lh_noctx_names  + bs_noctx_names
+            all_colors = rh_noctx_colors + lh_noctx_colors + bs_noctx_colors
+            index      = np.arange(1, len(all_names)+1).tolist()
+            tab_df     = pd.DataFrame({'index': index, 'name': all_names, 'color': all_colors})
+            tab_list.append(tab_df)
+            
+            gen_desc = ["# Parcellation code: " + self.parc_code ]
+            gen_desc.append(desc_noctx)
+            
+            parc_id_list.append(parc_id)
+            
+        else:
+            for i, parc_file in enumerate(ctx_parc_lh):
+                
+                gen_desc = ["# Parcellation code: " + self.parc_code ]
+                
+                tmp_name = os.path.basename(ctx_parc_lh[i])
+                tmp_ent = tmp_name.split('_')[:-1]
+                
+                # Get the element that contains the string 'scale' and extract it
+                scale_ent = [s for s in tmp_ent if 'scale' in s]
+                if scale_ent:
+                    scale_ent = scale_ent[0]
+                    scale_ent = scale_ent.split('-')[1]
+                    parc_id = parc_id + '_scale-' + scale_ent
+                
+                    # Add a the segmentation to to the string of the general description list
+                    gen_desc[0] = gen_desc[0] + ". Scale: " + scale_ent
+                
+                # Get the element that contains the string 'seg' and extract it 
+                seg_ent = [s for s in tmp_ent if 'seg' in s]
+                
+                if seg_ent:
+                    seg_ent = seg_ent[0]
+                    seg_ent = seg_ent.split('-')[1]
+                    parc_id = parc_id + '_seg-' + seg_ent
+                    
+                    # Add a the segmentation to to the string of the general description list
+                    gen_desc[0] = gen_desc[0] + ". Segmentation: " + seg_ent
+                    
+                gen_desc.append(self.parc_dict["Cortical"]["description"])
+                gen_desc = gen_desc + desc_noctx
+                    
+                # Reading the cortical parcellations
+                lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
+                rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
+
+                df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
+                df_rh, out_tsv = rh_obj._export_to_tsv(prefix2add='ctx-rh-')
+
+                # Convert the column name of the dataframe to a list
+                lh_ctx_name = df_lh['name'].tolist()
+                rh_ctx_name = df_rh['name'].tolist()
+
+                # Convert the column color of the dataframe to a list
+                lh_ctx_color = df_lh['color'].tolist()
+                rh_ctx_color = df_rh['color'].tolist()
+                
+                ## Removing elements from the table according to their name for both
+                indexes = cltmisc._get_indexes_by_substring(lh_ctx_name, reg2rem).tolist()
+                if indexes:
+                    for i in indexes:
+                        lh_ctx_name.pop(i)
+                        lh_ctx_color.pop(i)
+                
+                indexes = cltmisc._get_indexes_by_substring(rh_ctx_name, reg2rem).tolist()
+                if indexes:
+                    for i in indexes:
+                        rh_ctx_name.pop(i)
+                        rh_ctx_color.pop(i)
+
+                # Concatenating the lists
+                if 'GyralWM' in self.parc_dict.keys():
+                    gen_desc.append(self.parc_dict['GyralWM']["description"])
+                    
+                    wm_rh_name = cltmisc._correct_names(rh_ctx_name, replace=['ctx-rh-','wm-rh-'])
+                    wm_rh_indexes = np.arange(1, len(wm_rh_name)+1) + wm_index_offset
+                    wm_rh_indexes = wm_rh_indexes.tolist()
+                    
+                    wm_lh_name = cltmisc._correct_names(lh_ctx_name, replace=['ctx-lh-','wm-lh-'])
+                    wm_lh_indexes = np.arange(1, len(wm_lh_name)+1) + len(rh_ctx_name) + len(rh_noctx_names) + wm_index_offset
+                    wm_lh_indexes = wm_lh_indexes.tolist()
+                    
+                    wm_rh_color = rh_ctx_color
+                    wm_lh_color = lh_ctx_color
+
+                else:
+                    wm_lh_indexes = []
+                    wm_rh_indexes = []
+                    wm_lh_name = []
+                    wm_rh_name = []
+                    wm_lh_color = []
+                    wm_rh_color = []
+
+                # Right hemisphere
+                rh_all_names =  rh_ctx_name + rh_noctx_names
+                rh_all_indexes = np.arange(1, len(rh_all_names)+1).tolist()
+                
+                # Left hemisphere
+                lh_all_names =  lh_ctx_name +  lh_noctx_names  + bs_noctx_names + wm_rh_name + wm_lh_name
+                lh_all_indexes = np.arange(1, len(lh_ctx_name +  lh_noctx_names  + bs_noctx_names)+1) + np.max(rh_all_indexes)
+                lh_all_indexes = lh_all_indexes.tolist()
+                
+                rh_all_colors =  rh_ctx_color +  rh_noctx_colors
+                lh_all_colors =  lh_ctx_color +  lh_noctx_colors + bs_noctx_colors + wm_rh_color + wm_lh_color
+
+                # Concatenating the hemispheres
+                all_names = rh_all_names + lh_all_names
+                all_colors = rh_all_colors + lh_all_colors
+                all_indexes = rh_all_indexes + lh_all_indexes + wm_rh_indexes + wm_lh_indexes
+
+                # Generating a dataframe
+                tab_df = pd.DataFrame({'index': all_indexes, 'name': all_names, 'color': all_colors})
+                tab_list.append(tab_df)
+                desc_list.append(gen_desc)
+                parc_id_list.append(parc_id)
+
+        # Add the tab_list as an attribute of the class
+        self.regtable = {"parc_id": parc_id_list, "desc": desc_list, "table": tab_list}
+        
+        
+        
+        
+        
+    
+    
 
 # Loading the JSON file containing the available parcellations
 def _pipeline_info(pipe_json:str=None):
@@ -345,10 +1081,11 @@ def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
 
     """
     cwd = os.path.dirname(os.path.abspath(__file__))
-    cwd = os.path.dirname(cwd)
+    chim_dir = os.path.dirname(cwd)
+    
     # Get the absolute of this file
     if parc_json is None:
-        parc_json = os.path.join(cwd, 'config', 'supraregions_dictionary.json')
+        parc_json = os.path.join(chim_dir, 'config', 'supraregions_dictionary.json')
     else:
         if not os.path.isfile(parc_json):
             raise ValueError("Please, provide a valid JSON file containing the parcellation dictionary.")
@@ -358,7 +1095,7 @@ def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
         
     # Read all the tsv files 
     if supra_folder is None:
-        spr_files = glob(os.path.join(cwd, 'config', 'supraregions', '*.tsv'))
+        spr_files = glob(os.path.join(chim_dir, 'config', 'supraregions', '*.tsv'))
     else:
         if os.path.isdir(supra_folder):
             spr_files = glob(os.path.join(supra_folder, '*.tsv'))
@@ -442,14 +1179,10 @@ def _build_args_parser():
                                 help="R| List of available parcellations for each supra-region. \n"
                                 "\n")
 
-    requiredNamed.add_argument('--bidsdir', '-b', action='store', required=False, metavar='BIDSDIR', type=str, nargs=1,
+    requiredNamed.add_argument('--bidsdir', '-b', action='store', required=True, metavar='BIDSDIR', type=str, nargs=1,
                                 help="R| BIDs dataset folder. \n"
                                 "\n")
-    requiredNamed.add_argument('--derivdir', '-d', action='store', required=False, metavar='DERIVDIR', type=str, nargs=1,
-                                help="R| BIDs derivative folder containing the derivatives folder. \n"
-                                "\n",
-                                default='None')
-    requiredNamed.add_argument('--parcodes', '-p', action='store', required=False,
+    requiredNamed.add_argument('--parcodes', '-p', action='store', required=True,
                                 metavar='CODE', type=str, nargs=1,
                                 help="R| Sequence of nine one-character identifiers (one per each supra-region).\n"
                                     " The defined supra-regions are: 1) Cortex, 2) Basal ganglia, 3) Thalamus, \n"
@@ -469,13 +1202,36 @@ def _build_args_parser():
                                     "\n"
                                     "Use the --regions or -r options to show all the available parcellations for eact supra-region.\n"
                                     "\n")
+    
+    requiredNamed.add_argument('--derivdir', '-d', action='store', required=False, metavar='DERIVDIR', type=str, nargs=1,
+                                help="R| Folder containing the derivatives. If the folder does not exist it will be created \n"
+                                    " If this option is not supplied the derivatives folder will be created inside the BIDs folder. \n"
+                                "\n",
+                                default=None)
+    requiredNamed.add_argument('--freesurferdir', '-fr', action='store', required=False, metavar='FREESURFERDIR', type=str, nargs=1,
+                                help="R| FreeSurfer subjects dir. If the folder is not supplied \n"
+                                    " If the folder does not exist it will be created. \n"
+                                "\n",
+                                default=None)
+    requiredNamed.add_argument('--scale', '-s', action='store', required=False,
+                                metavar='SCALE', type=str, nargs=1,
+                                help="R| Scale identification.\n"
+                                    " This option should be supplied for multi-resolution cortical parcellations (e.g. Lausanne or Schaeffer). \n"
+                                    " If the scale is not specified. The parcellations will be generated for all the scales. \n"
+                                    "\n", default=None)
+    requiredNamed.add_argument('--seg', '-e', action='store', required=False,
+                                metavar='SEG', type=str, nargs=1,
+                                help="R| Segmentation identifier.\n"
+                                    " This option should be supplied when a cortical parcellation have different versions (e.g. Shaeffer \n"
+                                    " parcellation contains two different versions for the same scale: 7n and kong7n ) \n"
+                                    "\n", default=None)
     requiredNamed.add_argument('--nthreads', '-n', action='store', required=False, metavar='NTHREADS', type=str, nargs=1,
                                 help="R| Number of processes to run in parallel (default= Number of cores - 4). \n", default=['auto'])
 
     requiredNamed.add_argument('--growwm', '-g', action='store', required=False, metavar='GROWWM', type=str, nargs=1,
-                                help="R| Grow of GM labels inside the white matter in mm. \n", default=['2'])
+                                help="R| Grow of GM labels inside the white matter in mm. \n", default=None)
 
-    requiredNamed.add_argument('--t1s', '-t', action='store', required=False, metavar='T1FILE', type=str, nargs=1,
+    requiredNamed.add_argument('--txt2filter', '-x', action='store', required=False, metavar='FILE', type=str, nargs=1,
                                 help="R| File containing the basename of the NIFTI images that will be ran. \n"
                                     "   This file is useful to tun Chimera, only, on certain T1s in case of multiple T1s \n"
                                     " for the same session.\n"
@@ -493,28 +1249,141 @@ def _build_args_parser():
 
     args = p.parse_args()
 
-    if args.derivdir is None or args.bidsdir is None or args.parcodes is None :
-        print('--bidsdir, --derivdir and --parcodes are REQUIRED arguments')
+    global bids_dirs, deriv_dirs, fssubj_dirs, parcodes
+    
+    if args.bidsdir is None or args.parcodes is None :
+        print('--bidsdir and --parcodes are REQUIRED arguments')
         sys.exit()
 
-    bids_dir = args.bidsdir[0]
-    deriv_dir = args.derivdir[0]
+    bids_dirs = args.bidsdir[0].split(sep=',')
+    # Remove possible empty elements
+    bids_dirs = [x for x in bids_dirs if x]
 
+    
+    for bids_dir in bids_dirs:
+        if not os.path.isdir(bids_dir):
+            print("\n")
+            print("Please, supply a valid BIDs directory.")
+            print("The supplied BIDs directory does not exist: {}".format(bids_dir))
+            p.print_help()
+            sys.exit()
+            
+    if args.derivdir is None:
+        print('--derivdir is not supplied. ')
+        print('The derivatives directory will be created in the corresponding BIDs directory.')
+        deriv_dirs = []
+        for bids_dir in bids_dirs:
+            print('derivatives_dir: {}'.format(os.path.join(bids_dir, 'derivatives')))
+            
+            deriv_dir = Path(os.path.join(bids_dir, 'derivatives'))
+            deriv_dir.mkdir(parents=True, exist_ok=True)
+            
+            deriv_dirs.append(str(deriv_dir))
+
+    else:
+        deriv_dirs = args.derivdir[0].split(sep=',')
+        # Remove possible empty elements
+        deriv_dirs = [x for x in deriv_dirs if x]
+        
+        if len(deriv_dirs) != len(bids_dirs):
+            print("\n")
+            print("The number of derivatives directories should be the same as the number of BIDs directories.")
+            print('The first derivatives directory will be the same for all BIDs directories:')
+            print('derivatives_dir: {}'.format(deriv_dirs[0]))
+            
+            deriv_dir = Path(deriv_dirs[0])
+            
+            # Create the folder if it does not exist
+            deriv_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create a list of the same length as the number of BIDs directories
+            deriv_dirs = [str(deriv_dir) for i in range(len(bids_dirs))]
+        else:
+            for deriv_dir in deriv_dirs:
+                deriv_dir = Path(deriv_dir)
+                
+                # Create the folder if it does not exist
+                deriv_dir.mkdir(parents=True, exist_ok=True)
+                
+    if args.freesurferdir is None:
+        print('--freesurferdir is not supplied. ')
+        
+        if 'SUBJECTS_DIR' in os.environ:
+            print('The FreeSurfer subjects directory will be the same for all derivatives directories.')
+            print('We will use the enviroment variable SUBJECTS_DIR.')
+            print('freesurfer_dir: {}'.format(os.environ["SUBJECTS_DIR"]))
+            
+            fssubj_dir = Path(os.environ["SUBJECTS_DIR"])
+            fssubj_dir.mkdir(parents=True, exist_ok=True)
+            fssubj_dirs = [str(fssubj_dir) for i in range(len(deriv_dirs))]
+            
+            
+        else:
+            print('The FreeSurfer subjects directory will be created in the following derivatives directory:')
+            print('freesurfer_dir: {}'.format(os.path.join(deriv_dirs[0], 'freesurfer')))
+            
+            fssubj_dirs = []
+            for deriv_dir in deriv_dirs:
+                print('derivatives_dir: {}'.format(os.path.join(deriv_dir, 'freesurfer')))
+                
+                fssubj_dir = Path(os.path.join(deriv_dir, 'freesurfer'))
+                fssubj_dir.mkdir(parents=True, exist_ok=True)
+                
+                fssubj_dirs.append(str(fssubj_dir))
+
+    else:
+        fssubj_dirs = args.freesurferdir[0].split(sep=',')
+        # Remove possible empty elements
+        fssubj_dirs = [x for x in fssubj_dirs if x]
+        
+        if len(fssubj_dirs) != len(deriv_dirs):
+            print("\n")
+            print("The number of freesurfer directories should be the same as the number of derivatives directories.")
+            print('The FreeSurfer subjects directory  will be the same for all derivatives directories')
+            print('freesurfer_dir: {}'.format(fssubj_dirs[0]))
+            
+            fssubj_dir = Path(fssubj_dirs[0])
+            
+            # Create the folder if it does not exist
+            fssubj_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create a list of the same length as the number of BIDs directories
+            fssubj_dirs = [str(fssubj_dir) for i in range(len(deriv_dirs))]
+        else:
+            for fssubj_dir in fssubj_dirs:
+                fssubj_dir = Path(fssubj_dir)
+                
+                # Create the folder if it does not exist
+                fssubj_dir.mkdir(parents=True, exist_ok=True)
+
+    
+    parcodes     = args.parcodes[0].split(sep=',')
+    parc_dict, supra_dict = _load_parcellations_info()
+    supra_reg_names = list(parc_dict.keys())
+    n_supra = len(supra_reg_names)
+    
+    # Remove empty elements
+    parcodes = [x for x in parcodes if x]
+    for i, parcode in enumerate(parcodes):
+        if len(parcode) != n_supra:
+            parcode = parcode.ljust(n_supra, 'N')
+            parcodes[i] = parcode
+        
+        # Checking if the code is correct
+        bool_exit = False
+        
+        for ord, sp in enumerate(supra_reg_names):
+            if parcode[ord] not in parc_dict[sp].keys() and parcode[ord] != 'N':
+                bool_exit = True
+                print(f"The parcellation code for the {sp} ({parcode[ord]}) is not correct.")
+                _print_availab_parcels(sp)
+                print(" ")
+                print(f"The {sp} structures will not me included in the final parcellation")
+                print(" ")
+    
     if args.regions is True:
         print('Available parcellations for each supra-region:')
         _print_availab_parcels()
-        sys.exit()
-
-    if not os.path.isdir(deriv_dir):
-        print("\n")
-        print("Please, supply a valid BIDs derivative directory.")
-        p.print_help()
-        sys.exit()
-
-    if not os.path.isdir(bids_dir):
-        print("\n")
-        print("Please, supply a valid BIDs directory.")
-        p.print_help()
         sys.exit()
 
     return p
@@ -532,7 +1401,7 @@ def _print_availab_parcels(reg_name=None):
             print(sup + ':')
             for opts in parc_opts:
                 desc = data[sup][opts]["Name"]
-                cita = data[sup][opts]["Citation"]
+                cita = data[sup][opts]["citation"]
                 parc_help = '{} "{}: {} {}\n"'.format(parc_help, opts, desc, cita)
                 print('     {}: {} {}'.format(opts, desc, cita))
             print('')
@@ -541,7 +1410,7 @@ def _print_availab_parcels(reg_name=None):
         print(reg_name + ':')
         for opts in parc_opts:
             desc = data[reg_name][opts]["Name"]
-            cita = data[reg_name][opts]["Citation"]
+            cita = data[reg_name][opts]["citation"]
             print('     {}: {} {}'.format(opts, desc, cita))
         print('')
 
@@ -1153,41 +2022,12 @@ def _spams2maxprob(spamImage:str, thresh:float=0.05, maxpName:str=None, thalMask
                 colorLUT_f.write('\n'.join(luttable))
 
 # def _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode):
+
+
+
 def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
-    global layout
 
-    # Detecting the entities of the T1 image
-    ent_dict = layout.parse_file_entities(t1)
-    
-    if 'session' in ent_dict.keys():
-        pattern_fullid = "sub-{subject}_ses-{session}_run-{run}"
-        path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
-    else:
-        pattern_fullid = "sub-{subject}_run-{run}"
-        path_cad       = "sub-" + ent_dict["subject"]
-    
-    
-    anat_dir = os.path.dirname(t1)
-    t1_name = os.path.basename(t1)
-    temp_entities = t1_name.split('_')[:-1]
-    fullid = "_".join(temp_entities)
-
-    
-    if len(parccode) != 9:  # Length of the parcellation string
-        parccode = parccode.ljust(9, 'N')
-        
-    # Checking if the code is correct
-    bool_exit = False
-    supra_reg_names = list(parc_dict.keys())
-    for ord, sp in enumerate(supra_reg_names):
-        if parccode[ord] not in parc_dict[sp].keys() and parccode[ord] != 'N':
-            bool_exit = True
-            print(f"The parcellation code for the {sp} ({parccode[ord]}) is not correct.")
-            _print_availab_parcels(sp)
-
-    if bool_exit:
-        raise ValueError("Incorrect parcellation code. Please, check the available codes.")
 
     ######## ------------- Detecting FreeSurfer Subjects Directory  ------------ #
     fshome_dir = os.getenv('FREESURFER_HOME')
@@ -1204,13 +2044,13 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
 
     ##### ========== Selecting the cortical parcellation ============== #####
-    atlas_str     = parc_dict["Cortical"][parccode[0]]["Atlas"]
-    atlas_desc    = parc_dict["Cortical"][parccode[0]]["Description"]
-    atlas_cita    = parc_dict["Cortical"][parccode[0]]["Citation"]
-    atlas_type    = parc_dict["Cortical"][parccode[0]]["Type"]
-    atlas_names   = parc_dict["Cortical"][parccode[0]]["Parcels"]
-    atlas_surfloc = parc_dict["Cortical"][parccode[0]]["OutSurfLocation"]
-    atlas_volloc  = parc_dict["Cortical"][parccode[0]]["OutVolLocation"]
+    atlas_str     = parc_dict["Cortical"][parccode[0]]["atlas"]
+    atlas_desc    = parc_dict["Cortical"][parccode[0]]["description"]
+    atlas_cita    = parc_dict["Cortical"][parccode[0]]["citation"]
+    atlas_type    = parc_dict["Cortical"][parccode[0]]["type"]
+    atlas_names   = parc_dict["Cortical"][parccode[0]]["parcels"]
+    atlas_surfloc = parc_dict["Cortical"][parccode[0]]["deriv_surffold"]
+    atlas_volloc  = parc_dict["Cortical"][parccode[0]]["deriv_volfold"]
     surfatlas_dir = os.path.join(deriv_dir, atlas_surfloc, path_cad, 'anat')
     volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
     parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
@@ -1383,9 +2223,9 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         # Loading FIRST parcellation
         if parccode[1] == 'R' or parccode[2] == 'R' or parccode[3] == 'R' or parccode[4] == 'R' or parccode[7] == 'R':
-            atlas_str = parc_dict["Subcortical"]["R"]["Atlas"]
-            atlas_desc = parc_dict["Subcortical"]["R"]["Description"]
-            atlas_volloc = parc_dict["Subcortical"]["R"]["OutVolLocation"]
+            atlas_str = parc_dict["Subcortical"]["R"]["atlas"]
+            atlas_desc = parc_dict["Subcortical"]["R"]["description"]
+            atlas_volloc = parc_dict["Subcortical"]["R"]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
 
             first_parc = os.path.join(volatlas_dir, fullid + '_space-orig_atlas-' + atlas_str + '_dseg.nii.gz')
@@ -1424,10 +2264,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Subcortical parcellation ============== #####
         if parccode[1] in parc_dict["Subcortical"].keys():
-            atlas_str = parc_dict["Subcortical"][parccode[1]]["Atlas"]
-            atlas_desc = parc_dict["Subcortical"][parccode[1]]["Description"]
-            atlas_cita = parc_dict["Subcortical"][parccode[1]]["Citation"]
-            atlas_volloc = parc_dict["Subcortical"][parccode[1]]["OutVolLocation"]
+            atlas_str = parc_dict["Subcortical"][parccode[1]]["atlas"]
+            atlas_desc = parc_dict["Subcortical"][parccode[1]]["description"]
+            atlas_cita = parc_dict["Subcortical"][parccode[1]]["citation"]
+            atlas_volloc = parc_dict["Subcortical"][parccode[1]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
         else:
@@ -1469,10 +2309,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Thalamic parcellation ============== #####
         try:
-            atlas_str = parc_dict["Thalamus"][parccode[2]]["Atlas"]
-            atlas_desc = parc_dict["Thalamus"][parccode[2]]["Description"]
-            atlas_cita = parc_dict["Thalamus"][parccode[2]]["Citation"]
-            atlas_volloc = parc_dict["Thalamus"][parccode[2]]["OutVolLocation"]
+            atlas_str = parc_dict["Thalamus"][parccode[2]]["atlas"]
+            atlas_desc = parc_dict["Thalamus"][parccode[2]]["description"]
+            atlas_cita = parc_dict["Thalamus"][parccode[2]]["citation"]
+            atlas_volloc = parc_dict["Thalamus"][parccode[2]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1535,10 +2375,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Amygdala parcellation ============== #####
         try:
-            atlas_str = parc_dict["Amygdala"][parccode[3]]["Atlas"]
-            atlas_desc = parc_dict["Amygdala"][parccode[3]]["Description"]
-            atlas_cita = parc_dict["Amygdala"][parccode[3]]["Citation"]
-            atlas_volloc = parc_dict["Amygdala"][parccode[3]]["OutVolLocation"]
+            atlas_str = parc_dict["Amygdala"][parccode[3]]["atlas"]
+            atlas_desc = parc_dict["Amygdala"][parccode[3]]["description"]
+            atlas_cita = parc_dict["Amygdala"][parccode[3]]["citation"]
+            atlas_volloc = parc_dict["Amygdala"][parccode[3]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1593,16 +2433,16 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Hippocampus parcellation ============== #####
         try:
-            atlas_str = parc_dict["Hippocampus"][parccode[4]]["Atlas"]
-            atlas_desc = parc_dict["Hippocampus"][parccode[4]]["Description"]
-            atlas_cita = parc_dict["Hippocampus"][parccode[4]]["Citation"]
-            atlas_volloc = parc_dict["Hippocampus"][parccode[4]]["OutVolLocation"]
+            atlas_str = parc_dict["Hippocampus"][parccode[4]]["atlas"]
+            atlas_desc = parc_dict["Hippocampus"][parccode[4]]["description"]
+            atlas_cita = parc_dict["Hippocampus"][parccode[4]]["citation"]
+            atlas_volloc = parc_dict["Hippocampus"][parccode[4]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
             if parccode[4] == 'H':
-                atlas_str_ig = parc_dict["Hippocampus"]["I"]["Atlas"]
-                atlas_volloc_ig = parc_dict["Hippocampus"]["I"]["OutVolLocation"]
+                atlas_str_ig = parc_dict["Hippocampus"]["I"]["atlas"]
+                atlas_volloc_ig = parc_dict["Hippocampus"]["I"]["deriv_volfold"]
                 volatlas_dir_ig = os.path.join(deriv_dir, atlas_volloc_ig, path_cad, 'anat')
 
         except:
@@ -1650,7 +2490,7 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
         elif parccode[4] == 'H':
 
             # Detecting the parcellation of hippocampal subfields
-            atlas_str_ig = parc_dict["Hippocampus"]["I"]["Atlas"]
+            atlas_str_ig = parc_dict["Hippocampus"]["I"]["atlas"]
 
             # Hippocampus parcellation based on Iglesias et al, 2015
             vol_hparc_lh = glob(volatlas_dir + os.path.sep + fullid + '*L*' + atlas_str_ig + '*.nii.gz')
@@ -1690,10 +2530,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Hypothalamus parcellation ============== #####
         try:
-            atlas_str = parc_dict["Hypothalamus"][parccode[5]]["Atlas"]
-            atlas_desc = parc_dict["Hypothalamus"][parccode[5]]["Description"]
-            atlas_cita = parc_dict["Hypothalamus"][parccode[5]]["Citation"]
-            atlas_volloc = parc_dict["Hypothalamus"][parccode[5]]["OutVolLocation"]
+            atlas_str = parc_dict["Hypothalamus"][parccode[5]]["atlas"]
+            atlas_desc = parc_dict["Hypothalamus"][parccode[5]]["description"]
+            atlas_cita = parc_dict["Hypothalamus"][parccode[5]]["citation"]
+            atlas_volloc = parc_dict["Hypothalamus"][parccode[5]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1749,10 +2589,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Cerebellum parcellation ============== #####
         try:
-            atlas_str = parc_dict["Cerebellum"][parccode[6]]["Atlas"]
-            atlas_desc = parc_dict["Cerebellum"][parccode[6]]["Description"]
-            atlas_cita = parc_dict["Cerebellum"][parccode[6]]["Citation"]
-            atlas_volloc = parc_dict["Cerebellum"][parccode[6]]["OutVolLocation"]
+            atlas_str = parc_dict["Cerebellum"][parccode[6]]["atlas"]
+            atlas_desc = parc_dict["Cerebellum"][parccode[6]]["description"]
+            atlas_cita = parc_dict["Cerebellum"][parccode[6]]["citation"]
+            atlas_volloc = parc_dict["Cerebellum"][parccode[6]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1769,10 +2609,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting Brainstem parcellation ============== #####
         try:
-            atlas_str = parc_dict["Brainstem"][parccode[7]]["Atlas"]
-            atlas_desc = parc_dict["Brainstem"][parccode[7]]["Description"]
-            atlas_cita = parc_dict["Brainstem"][parccode[7]]["Citation"]
-            atlas_volloc = parc_dict["Brainstem"][parccode[7]]["OutVolLocation"]
+            atlas_str = parc_dict["Brainstem"][parccode[7]]["atlas"]
+            atlas_desc = parc_dict["Brainstem"][parccode[7]]["description"]
+            atlas_cita = parc_dict["Brainstem"][parccode[7]]["citation"]
+            atlas_volloc = parc_dict["Brainstem"][parccode[7]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -1801,10 +2641,10 @@ def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
 
         ##### ========== Selecting white matter parcellation ============== #####
         try:
-            atlas_str = parc_dict["GyralWM"][parccode[8]]["Atlas"]
-            atlas_desc = parc_dict["GyralWM"][parccode[8]]["Description"]
-            atlas_cita = parc_dict["Cortical"][parccode[8]]["Citation"]
-            atlas_volloc = parc_dict["GyralWM"][parccode[8]]["OutVolLocation"]
+            atlas_str = parc_dict["GyralWM"][parccode[8]]["atlas"]
+            atlas_desc = parc_dict["GyralWM"][parccode[8]]["description"]
+            atlas_cita = parc_dict["Cortical"][parccode[8]]["citation"]
+            atlas_volloc = parc_dict["GyralWM"][parccode[8]]["deriv_volfold"]
             volatlas_dir = os.path.join(deriv_dir, atlas_volloc, path_cad, 'anat')
             parc_desc_lines.append(atlas_desc + ' ' + atlas_cita)
 
@@ -2283,7 +3123,7 @@ def progress_indicator(future):
     :param future: future object
     
     """
-    global lock, n_subj, n_comp, pb, pb1, parccode
+    global lock, n_subj, n_comp, pb, pb1, chim_code
     # obtain the lock
     with lock:
         # update the counter
@@ -2291,7 +3131,7 @@ def progress_indicator(future):
         # report progress
         # print(f'{tasks_completed}/{n_subj} completed, {n_subj-tasks_completed} remain.')
         # pb.update(task_id=pb1, description= f'[red]Completed {n_comp}/{n_subj}', completed=n_subj)
-        pb.update(task_id=pb1, description= f'[red]{parccode}: Finished ({n_comp}/{n_subj})', completed=n_comp) 
+        pb.update(task_id=pb1, description= f'[red]{chim_code}: Finished ({n_comp}/{n_subj})', completed=n_comp) 
 
 def test(name):
     
@@ -2330,51 +3170,6 @@ def code2table(code:str,
     # Reading the parcellations dictionary
     parc_dict, supra_dict = _load_parcellations_info()
     
-    
-    
-    
-    
-
-def chimera_parcellation(bids_dir:str, 
-                        deriv_dir:str, 
-                        parcodes:list, 
-                        t1s2run_file:str = None, 
-                        growwm:list = [], 
-                        nthreads:int = 1):
-    """
-    Preparing chimera to build the parcellations.
-    
-    Parameters
-    ----------
-    bids_dir : str
-        The directory with the input dataset formatted according to the BIDS standard.
-        
-    deriv_dir : str
-        The directory where the output files are stored.
-        
-    parcodes : list
-        List of parcellations codes.
-        
-    t1s2run_file : str
-        File containing the list of T1w images to be processed.
-        
-    growwm : list
-        List of values, in mm, to grow the GM regions inside the WM.
-        
-    nthreads : int
-        Number of threads to be used.
-        
-    """
-
-    # Declaring global variables
-    global layout, pb, pb1, n_subj, n_comp, lock, parccode
-    
-    
-    ######## -- Reading the parcellation dictionary and supraregion tables ------------ #
-    parc_dict, supra_dict = _load_parcellations_info()
-    
-    ######## -- Reading the configuration dictionary  ------------ #
-    pipe_dict = _pipeline_info()
 
     ######## ------------ Selecting the templates  ------------ #
     if pipe_dict["templates"]["reference"]["tool"] == "templateflow":
@@ -2439,7 +3234,49 @@ def chimera_parcellation(bids_dir:str,
         temp_cad = "CustomSpace"
         atlas_cad = "CustomParc"
     
+    
 
+def chimera_parcellation(bids_dir:str, 
+                        deriv_dir:str,
+                        fssubj_dir:str,
+                        code_dict:dict, 
+                        t1s2run_file:str = None, 
+                        growwm:list = [], 
+                        nthreads:int = 1):
+    """
+    Preparing chimera to build the parcellations.
+    
+    Parameters
+    ----------
+    bids_dir : str
+        The directory with the input dataset formatted according to the BIDS standard.
+        
+    deriv_dir : str
+        The directory where the output files are stored.
+        
+    code_dict : dict
+        Dictionary containing 3 main keys: code, scale and seg
+        -- "code" can be either a string or a list of strings.
+        -- "scale" can be either a string or a list of strings.
+        -- "seg" can be either a string or a list of strings.
+        
+    t1s2run_file : str
+        File containing the list of T1w images to be processed.
+        
+    growwm : list
+        List of values, in mm, to grow the GM regions inside the WM.
+        
+    nthreads : int
+        Number of threads to be used.
+        
+    """
+
+    # Declaring global variables
+    global pipe_dict, layout, pb, pb1, n_subj, n_comp, lock, chim_code
+    
+    ######## -- Reading the configuration dictionary  ------------ #
+    pipe_dict = _pipeline_info()
+    
     # Selecting all the T1w images for each BIDS directory
     layout = BIDSLayout(bids_dir, validate=False)
     t1s = layout.get( extension=['nii.gz', 'nii'], suffix='T1w', return_type='filename')
@@ -2450,17 +3287,30 @@ def chimera_parcellation(bids_dir:str,
     else:
         t12run = t1s2run_file.split(',')
         t1s = [s for s in t1s if any(xs in s for xs in t12run)]
+    
+    chim_codes = code_dict["code"]
 
-    n_parc = len(parcodes)
+    n_parc = len(chim_codes)
     n_subj = len(t1s)
-
 
     with Progress() as pb:
         pb2 = pb.add_task('[green]Parcellation: ', total=n_parc)
 
         # Loop around each parcellation
-        for p, parccode in enumerate(parcodes):
+        for p, chim_code in enumerate(chim_codes):
             
+            # Creating and configuring the Chimera object
+            chim_obj = Chimera(parc_code=chim_code,
+                                scale=code_dict["scale"], 
+                                seg = code_dict["seg"])
+            
+            # Creating the color table
+            chim_obj._create_table()
+            
+            # Configuring and downloading the templates
+            chim_obj._prepare_templates(fssubj_dir=fssubj_dir)
+            
+                        
             # create a lock for the counter
             lock = Lock()
 
@@ -2468,26 +3318,26 @@ def chimera_parcellation(bids_dir:str,
             n_comp = 0
             failed = []
             
-            pb.update(task_id=pb2, description= f'[green]Parcellation: {parccode} ({p+1}/{n_parc})', completed=p+1)
+            pb.update(task_id=pb2, description= f'[green]Parcellation: {chim_code} ({p+1}/{n_parc})', completed=p+1)
             
             # print("Parcellation: % d"% (p+1), "of % d"% (n_parc))
             if nthreads == 1:
                 
-                pb1 = pb.add_task(f'[red]Processing: Parcellation {parccode} ({p + 1}/{n_parc}) ', total=n_subj)
+                pb1 = pb.add_task(f'[red]Processing: Parcellation {chim_code} ({p + 1}/{n_parc}) ', total=n_subj)
                 for i, t1 in enumerate(t1s):
                     # ent_dict = layout.parse_file_entities(t1)
                     
                     t1_name = os.path.basename(t1)
                     temp = t1_name.split("_")
                     full_id = '_'.join(temp[:-1])
-                    _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm)
-                    pb.update(task_id=pb1, description= f'[red]{parccode}: {full_id} ({i+1}/{n_subj})', completed=i+1) 
+                    chim_obj._build_parcellation1(t1, bids_dir, deriv_dir, fssubj_dir, growwm)
+                    pb.update(task_id=pb1, description= f'[red]{chim_code}: {full_id} ({i+1}/{n_subj})', completed=i+1) 
                 
             else:
                 start_time = time.perf_counter()
                 
                 # create a progress bar for the subjects
-                pb1 = pb.add_task(f'[red]Processing: Parcellation {parccode} ({p + 1}/{n_parc}) ', total=n_subj)
+                pb1 = pb.add_task(f'[red]Processing: Parcellation {chim_code} ({p + 1}/{n_parc}) ', total=n_subj)
 
                 # Adjusting the number of threads to the number of subjects
                 if n_subj < nthreads:
@@ -2522,21 +3372,43 @@ def main():
         print('\nInputs\n')
     #
 
-    # Getting the path of the current running python file
-    cwd          = os.getcwd()
-    bids_dirercts   = args.bidsdir[0].split(sep=',')
-    # deriv_dir    = args.derivdir[0]
-    deriv_dirercts   = args.derivdir[0].split(sep=',')
-    parcodes     = args.parcodes[0].split(sep=',')
+    global bids_dirs, deriv_dirs, fssubj_dirs, parcodes
     
-    if args.t1s is not None:
-        t1s2run_file = args.t1s[0]
+        
+    if args.scale is not None:
+        scale_id = args.scale[0].split(sep=',')
+        
+        # Remove empty elements
+        scale_id = [x for x in scale_id if x]
+        
+    else: 
+        scale_id = None
+        
+    if args.seg is not None:
+        seg_id = args.seg[0].split(sep=',')
+        
+        # Remove empty elements
+        seg_id = [x for x in seg_id if x]
+    else:
+        seg_id = None
+        
+    # Create dictionary with the code, scale and segmentation
+    code_dict = {"code": parcodes, "scale": scale_id, "seg": seg_id}
+        
+    
+    if args.txt2filter is not None:
+        t1s2run_file = args.txt2filter[0]
     else:
         t1s2run_file = ''
     
-    
-    growwm       = args.growwm[0]
-    
+    if args.growwm is not None:
+        growwm = args.growwm[0].split(sep=',')
+        
+        # Remove empty elements
+        growwm = [x for x in growwm if x]
+    else:
+        growwm = ['0']
+        
     # Detecting the number of cores to be used
     ncores = os.cpu_count()
     nthreads = args.nthreads[0]
@@ -2549,23 +3421,14 @@ def main():
     else:
         nthreads     = int(args.nthreads[0])
         
-    growwm       = growwm.split(',')
-    
-    # Removing empty elements from the parcellation list
-    parcodes = [x for x in parcodes if x]
-    
-    # Avoiding the layout to decrease indexing time
-    t1s = []
-
-    for cont, bids_dir in enumerate(bids_dirercts):
-        if len(bids_dirercts) == len(deriv_dirercts):
-            deriv_dir = deriv_dirercts[cont]
-        else:
-            deriv_dir = deriv_dirercts[0]
+    for i, bids_dir in enumerate(bids_dirs):
         
+        deriv_dir = deriv_dirs[i]
+        fssubj_dir = fssubj_dirs[i]
         chimera_parcellation(bids_dir, 
-                        deriv_dir, 
-                        parcodes, 
+                        deriv_dir,
+                        fssubj_dir,
+                        code_dict, 
                         t1s2run_file, 
                         growwm, 
                         nthreads)

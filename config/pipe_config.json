@@ -32,19 +32,19 @@
             {
                 "tool": "templateflow",
                 "space": "fsaverage7",
-                "folder": "ANNOT_Atlases"
+                "folder": "annot_atlases"
             },
             "gcs":
             {
                 "tool": "local",
                 "space": "fsaverage7",
-                "folder": "GCS_Atlases"
+                "folder": "gcs_atlases"
             },
             "volume": 
             {
                 "tool": "templateflow",
                 "space": "MNI152NLin2009cAsym",
-                "folder": "Annot_Atlases"
+                "folder": "vol_atlases"
             }
         }
 }
