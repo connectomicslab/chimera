@@ -14,6 +14,7 @@ from operator import itemgetter
 from datetime import datetime
 import argparse
 from typing import Union
+import shutil
 
 import csv
 import json
@@ -31,6 +32,7 @@ from templateflow import api as tflow
 import clabtoolkit.misctools as cltmisc
 import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.parcellationtools as cltparc
+import clabtoolkit.bidstools as cltbids
 from rich.progress import Progress
 
 
@@ -250,7 +252,7 @@ class Chimera:
                             lh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = parc_file,
                                                                         ref_surf = tmp_refsurf,
                                                                         annot_file = tmp_annot, 
-                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
                                                                         cont_image=pipe_dict["packages"]["freesurfer"]["container"])
                             
                             tmp_annot   = os.path.join(fssubj_dir, atlas_ref,'label','rh.' + at_name[0] + '.annot')
@@ -259,7 +261,7 @@ class Chimera:
                             rh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = ctx_parc_rh[i],
                                                                         ref_surf = tmp_refsurf,
                                                                         annot_file = tmp_annot, 
-                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                        cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
                                                                         cont_image=pipe_dict["packages"]["freesurfer"]["container"])
                     
                     if not ctx_parc_lh_annot or not ctx_parc_rh_annot:
@@ -750,10 +752,13 @@ class Chimera:
         sub2proc = cltfree.FreeSurferSubject(fullid, subjs_dir=fssubj_dir)
         supra_names = self.parc_dict.keys()
         
+        cont_tech  = pipe_dict["packages"]["freesurfer"]["cont_tech"]
+        cont_image = pipe_dict["packages"]["freesurfer"]["container"]
+        
         if 'F' in self.parc_code:
             sub2proc._launch_freesurfer(force=force, 
-                                        cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
-                                        cont_image=pipe_dict["packages"]["freesurfer"]["container"])
+                                        cont_tech=cont_tech, 
+                                        cont_image=cont_image)
             
         for supra in supra_names:
             
@@ -771,11 +776,105 @@ class Chimera:
                 atlas_type    = self.parc_dict[supra]["type"]
                 atlas_names   = self.parc_dict[supra]["parcels"]
                 
-                proc_dict = self.parc_dict["Cortical"]["Processing"]
+                proc_dict     = self.parc_dict["Cortical"]["Processing"]
+                ctx_meth      = proc_dict["method"]
                 
+                nctx_parc     = len(self.parc_dict["Cortical"]["Processing"]["labels"]["lh"])
+                for c in np.arange(nctx_parc):
+                    
+                    ## -------- Cortical parcellation for the left hemisphere ---------------
+                    # Creating the name for the output file
+                    lh_in_parc = self.parc_dict["Cortical"]["Processing"]["labels"]["lh"][c]
+                    at_name = [s for s in atlas_names if s in lh_in_parc]
+                    lh_out_annot = os.path.join(deriv_dir, 
+                                                self.parc_dict["Cortical"]["deriv_surffold"], 
+                                                path_cad, 
+                                                fullid + '_hemi-L' + '_' + ''.join(at_name) + '_dseg.annot')
+                    
+                    ## -------- Cortical parcellation for the right hemisphere ---------------
+                    # Creating the name for the output file
+                    rh_in_parc = self.parc_dict["Cortical"]["Processing"]["labels"]["rh"][c]
+                    at_name = [s for s in atlas_names if s in rh_in_parc]
+                    at_name = ''.join(at_name)
+                    rh_out_annot = os.path.join(deriv_dir, 
+                                                self.parc_dict["Cortical"]["deriv_surffold"], 
+                                                path_cad, 
+                                                fullid + '_hemi-R' + '_' + at_name + '_dseg.annot')
+                    
+                    if ctx_meth == 'annot2indiv':
+                        # Moving to individual space
+                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["Processing"]["reference"], 
+                                        hemi='lh', 
+                                        fs_annot=lh_in_parc, 
+                                        ind_annot=lh_out_annot, 
+                                        cont_tech = cont_tech,
+                                        cont_image=cont_image, 
+                                        force=force)
+                        
+                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["Processing"]["reference"], 
+                                        hemi='rh', 
+                                        fs_annot=rh_in_parc, 
+                                        ind_annot=rh_out_annot,
+                                        cont_tech = cont_tech,
+                                        cont_image=cont_image, 
+                                        force=force)
+                        
+                    if ctx_meth == 'gcs2indiv':
+                        # Moving to individual space
+                        sub2proc._gcs2ind(fs_gcs=lh_in_parc, 
+                                        hemi='lh', 
+                                        ind_annot=lh_out_annot, 
+                                        cont_tech=cont_tech,
+                                        cont_image=cont_image,
+                                        force=force)
+                        
+                        sub2proc._gcs2ind(fs_gcs=rh_in_parc, 
+                                        hemi='rh', 
+                                        ind_annot=rh_out_annot, 
+                                        cont_tech=cont_tech,
+                                        cont_image=cont_image,
+                                        force=force)
+                    
+                    # Copying to the labels folder
+                    temp_lh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'lh.' + at_name + '.annot')
+                    shutil.copyfile(lh_out_annot, temp_lh)
+
+
+                    # Copying to the labels folder
+                    temp_rh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'rh.' + at_name + '.annot')
+                    shutil.copyfile(rh_out_annot, temp_rh)
+                    
+                    ## -------- Creating the volumetric parcellation ---------------
+                    out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
+                    if growwm is not None:
+                        for ngrow in np.arange(len(growwm)):
+                            if growwm[ngrow] == '0':
+                                out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                            else:
+                                
+                                ent_dict = cltbids._str2entity(at_name)
+                                if 'desc' in ent_dict.keys():
+                                    ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
+                                    tmp_str = cltbids._entity2str(ent_dict)
+                                    out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
+                                else:
+                                    out_vol_name = fullid + '_' + at_name + '_desc_grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
+
+                            sub2proc._surf2vol(atlas=at_name, 
+                                                out_vol=os.path.join(out_vol_dir, out_vol_name), 
+                                                gm_grow=growwm[ngrow], 
+                                                force=force, bool_native=True, 
+                                                color_table=['tsv', 'lut'])
                             
-                
-                
+                    else:
+                        out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                        sub2proc._surf2vol(atlas=at_name, 
+                                            out_vol=os.path.join(out_vol_dir, out_vol_name), 
+                                            gm_grow=growwm[ngrow], 
+                                            force=force, bool_native=True)
+                        
+
+
                 
                 # Selecting the source and downloading the parcellation
                 if atlas_src == 'templateflow':
@@ -805,14 +904,14 @@ class Chimera:
                         lh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = parc_file,
                                                                     ref_surf = sub2proc.fs_files["surf"]["lh"]["white"],
                                                                     annot_file = tmp_annot, 
-                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
                                                                     cont_image=pipe_dict["packages"]["freesurfer"]["container"])
                         
                         tmp_annot = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id,'label','rh.tmp.annot')
                         rh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = ctx_parc_rh[i],
                                                                     ref_surf = sub2proc.fs_files["surf"]["rh"]["white"],
                                                                     annot_file = tmp_annot, 
-                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["con_tech"], 
+                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
                                                                     cont_image=pipe_dict["packages"]["freesurfer"]["container"])
                         
                         # Create freesurfer
@@ -1464,306 +1563,6 @@ def _select_t1s(t1s, t1file):
 
 
 
-def _launch_annot2ind(fssubj_dir: str,
-                        fs_annot: str, 
-                        ind_annot: str, 
-                        hemi: str, 
-                        out_dir: str, 
-                        fullid: str, 
-                        atlas: str,
-                        cont_tech: str = "local",
-                        cont_image: str = None):
-    """
-    Map ANNOT parcellation files to individual space.
-    
-    Parameters:
-    ----------
-    fssubj_dir : str
-        FreeSurfer subjects directory
-        
-    fs_annot : str
-        FreeSurfer GCS parcellation file
-        
-    ind_annot : str
-        Individual space annotation file
-        
-    hemi : str
-        Hemisphere id ("lh" or "rh")
-        
-    out_dir : str
-        Output directory
-        
-    fullid : str
-        FreeSurfer ID
-        
-    atlas : str
-        Atlas ID
-        
-    cont_tech : str
-        Container technology ("singularity", "docker", "local")
-        
-    cont_image: str
-        Container image to use    
-        
-    """
-    
-    os.environ["SUBJECTS_DIR"] = fssubj_dir
-    
-    # Creating the hemisphere id
-    if hemi == 'lh':
-        hemicad = 'L'
-    elif hemi == 'rh':
-        hemicad = 'R'
-
-    # Moving the Annot to individual space
-    cmd_bashargs = ['mri_surf2surf', '--srcsubject', 'fsaverage', '--trgsubject', fullid,
-                            '--hemi', hemi, '--sval-annot', fs_annot,
-                            '--tval', ind_annot]
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-
-
-    # Copying the resulting annot to the output folder
-    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dseg.label.annot')
-    cmd_bashargs = ['cp', ind_annot, out_annot]    
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-    
-    # Correcting the parcellation file in order to refill the parcellation with the correct labels    
-    cort_parc = cltfree.AnnotParcellation(annot_file=out_annot)
-    label_file = os.path.join(fssubj_dir, fullid, 'label', hemi + '.cortex.label')
-    surf_file = os.path.join(fssubj_dir, fullid, 'surf', hemi + '.inflated')
-    cort_parc._fill_parcellation(corr_annot=out_annot, label_file=label_file, surf_file=surf_file)
-    
-    
-    return out_annot
- 
-def _launch_gcs2ind(fssubj_dir: str, 
-                    fs_gcs: str, 
-                    ind_annot: str, 
-                    hemi: str, 
-                    out_dir: str, 
-                    fullid: str, 
-                    atlas: str, 
-                    cont_tech: str = "local", 
-                    cont_image: str = None):
-    """
-    Map GCS parcellation files to individual space.
-    
-    Parameters:
-    ----------
-    fssubj_dir : str
-        FreeSurfer subjects directory
-        
-    fs_gcs : str
-        FreeSurfer GCS parcellation file
-        
-    ind_annot : str
-        Individual space annotation file
-        
-    hemi : str
-        Hemisphere id ("lh" or "rh")
-        
-    out_dir : str
-        Output directory
-        
-    fullid : str
-        FreeSurfer ID
-        
-    atlas : str
-        Atlas ID
-        
-    cont_tech : str
-        Container technology ("singularity", "docker", "local")
-        
-    cont_image: str
-        Container image to use    
-        
-        
-    """
-
-    # Creating the hemisphere id
-    if hemi == 'lh':
-        hemicad = 'L'
-    elif hemi == 'rh':
-        hemicad = 'R'
-
-    # Moving the GCS to individual space
-    cort_file = os.path.join(fssubj_dir, fullid, 'label', hemi + '.cortex.label')
-    sph_file  = os.path.join(fssubj_dir, fullid, 'surf', hemi + '.sphere.reg')
-    
-    cmd_bashargs = ['mris_ca_label', '-l', cort_file, fullid, hemi, sph_file,
-                    fs_gcs, ind_annot]
-    
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-    
-    # Copying the resulting annot to the output folder
-    out_annot = os.path.join(out_dir, fullid + '_hemi-' + hemicad + '_space-orig_' + atlas + '_dseg.label.annot')
-    
-    cmd_bashargs = ['cp', ind_annot, out_annot]
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-
-
-    return out_annot
-
-def _launch_freesurfer(t1file:str, 
-                        fssubj_dir:str, 
-                        fullid:str, 
-                        cont_tech: str = "local", 
-                        cont_image: str = None):
-    """
-    Function to launch FreeSurfer recon-all for a given T1 image
-    
-    Parameters:
-    ----------
-    t1file : str
-        T1 image file
-    
-    fssubj_dir : str
-        FreeSurfer subjects directory
-        
-    fullid : str
-        Full subject id
-        
-    cont_tech : str
-        Container technology ("singularity", "docker", "local")
-        
-    cont_image: str
-        Container image to use
-
-    """
-    
-    # Setting the FreeSurfer subjects directory
-    os.environ["SUBJECTS_DIR"] = fssubj_dir
-    cmd_bashargs = ['recon-all', '-subjid', '-i', t1file, fullid, '-all']
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-
-
-    return
-
-
-def _launch_surf2vol(fssubj_dir: str, 
-                        out_dir: str, 
-                        fullid: str, 
-                        atlas: str, 
-                        gm_grow: str, 
-                        cont_tech: str = "local", 
-                        cont_image: str = "local"):
-    
-    """
-    Create volumetric parcellation from annot files.
-    
-    Parameters:
-    ----------
-    fssubj_dir : str
-        FreeSurfer subjects directory
-
-    out_dir : str
-        Output directory
-        
-    fullid : str
-        FreeSurfer ID
-    
-    atlas : str
-        Atlas ID   
-        
-    gm_grow : str
-        Amount of milimiters to grow the GM labels
-        
-    cont_tech : str
-        Container technology ("singularity", "docker", "local")
-        
-    cont_image: str
-        Container image to use
-        
-    """
-
-    if 'desc' not in atlas:
-        atlas_str = atlas + '_desc-'
-    else:
-        atlas_str = atlas
-
-    if atlas == "aparc":
-        atlas_str = "atlas-desikan_desc-aparc"
-    elif atlas == "aparc.a2009s":
-        atlas_str = "atlas-destrieux_desc-a2009s"
-
-    out_parc = []
-    for g in gm_grow:
-        out_vol = os.path.join(out_dir, fullid + '_space-orig_' + atlas_str + 'grow' + g + 'mm_dseg.nii.gz')
-
-        if g == '0':
-            # Creating the volumetric parcellation using the annot files
-
-            cmd_bashargs = ['mri_aparc2aseg', '--s', fullid, '--annot', atlas,
-                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol]
-            cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-            subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-
-        else:
-            # Creating the volumetric parcellation using the annot files
-            cmd_bashargs = ['mri_aparc2aseg', '--s', fullid, '--annot', atlas, '--wmparc-dmax', g, '--labelwm',
-                            '--hypo-as-wm', '--new-ribbon', '--o', out_vol]
-            cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-            subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-
-        # Moving the resulting parcellation from conform space to native
-        raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
-        
-        cmd_bashargs = ['mri_vol2vol', '--mov', out_vol, '--targ', raw_vol,
-                        '--regheader', '--o', out_vol, '--no-save-reg', '--interp', 'nearest']
-        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
-        
-        out_parc.append(out_vol)
-
-    return out_parc
-
-def _conform2native(cform_mgz: str, 
-                            nat_nii: str, 
-                            fssubj_dir: str, 
-                            fullid: str,
-                            interp_method: str = "nearest", 
-                            cont_tech: str = "local", 
-                            cont_image: str = "local"):
-    """
-    Moving image in comform space to native space
-    
-    Parameters:
-    ----------
-    cform_mgz : str
-        Image in conform space
-
-    nat_nii : str
-        Image in native space
-        
-    fssubj_dir : str
-        FreeSurfer subjects directory
-    
-    fullid : str
-        FreeSurfer ID   
-    
-    interp_method: str
-        Interpolation method ("nearest", "trilinear", "cubic")
-    
-    cont_tech : str
-        Container technology ("singularity", "docker", "local")
-        
-    cont_image: str
-        Container image to use
-        
-    """
-    
-    # Moving the resulting parcellation from conform space to native
-    raw_vol = os.path.join(fssubj_dir, fullid, 'mri', 'rawavg.mgz')
-
-    cmd_bashargs = ['mri_vol2vol', '--mov', cform_mgz, '--targ', raw_vol,
-                    '--regheader', '--o', nat_nii, '--no-save-reg', '--interp', interp_method]
-    cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-    subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
 def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_nii, out_str):
     """
