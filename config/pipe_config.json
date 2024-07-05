@@ -9,19 +9,19 @@
             },         
             "ants": 
             {
-                "con_tech": "local",
+                "cont_tech": "local",
                 "version": "2.3.1",
                 "container": "local"
             },
             "freesurfer": 
             {
-                "con_tech": "local",
+                "cont_tech": "local",
                 "version": "7.4.0",
                 "container": "local"
             },
             "fsl": 
             {
-                "con_tech": "local",
+                "cont_tech": "local",
                 "version": "6.10.0",
                 "container": "local"
             }

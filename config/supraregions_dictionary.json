@@ -84,7 +84,7 @@
                   "source": "templateflow",
                   "reference":"fsaverage",
                   "type":"annot",
-                  "parcels":["Lausanne2018_scale-1","Lausanne2018_scale-2","Lausanne2018_scale-3","Lausanne2018_scale-4","Lausanne2018_scale-5"],
+                  "parcels":["atlas-Lausanne2018_scale-1","atlas-Lausanne2018_scale-2","atlas-Lausanne2018_scale-3","atlas-Lausanne2018_scale-4","atlas-Lausanne2018_scale-5"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc"},
 
