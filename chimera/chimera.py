@@ -340,7 +340,7 @@ class Chimera:
                 else:
                     meth_dict = {'method': None, 'type':None,'reference': 'native', 'labels': None}
             
-            self.parc_dict[supra]["Processing"] = meth_dict
+            self.parc_dict[supra]["processing"] = meth_dict
     
     def _create_table(self, wm_index_offset:int = 3000, 
                     reg2rem:Union[list, str] = ['unknown', 'medialwall', 'corpuscallosum']):
@@ -750,7 +750,7 @@ class Chimera:
         ######## ----- Running FreeSurfer if it was not previously computed ------ #
     
         sub2proc = cltfree.FreeSurferSubject(fullid, subjs_dir=fssubj_dir)
-        supra_names = self.parc_dict.keys()
+        supra_names = list(self.parc_dict.keys())
         
         cont_tech  = pipe_dict["packages"]["freesurfer"]["cont_tech"]
         cont_image = pipe_dict["packages"]["freesurfer"]["container"]
@@ -759,7 +759,17 @@ class Chimera:
             sub2proc._launch_freesurfer(force=force, 
                                         cont_tech=cont_tech, 
                                         cont_image=cont_image)
-            
+        bool_ctx = False
+        
+        # This is done to avoid the cortical parcellation in the first step. 
+        # We are going to create parcellations Right, Left and Middle parcellations 
+        # that will be added to the different cortical configurations
+        
+        if 'Cortical' in supra_names:
+            # Remove it from the list
+            supra_names.remove('Cortical')
+            bool_ctx = True
+        
         for supra in supra_names:
             
             # Getting the information of the common atributes
@@ -770,362 +780,150 @@ class Chimera:
             atlas_src     = self.parc_dict[supra]["source"]
             atlas_ref     = self.parc_dict[supra]["reference"]
             
-            if supra == 'Cortical':
+            supra_dict = self.supra_dict[supra][supra][atlas_code]
+            
+            proc_dict = self.parc_dict[supra]["processing"]
+            
+            
+            if proc_dict['method'] == 'comform2native':
+                # Running the conformation to native space
+                sub2proc._conform2native(ref_id=atlas_ref, 
+                                        force=force, 
+                                        cont_tech=cont_tech, 
+                                        cont_image=cont_image)
+
+        
+        
+            # # Selecting the source and downloading the parcellation
+            # if atlas_src == 'templateflow':
+
+            #     # Reference space
+            #     ref_img = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
                 
-                # Atributes for the cortical parcellation
-                atlas_type    = self.parc_dict[supra]["type"]
-                atlas_names   = self.parc_dict[supra]["parcels"]
+            #     # Getting the thalamic nuclei spams 
+            #     parc_img = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_str, suffix=atlas_type, extension='nii.gz')
                 
-                proc_dict     = self.parc_dict["Cortical"]["Processing"]
-                ctx_meth      = proc_dict["method"]
+            # if supra in self.supra_dict.keys():
+            #     meth_dict = self.parc_dict[supra]
+            #     st_dict = self.supra_dict[supra][supra][meth_dict["code"]]
+            #     if len(st_dict) == 1:
+            #             bs_noctx_codes = bs_noctx_codes + st_dict['none']['index']
+            #             bs_noctx_names = bs_noctx_names + st_dict['none']['name']
+            #             bs_noctx_colors = bs_noctx_colors + st_dict['none']['color']
+                        
+            #     elif len(st_dict) == 2:
+            #         lh_noctx_codes = lh_noctx_codes + st_dict['lh']['index']
+            #         rh_noctx_codes = rh_noctx_codes + st_dict['rh']['index']
+                    
+            #         lh_noctx_names = lh_noctx_names + st_dict['lh']['name']
+            #         rh_noctx_names = rh_noctx_names + st_dict['rh']['name']
+                    
+            #         lh_noctx_colors = lh_noctx_colors + st_dict['lh']['color']
+            #         rh_noctx_colors = rh_noctx_colors + st_dict['rh']['color']
+        
+        
+        if bool_ctx:
+            
+            # Atributes for the cortical parcellation
+            atlas_names   = self.parc_dict["Cortical"]["parcels"]
+            
+            proc_dict     = self.parc_dict["Cortical"]["processing"]
+            ctx_meth      = proc_dict["method"]
+            
+            nctx_parc     = len(self.parc_dict["Cortical"]["processing"]["labels"]["lh"])
+            for c in np.arange(nctx_parc):
                 
-                nctx_parc     = len(self.parc_dict["Cortical"]["Processing"]["labels"]["lh"])
-                for c in np.arange(nctx_parc):
+                ## -------- Cortical parcellation for the left hemisphere ---------------
+                # Creating the name for the output file
+                lh_in_parc = self.parc_dict["Cortical"]["processing"]["labels"]["lh"][c]
+                at_name = [s for s in atlas_names if s in lh_in_parc]
+                lh_out_annot = os.path.join(deriv_dir, 
+                                            self.parc_dict["Cortical"]["deriv_surffold"], 
+                                            path_cad, 
+                                            fullid + '_hemi-L' + '_' + ''.join(at_name) + '_dseg.annot')
+                
+                ## -------- Cortical parcellation for the right hemisphere ---------------
+                # Creating the name for the output file
+                rh_in_parc = self.parc_dict["Cortical"]["processing"]["labels"]["rh"][c]
+                at_name = [s for s in atlas_names if s in rh_in_parc]
+                at_name = ''.join(at_name)
+                rh_out_annot = os.path.join(deriv_dir, 
+                                            self.parc_dict["Cortical"]["deriv_surffold"], 
+                                            path_cad, 
+                                            fullid + '_hemi-R' + '_' + at_name + '_dseg.annot')
+                
+                if ctx_meth == 'annot2indiv':
+                    # Moving to individual space
+                    sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
+                                    hemi='lh', 
+                                    fs_annot=lh_in_parc, 
+                                    ind_annot=lh_out_annot, 
+                                    cont_tech = cont_tech,
+                                    cont_image=cont_image, 
+                                    force=force)
                     
-                    ## -------- Cortical parcellation for the left hemisphere ---------------
-                    # Creating the name for the output file
-                    lh_in_parc = self.parc_dict["Cortical"]["Processing"]["labels"]["lh"][c]
-                    at_name = [s for s in atlas_names if s in lh_in_parc]
-                    lh_out_annot = os.path.join(deriv_dir, 
-                                                self.parc_dict["Cortical"]["deriv_surffold"], 
-                                                path_cad, 
-                                                fullid + '_hemi-L' + '_' + ''.join(at_name) + '_dseg.annot')
+                    sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
+                                    hemi='rh', 
+                                    fs_annot=rh_in_parc, 
+                                    ind_annot=rh_out_annot,
+                                    cont_tech = cont_tech,
+                                    cont_image=cont_image, 
+                                    force=force)
                     
-                    ## -------- Cortical parcellation for the right hemisphere ---------------
-                    # Creating the name for the output file
-                    rh_in_parc = self.parc_dict["Cortical"]["Processing"]["labels"]["rh"][c]
-                    at_name = [s for s in atlas_names if s in rh_in_parc]
-                    at_name = ''.join(at_name)
-                    rh_out_annot = os.path.join(deriv_dir, 
-                                                self.parc_dict["Cortical"]["deriv_surffold"], 
-                                                path_cad, 
-                                                fullid + '_hemi-R' + '_' + at_name + '_dseg.annot')
+                if ctx_meth == 'gcs2indiv':
+                    # Moving to individual space
+                    sub2proc._gcs2ind(fs_gcs=lh_in_parc, 
+                                    hemi='lh', 
+                                    ind_annot=lh_out_annot, 
+                                    cont_tech=cont_tech,
+                                    cont_image=cont_image,
+                                    force=force)
                     
-                    if ctx_meth == 'annot2indiv':
-                        # Moving to individual space
-                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["Processing"]["reference"], 
-                                        hemi='lh', 
-                                        fs_annot=lh_in_parc, 
-                                        ind_annot=lh_out_annot, 
-                                        cont_tech = cont_tech,
-                                        cont_image=cont_image, 
-                                        force=force)
-                        
-                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["Processing"]["reference"], 
-                                        hemi='rh', 
-                                        fs_annot=rh_in_parc, 
-                                        ind_annot=rh_out_annot,
-                                        cont_tech = cont_tech,
-                                        cont_image=cont_image, 
-                                        force=force)
-                        
-                    if ctx_meth == 'gcs2indiv':
-                        # Moving to individual space
-                        sub2proc._gcs2ind(fs_gcs=lh_in_parc, 
-                                        hemi='lh', 
-                                        ind_annot=lh_out_annot, 
-                                        cont_tech=cont_tech,
-                                        cont_image=cont_image,
-                                        force=force)
-                        
-                        sub2proc._gcs2ind(fs_gcs=rh_in_parc, 
-                                        hemi='rh', 
-                                        ind_annot=rh_out_annot, 
-                                        cont_tech=cont_tech,
-                                        cont_image=cont_image,
-                                        force=force)
-                    
-                    # Copying to the labels folder
-                    temp_lh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'lh.' + at_name + '.annot')
-                    shutil.copyfile(lh_out_annot, temp_lh)
+                    sub2proc._gcs2ind(fs_gcs=rh_in_parc, 
+                                    hemi='rh', 
+                                    ind_annot=rh_out_annot, 
+                                    cont_tech=cont_tech,
+                                    cont_image=cont_image,
+                                    force=force)
+                
+                # Copying to the labels folder
+                temp_lh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'lh.' + at_name + '.annot')
+                shutil.copyfile(lh_out_annot, temp_lh)
 
 
-                    # Copying to the labels folder
-                    temp_rh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'rh.' + at_name + '.annot')
-                    shutil.copyfile(rh_out_annot, temp_rh)
-                    
-                    ## -------- Creating the volumetric parcellation ---------------
-                    out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
-                    if growwm is not None:
-                        for ngrow in np.arange(len(growwm)):
-                            if growwm[ngrow] == '0':
-                                out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
-                            else:
-                                
-                                ent_dict = cltbids._str2entity(at_name)
-                                if 'desc' in ent_dict.keys():
-                                    ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
-                                    tmp_str = cltbids._entity2str(ent_dict)
-                                    out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
-                                else:
-                                    out_vol_name = fullid + '_' + at_name + '_desc_grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
-
-                            sub2proc._surf2vol(atlas=at_name, 
-                                                out_vol=os.path.join(out_vol_dir, out_vol_name), 
-                                                gm_grow=growwm[ngrow], 
-                                                force=force, bool_native=True, 
-                                                color_table=['tsv', 'lut'])
+                # Copying to the labels folder
+                temp_rh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'rh.' + at_name + '.annot')
+                shutil.copyfile(rh_out_annot, temp_rh)
+                
+                ## -------- Creating the volumetric parcellation ---------------
+                out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
+                if growwm is not None:
+                    for ngrow in np.arange(len(growwm)):
+                        if growwm[ngrow] == '0':
+                            out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                        else:
                             
-                    else:
-                        out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                            ent_dict = cltbids._str2entity(at_name)
+                            if 'desc' in ent_dict.keys():
+                                ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
+                                tmp_str = cltbids._entity2str(ent_dict)
+                                out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
+                            else:
+                                out_vol_name = fullid + '_' + at_name + '_desc_grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
+
                         sub2proc._surf2vol(atlas=at_name, 
                                             out_vol=os.path.join(out_vol_dir, out_vol_name), 
                                             gm_grow=growwm[ngrow], 
-                                            force=force, bool_native=True)
+                                            force=force, bool_native=True, 
+                                            color_table=['tsv', 'lut'])
                         
-
-
-                
-                # Selecting the source and downloading the parcellation
-                if atlas_src == 'templateflow':
-                    ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
-                    ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
-                    
-                    # Convert the list of PosfixPath to strings
-                    if isinstance(ctx_parc_lh, list):
-                        ctx_parc_lh = [str(x) for x in ctx_parc_lh]
-                        
-                    elif isinstance(ctx_parc_lh, PathLike):
-                        ctx_parc_lh = [str(ctx_parc_lh)]
-                    
-                    if isinstance(ctx_parc_rh, list):
-                        ctx_parc_rh = [str(x) for x in ctx_parc_rh]
-                        
-                    elif isinstance(ctx_parc_rh, PathLike):
-                        ctx_parc_rh = [str(ctx_parc_rh)]
-
-                    # Select the files that contain the atlas names
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
-                    
-                    for i, parc_file in enumerate(ctx_parc_lh):
-                        # Reading the cortical parcellations
-                        tmp_annot = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id,'label','lh.tmp.annot')
-                        lh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = parc_file,
-                                                                    ref_surf = sub2proc.fs_files["surf"]["lh"]["white"],
-                                                                    annot_file = tmp_annot, 
-                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
-                                                                    cont_image=pipe_dict["packages"]["freesurfer"]["container"])
-                        
-                        tmp_annot = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id,'label','rh.tmp.annot')
-                        rh_obj = cltfree.AnnotParcellation.gii2annot(gii_file = ctx_parc_rh[i],
-                                                                    ref_surf = sub2proc.fs_files["surf"]["rh"]["white"],
-                                                                    annot_file = tmp_annot, 
-                                                                    cont_tech=pipe_dict["packages"]["freesurfer"]["cont_tech"], 
-                                                                    cont_image=pipe_dict["packages"]["freesurfer"]["container"])
-                        
-                        # Create freesurfer
-                        
-                        
-
-                elif atlas_src == 'local':
-
-                    if atlas_type == 'annot':
-                        atlas_dir = os.path.join(chim_dir, 'data','annot_atlases')
-                        atlas_ext = '.annot'
-
-                    elif atlas_type == 'gcs':
-                        atlas_dir = os.path.join(chim_dir, 'data', 'gcs_atlases')
-                        atlas_ext = '.gcs'
-                        
-                    ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
-                    ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
-                    
-                    # Filtering for selecting the correct cortical parcellation
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
-                    
-            else:
-                
-                # Selecting the source and downloading the parcellation
-                if atlas_src == 'templateflow':
-
-                    # Reference space
-                    ref_img = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
-                    
-                    # Getting the thalamic nuclei spams 
-                    parc_img = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_str, suffix=atlas_type, extension='nii.gz')
-                    
-                if supra in self.supra_dict.keys():
-                    meth_dict = self.parc_dict[supra]
-                    st_dict = self.supra_dict[supra][supra][meth_dict["code"]]
-                    if len(st_dict) == 1:
-                            bs_noctx_codes = bs_noctx_codes + st_dict['none']['index']
-                            bs_noctx_names = bs_noctx_names + st_dict['none']['name']
-                            bs_noctx_colors = bs_noctx_colors + st_dict['none']['color']
-                            
-                    elif len(st_dict) == 2:
-                        lh_noctx_codes = lh_noctx_codes + st_dict['lh']['index']
-                        rh_noctx_codes = rh_noctx_codes + st_dict['rh']['index']
-                        
-                        lh_noctx_names = lh_noctx_names + st_dict['lh']['name']
-                        rh_noctx_names = rh_noctx_names + st_dict['rh']['name']
-                        
-                        lh_noctx_colors = lh_noctx_colors + st_dict['lh']['color']
-                        rh_noctx_colors = rh_noctx_colors + st_dict['rh']['color']
-
-        if rh_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    rh_noctx_names.pop(i)
-                    rh_noctx_codes.pop(i)
-                    rh_noctx_colors.pop(i)
-
-        if lh_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    lh_noctx_names.pop(i)
-                    lh_noctx_codes.pop(i)
-                    lh_noctx_colors.pop(i)
-        
-        if bs_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    bs_noctx_names.pop(i)
-                    bs_noctx_codes.pop(i)
-                    bs_noctx_codes.pop(i)
-        
-
-        # Creating the list of dataframes for the different parcellations
-        tab_list = []
-        desc_list = []
-        parc_id = 'atlas-chimera' + self.parc_code
-        parc_id_list = []
-        
-        # If ctx_parc_lh is empty, it means that the parcellation is not available
-        if len(ctx_parc_lh) == 0:
-            all_names  = rh_noctx_names  + lh_noctx_names  + bs_noctx_names
-            all_colors = rh_noctx_colors + lh_noctx_colors + bs_noctx_colors
-            index      = np.arange(1, len(all_names)+1).tolist()
-            tab_df     = pd.DataFrame({'index': index, 'name': all_names, 'color': all_colors})
-            tab_list.append(tab_df)
-            
-            gen_desc = ["# Parcellation code: " + self.parc_code ]
-            gen_desc.append(desc_noctx)
-            
-            parc_id_list.append(parc_id)
-            
-        else:
-            for i, parc_file in enumerate(ctx_parc_lh):
-                
-                gen_desc = ["# Parcellation code: " + self.parc_code ]
-                
-                tmp_name = os.path.basename(ctx_parc_lh[i])
-                tmp_ent = tmp_name.split('_')[:-1]
-                
-                # Get the element that contains the string 'scale' and extract it
-                scale_ent = [s for s in tmp_ent if 'scale' in s]
-                if scale_ent:
-                    scale_ent = scale_ent[0]
-                    scale_ent = scale_ent.split('-')[1]
-                    parc_id = parc_id + '_scale-' + scale_ent
-                
-                    # Add a the segmentation to to the string of the general description list
-                    gen_desc[0] = gen_desc[0] + ". Scale: " + scale_ent
-                
-                # Get the element that contains the string 'seg' and extract it 
-                seg_ent = [s for s in tmp_ent if 'seg' in s]
-                
-                if seg_ent:
-                    seg_ent = seg_ent[0]
-                    seg_ent = seg_ent.split('-')[1]
-                    parc_id = parc_id + '_seg-' + seg_ent
-                    
-                    # Add a the segmentation to to the string of the general description list
-                    gen_desc[0] = gen_desc[0] + ". Segmentation: " + seg_ent
-                    
-                gen_desc.append(self.parc_dict["Cortical"]["description"])
-                gen_desc = gen_desc + desc_noctx
-                    
-                # Reading the cortical parcellations
-                lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
-                rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
-
-                df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
-                df_rh, out_tsv = rh_obj._export_to_tsv(prefix2add='ctx-rh-')
-
-                # Convert the column name of the dataframe to a list
-                lh_ctx_name = df_lh['name'].tolist()
-                rh_ctx_name = df_rh['name'].tolist()
-
-                # Convert the column color of the dataframe to a list
-                lh_ctx_color = df_lh['color'].tolist()
-                rh_ctx_color = df_rh['color'].tolist()
-                
-                ## Removing elements from the table according to their name for both
-                indexes = cltmisc._get_indexes_by_substring(lh_ctx_name, reg2rem).tolist()
-                if indexes:
-                    for i in indexes:
-                        lh_ctx_name.pop(i)
-                        lh_ctx_color.pop(i)
-                
-                indexes = cltmisc._get_indexes_by_substring(rh_ctx_name, reg2rem).tolist()
-                if indexes:
-                    for i in indexes:
-                        rh_ctx_name.pop(i)
-                        rh_ctx_color.pop(i)
-
-                # Concatenating the lists
-                if 'GyralWM' in self.parc_dict.keys():
-                    gen_desc.append(self.parc_dict['GyralWM']["description"])
-                    
-                    wm_rh_name = cltmisc._correct_names(rh_ctx_name, replace=['ctx-rh-','wm-rh-'])
-                    wm_rh_indexes = np.arange(1, len(wm_rh_name)+1) + wm_index_offset
-                    wm_rh_indexes = wm_rh_indexes.tolist()
-                    
-                    wm_lh_name = cltmisc._correct_names(lh_ctx_name, replace=['ctx-lh-','wm-lh-'])
-                    wm_lh_indexes = np.arange(1, len(wm_lh_name)+1) + len(rh_ctx_name) + len(rh_noctx_names) + wm_index_offset
-                    wm_lh_indexes = wm_lh_indexes.tolist()
-                    
-                    wm_rh_color = rh_ctx_color
-                    wm_lh_color = lh_ctx_color
-
                 else:
-                    wm_lh_indexes = []
-                    wm_rh_indexes = []
-                    wm_lh_name = []
-                    wm_rh_name = []
-                    wm_lh_color = []
-                    wm_rh_color = []
+                    out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                    sub2proc._surf2vol(atlas=at_name, 
+                                        out_vol=os.path.join(out_vol_dir, out_vol_name), 
+                                        gm_grow=growwm[ngrow], 
+                                        force=force, bool_native=True)
 
-                # Right hemisphere
-                rh_all_names =  rh_ctx_name + rh_noctx_names
-                rh_all_indexes = np.arange(1, len(rh_all_names)+1).tolist()
-                
-                # Left hemisphere
-                lh_all_names =  lh_ctx_name +  lh_noctx_names  + bs_noctx_names + wm_rh_name + wm_lh_name
-                lh_all_indexes = np.arange(1, len(lh_ctx_name +  lh_noctx_names  + bs_noctx_names)+1) + np.max(rh_all_indexes)
-                lh_all_indexes = lh_all_indexes.tolist()
-                
-                rh_all_colors =  rh_ctx_color +  rh_noctx_colors
-                lh_all_colors =  lh_ctx_color +  lh_noctx_colors + bs_noctx_colors + wm_rh_color + wm_lh_color
-
-                # Concatenating the hemispheres
-                all_names = rh_all_names + lh_all_names
-                all_colors = rh_all_colors + lh_all_colors
-                all_indexes = rh_all_indexes + lh_all_indexes + wm_rh_indexes + wm_lh_indexes
-
-                # Generating a dataframe
-                tab_df = pd.DataFrame({'index': all_indexes, 'name': all_names, 'color': all_colors})
-                tab_list.append(tab_df)
-                desc_list.append(gen_desc)
-                parc_id_list.append(parc_id)
-
-        # Add the tab_list as an attribute of the class
-        self.regtable = {"parc_id": parc_id_list, "desc": desc_list, "table": tab_list}
-        
-        
-        
-        
-        
-    
-    
 
 # Loading the JSON file containing the available parcellations
 def _pipeline_info(pipe_json:str=None):
