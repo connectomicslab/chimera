@@ -11,7 +11,7 @@ Thalamus	I	lh	8111	thal-lh-l-sg	#aa557f
 Thalamus	I	lh	8112	thal-lh-mdl	#00aa7f
 Thalamus	I	lh	8113	thal-lh-mdm	#aaaa7f
 Thalamus	I	lh	8115	thal-lh-mgn	#aaff7f
-Thalamus	I	lh	8116	thal-lh-mv(re)	#0000ff
+Thalamus	I	lh	8116	Thal-lh-mv-re	#0000ff
 Thalamus	I	lh	8117	thal-lh-pc	#aa00ff
 Thalamus	I	lh	8118	thal-lh-pf	#0055ff
 Thalamus	I	lh	8119	thal-lh-pt	#aa55ff
@@ -47,7 +47,7 @@ Thalamus	I	rh	8211	thal-rh-l-sg	#aa557f
 Thalamus	I	rh	8212	thal-rh-mdl	#00aa7f
 Thalamus	I	rh	8213	thal-rh-mdm	#aaaa7f
 Thalamus	I	rh	8215	thal-rh-mgn	#aaff7f
-Thalamus	I	rh	8216	thal-rh-mv(re)	#0000ff
+Thalamus	I	rh	8216	Thal-rh-mv-re	#0000ff
 Thalamus	I	rh	8217	thal-rh-pc	#aa00ff
 Thalamus	I	rh	8218	thal-rh-pf	#0055ff
 Thalamus	I	rh	8219	thal-rh-pt	#aa55ff

@@ -1,4 +1,9 @@
 supraregion	method	hemi	index	name	color
 Hypothalamus	F	lh	28	vdc-lh-ventraldc	#a52a2a
 Hypothalamus	F	rh	60	vdc-rh-ventraldc	#a52a2a
-Hypothalamus	F	vent	14	vent-third-ventricle	#ccb68e
+Ventricle	F	vent	14	vent-third-ventricle	#ccb68e
+Ventricle	F	vent	15	vent-fourth-ventricle	#2acca4
+Ventricle	F	vent	4	vent-lh-lateral-ventricle	#7812ea
+Ventricle	F	vent	43	vent-rh-lateral-ventricle	#7812ea
+Ventricle	F	vent	5	vent-lh-inferior-lateral-ventricle	#c43afa
+Ventricle	F	vent	44	vent-rh-inferior-lateral-ventricle	#c43afa
