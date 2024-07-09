@@ -26,7 +26,7 @@
                 "container": "local"
             }
         },
-        "templates": 
+    "templates": 
         {
             "annots": 
             {
@@ -46,5 +46,10 @@
                 "space": "MNI152NLin2009cAsym",
                 "folder": "vol_atlases"
             }
+        },
+    "outputs":
+        {
+            "transforms": "ants-transf2mni",
+            "freesurfer": "freesurfer"
         }
 }
