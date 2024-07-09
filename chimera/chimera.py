@@ -335,8 +335,13 @@ class Chimera:
                                             'labels': str(atlas_file)}
                     
                 elif atlas_src == 'freesurfer':
+                        
                     meth_dict = {'method': 'comform2native','type':None,'reference': 'native',
                                             'labels': None}
+                
+                elif atlas_src == 'freesurferextra':
+                        meth_dict = {'method': 'comform2native','type':None,'reference': 'native',
+                                                'labels': atlas_src.lower() }
                 else:
                     meth_dict = {'method': None, 'type':None,'reference': 'native', 'labels': None}
             
@@ -719,6 +724,7 @@ class Chimera:
         t1_name = os.path.basename(t1)
         temp_entities = t1_name.split('_')[:-1]
         fullid = "_".join(temp_entities)
+        ent_dict_fullid = cltbids._str2entity(fullid)
         
         if 'session' in ent_dict.keys():
             path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
@@ -748,7 +754,6 @@ class Chimera:
         st_codes, st_names, st_colors = cltparc.Parcellation.read_luttable(fslut_file)
         
         ######## ----- Running FreeSurfer if it was not previously computed ------ #
-    
         sub2proc = cltfree.FreeSurferSubject(fullid, subjs_dir=fssubj_dir)
         supra_names = list(self.parc_dict.keys())
         
@@ -769,8 +774,36 @@ class Chimera:
             # Remove it from the list
             supra_names.remove('Cortical')
             bool_ctx = True
+
+        # Processing that will be perfomed for multiple supra-regions
+        gm_sub_names = list(self.parc_dict.keys())
         
-        for supra in supra_names:
+        # Remove 'Cortical', 'GyralWM' and 'WhiteMatter' from the list
+        if 'Cortical' in gm_sub_names:
+            gm_sub_names.remove('Cortical')
+        
+        if 'GyralWM' in gm_sub_names:
+            gm_sub_names.remove('GyralWM')
+            
+        if 'WhiteMatter' in supra_names:
+            gm_sub_names.remove('WhiteMatter')
+            
+        # Taking the image dimensions and the affine matrix in native space
+        t1_image = nib.load(t1)
+        affine   =  t1_image.affine
+        
+        # Create a numpy array with the same dimensions of the T1 image and fill it with zeros. 
+        # The array will be used to store the parcellation. The elements should be integers.
+        ref_image = np.zeros_like(t1_image.get_fdata(), dtype=int)
+        
+        # Creating the parcellation objects
+        lh_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine) # It will include the parcellation for the left hemisphere
+        rh_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine) # It will include the parcellation for the right hemisphere
+        mid_parc = cltparc.Parcellation(parc_file=ref_image, affine=affine) # It will include the parcellation for structures that do not belong to any hemisphere
+        
+        files2del = [] # Temporal files that will be deleted
+        exec_cmds = []
+        for supra in gm_sub_names:
             
             # Getting the information of the common atributes
             atlas_code    = self.parc_dict[supra]["code"]
@@ -779,20 +812,100 @@ class Chimera:
             atlas_cita    = self.parc_dict[supra]["citation"]
             atlas_src     = self.parc_dict[supra]["source"]
             atlas_ref     = self.parc_dict[supra]["reference"]
+            deriv_fold    = self.parc_dict[supra]["deriv_volfold"]
+            proc_dict     = self.parc_dict[supra]["processing"]
             
-            supra_dict = self.supra_dict[supra][supra][atlas_code]
-            
-            proc_dict = self.parc_dict[supra]["processing"]
-            
-            
-            if proc_dict['method'] == 'comform2native':
-                # Running the conformation to native space
-                sub2proc._conform2native(ref_id=atlas_ref, 
-                                        force=force, 
-                                        cont_tech=cont_tech, 
-                                        cont_image=cont_image)
+            # Moving the Aseg to native space
+            if atlas_code =='F':
+                nii_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'tmp', 'aparc+aseg.nii.gz')
+                if "aseg_parc" not in locals():
+                    # Running the FreeSurfer
+                    mgz_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'mri', 'aparc+aseg.mgz')
+                    
+                    sub2proc._conform2native(mgz_conform=mgz_image,
+                                                nii_native=nii_image,
+                                                cont_image=cont_image,
+                                                cont_tech=cont_tech,
+                                                force=force)
+                    
+                    files2del.append(nii_image)
+                    
+                    aseg_parc = cltparc.Parcellation(parc_file=nii_image)
 
-        
+                # Left Hemisphere
+                lh_supra_parc  = copy.deepcopy(aseg_parc)
+
+                # Right Hemisphere
+                rh_supra_parc  = copy.deepcopy(aseg_parc)
+
+            # Running FIRST if it is needed
+            if atlas_code =='R':
+                fsl_outdir = os.path.join(deriv_fold, path_cad)
+                first_nii = os.path.join(str(fsl_outdir), fullid + '_atlas-' + atlas_str + '_dseg.nii.gz' )
+
+                if "first_parc" not in locals():
+                    fsl_outdir = Path(fsl_outdir)
+                    fsl_outdir.mkdir(parents=True, exist_ok=True)
+                
+                    # Running the FIRST
+                    _launch_fsl_first(t1,
+                                        first_parc = first_nii,
+                                        cont_tech = cont_tech, 
+                                        cont_image = cont_image, 
+                                        force=force)
+                    first_parc = cltparc.Parcellation(parc_file=first_nii)
+                    
+                lh_supra_parc  = copy.deepcopy(first_parc)
+                rh_supra_parc  = copy.deepcopy(first_parc)
+            
+            if proc_dict["method"] == 'atlasbased':
+                t1_temp = proc_dict["reference"]
+                atlas = proc_dict["labels"]
+                atlas_type = proc_dict["type"]
+                
+                
+                
+                # Basename for transformations
+                spat_tf_ent = ent_dict_fullid.copy()
+                spat_tf_ent = cltbids._delete_from_entity(spat_tf_ent, ["space", "acq", "desc", "suffix", "extension"])
+                spat_tf_ent["from"] = "T1w"
+                spat_tf_ent["to"] = atlas_ref
+                spat_tf_ent["mode"] = "image"
+                spat_tf_ent["suffix"] = "xfm"
+                spat_tf_ent["extension"] = "mat"
+                xfm_base = os.path.join(deriv_dir, pipe_dict["outputs"]["transforms"], path_cad, cltbids._entity2str(spat_tf_ent))
+                
+                out_parc = os.path.join(deriv_dir, deriv_fold, path_cad, fullid + '_atlas-' + atlas_str + '_probseg.nii.gz')
+                _abased_parcellation(t1, t1_temp, atlas, out_parc, xfm_base  )
+            
+            # 
+            
+                
+            # Left Hemisphere
+            meth_dict =  self.parc_dict[supra]
+            lh_codes_tmp  = self.supra_dict[supra][supra][meth_dict["code"]]["lh"]["index"]
+            lh_names_tmp  = self.supra_dict[supra][supra][meth_dict["code"]]["lh"]["name"]
+            lh_colors_tmp = self.supra_dict[supra][supra][meth_dict["code"]]["lh"]["color"]
+            
+            lh_supra_parc._keep_by_code(codes2look=lh_codes_tmp)
+            lh_supra_parc.index = lh_codes_tmp
+            lh_supra_parc.name = lh_names_tmp
+            lh_supra_parc.color = lh_colors_tmp
+            
+            # Right Hemisphere
+            rh_codes_tmp  = self.supra_dict[supra][supra][meth_dict["code"]]["rh"]["index"]
+            rh_names_tmp  = self.supra_dict[supra][supra][meth_dict["code"]]["rh"]["name"]
+            rh_colors_tmp = self.supra_dict[supra][supra][meth_dict["code"]]["rh"]["color"]
+            
+            rh_supra_parc._keep_by_code(codes2look=rh_codes_tmp)
+            rh_supra_parc.index = rh_codes_tmp
+            rh_supra_parc.name = rh_names_tmp
+            rh_supra_parc.color = rh_colors_tmp
+            
+            # Appending the parcellations
+            lh_parc._add_parcellation(lh_supra_parc)
+            rh_parc._add_parcellation(rh_supra_parc)
+
         
             # # Selecting the source and downloading the parcellation
             # if atlas_src == 'templateflow':
@@ -1285,6 +1398,53 @@ def _build_args_parser():
 
     return p
 
+def _launch_fsl_first(t1:str, 
+                        first_parc:str,
+                        cont_tech:str = 'local', 
+                        cont_image:str = None, 
+                        force=False):
+    """
+    This function executes the FIRST subcortical parcellation.
+    
+    Parameters:
+    ----------
+    t1 : str
+        T1-weighted image filename.
+
+    first_parc : str
+        Ouput name for the resulting parcellation.
+    
+    cont_tech : str
+        Container technology (e.g. singularity, docker or local).
+    
+    cont_image : str
+        Container image.
+    
+    force : bool
+        Overwrite the results.
+
+    Returns:
+    --------
+
+    """
+    fsl_outdir = os.path.dirname(first_parc)
+    
+    if not os.path.isfile(first_parc) or force:
+        fsl_outdir = Path(fsl_outdir)
+        fsl_outdir.mkdir(parents=True, exist_ok=True)
+
+        cmd_bashargs = ['run_first_all', '-i', t1, '-o', fsl_outdir + os.path.sep + 'temp']
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+        cmd_bashargs = ['mv', os.path.join(str(fsl_outdir),'temp_all_fast_firstseg.nii.gz'), first_parc]
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+        cmd_bashargs = ['rm', '-rf', 'temp*']
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+    
 def _print_availab_parcels(reg_name=None):
 
     data, supra_dict = _load_parcellations_info()
@@ -1360,266 +1520,205 @@ def _select_t1s(t1s, t1file):
     return out_t1s
 
 
-
-
-def _compute_abased_thal_parc(t1, vol_tparc, deriv_dir, pathcad, fullid, aseg_nii, out_str):
+def _abased_parcellation(t1: str,
+                            t1_temp: str,
+                            atlas: str, 
+                            out_parc: str, 
+                            xfm_output: str, 
+                            atlas_type: str ='spam',
+                            interp: str = 'Linear',
+                            cont_tech: str = 'local',
+                            cont_image: str = None,
+                            force: bool = False):
     """
-    Compute atlas-based thalamic parcellation. 
+    Compute atlas-based parcellation using ANTs. 
     
     Parameters:
     ----------
     t1 : str
         T1 image file
         
-    vol_tparc : str
-        Output thalamic parcellation file
+    atlas: str
+        Atlas image.
         
-    deriv_dir : str
-        Derivative directory
+    atlas_type : str
+        Atlas type (e.g. spam or maxprob)
         
-    pathcad : str
-        Path to the CAD directory
+    out_parc : str
+        Output parcellation file
         
-    fullid : str
-        Full subject id
+    xfm_output : str
+        Output name for the affine spatial transformation. It can include the path.
         
-    aseg_nii : str
-        ASEG file
+    interp : str
+        Interpolation method (e.g. NearestNeighbor, Linear, BSpline)
         
-    out_str : str
-        Output string
+    cont_tech : str
+        Container technology (e.g. singularity, docker or local).
+    
+    cont_image : str
+        Container image.
+    
+    force : bool
+        Overwrite the results.
         
     Returns:
     --------
-    mial_thalparc : str
-        MIAL thalamic parcellation file
         
-    
     """
     
-
-    cwd = os.getcwd()
-    thal_spam = os.path.join(cwd, 'thalamic_nuclei_MIALatlas', 'Thalamus_Nuclei-HCP-4DSPAMs.nii.gz')
-    t1_temp = os.path.join(cwd, 'mni_icbm152_t1_tal_nlin_asym_09c', 'mni_icbm152_t1_tal_nlin_asym_09c.nii.gz')
-
+    ######## -- Registration to the template space  ------------ #
     # Creating spatial transformation folder
-    stransf_dir = os.path.join(deriv_dir, 'ants-transf2mni', pathcad, 'anat')
-    if not os.path.isdir(stransf_dir):
-        try:
-            os.makedirs(stransf_dir)
-        except OSError:
-            print("Failed to make nested output directory")
-
-    defFile = os.path.join(stransf_dir, fullid + '_space-MNI152NLin2009cAsym_')
-    if not os.path.isfile(defFile + 'desc-t12mni_1InverseWarp.nii.gz'):
+    stransf_dir  = Path(os.path.dirname(xfm_output))
+    stransf_name = os.path.basename(xfm_output)
+    out_parc_dir = Path(os.path.dirname(out_parc))
+    
+    # If the directory does not exist create the directory and if it fails because it does not have write access send an error
+    try:
+        stransf_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        print("The directory to store the spatial transformations does not have write access.")
+        sys.exit()
+        
+    try:
+        out_parc_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        print("The directory to store the parcellation does not have write access.")
+        sys.exit()
+    
+    # Spatial transformation files (Temporal).
+    tmp_xfm_basename  = os.path.join(stransf_dir, 'temp')    
+    temp_xfm_affine   = tmp_xfm_basename + '_0GenericAffine.mat'
+    temp_xfm_nl       = tmp_xfm_basename + '_Warp.nii.gz'
+    temp_xfm_invnl    = tmp_xfm_basename + '_1InverseWarp.nii.gz'
+    temp_xfm_invnlw   = tmp_xfm_basename + '_1InverseWarped.nii.gz'
+    temp_xfm_nlw      = tmp_xfm_basename + '_Warped.nii.gz'
+    
+    # Spatial transformation files (Temporal).
+    name_entity = cltbids._str2entity(stransf_name)
+    
+    # Affine transformation filename
+    tmp_ent = cltbids._insert_entity(name_entity, {"desc":"affine"})
+    tmp_ent["extension"] = 'mat'
+    xfm_affine = os.path.join(stransf_dir, cltbids._entity2str(tmp_ent))
+    
+    # Non-linear transformation filename
+    tmp_ent = cltbids._insert_entity(name_entity, {"desc":"warp"})
+    tmp_ent["extension"] = 'nii.gz'
+    xfm_nl= os.path.join(stransf_dir, cltbids._entity2str(tmp_ent))
+    
+    # Filename for the inverse of the Non-linear transformation 
+    tmp_ent = cltbids._insert_entity(name_entity, {"desc":"iwarp"})
+    tmp_ent["extension"] = 'nii.gz'
+    xfm_invnl= os.path.join(stransf_dir, cltbids._entity2str(tmp_ent))
+    
+    if not os.path.isfile(xfm_invnl) or force:
         # Registration to MNI template
         
-        cmd_bashargs = ['antsRegistrationSyN.sh', '-d', '3', '-f', t1_temp, '-m', t1, '-t', 's',
-                        '-o', defFile + 'desc-t12mni_']
-
-        cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
-        # subprocess.run(,
-        #                 stdout=subprocess.PIPE, universal_newlines=True)
-
-    mial_dir = os.path.dirname(vol_tparc)
-    # Creating ouput directory
-    if not os.path.isdir(mial_dir):
-        try:
-            os.makedirs(mial_dir)
-        except OSError:
-            print("Failed to make nested output directory")
-
-    mial_thalparc = os.path.join(mial_dir, fullid + '_space-orig_desc-' + out_str +'_dseg.nii.gz')
-    mial_thalspam = os.path.join(mial_dir, fullid + '_space-orig_desc-' + out_str +'_probseg.nii.gz')
-
-    # Applying spatial transform
-    subprocess.run(['antsApplyTransforms', '-d', '3', '-e', '3', '-i', thal_spam,
-                    '-o', mial_thalspam, '-r', t1, '-t', defFile + 'desc-t12mni_1InverseWarp.nii.gz',
-                    '-t','[' + defFile + 'desc-t12mni_0GenericAffine.mat,1]', '-n', 'Linear'],
-                    stdout=subprocess.PIPE, universal_newlines=True)
-
-    # Creating MaxProb
-    _spams2maxprob(mial_thalspam, 0.05, mial_thalparc, aseg_nii, 10, 49)
-    mial_thalparc = [mial_thalparc]
-
-    return mial_thalparc
-
-def _fs_addon_parcellations(vol_tparc, fullid, fssubj_dir, parcid, out_str):
-    
-    
-    
-    
-    
-    
-    
-
-    volatlas_dir = os.path.dirname(vol_tparc)
-
-    # Creating ouput directory
-    if not os.path.isdir(volatlas_dir):
-        try:
-            os.makedirs(volatlas_dir)
-        except OSError:
-            print("Failed to make nested output directory")
-
-    if parcid == 'thalamus':
-    # Running Thalamic parcellation
-        process = subprocess.run(
-            ['segmentThalamicNuclei.sh', fullid, fssubj_dir],
-            stdout=subprocess.PIPE, universal_newlines=True)
-
-        thal_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'ThalamicNuclei.v12.T1.mgz')
-
-        # Moving Thalamic parcellation to native space
-        _conform2native(thal_mgz, vol_tparc, fssubj_dir, fullid)
-
-        out_parc = [vol_tparc]
-
-    elif parcid == 'amygdala' or  parcid == 'hippocampus':
-        # Running Hippocampal and Amygdala parcellation
-        process = subprocess.run(
-            ['segmentHA_T1.sh', fullid, fssubj_dir],
-            stdout=subprocess.PIPE, universal_newlines=True)
-
-        # Moving Hippocampal and amygdala parcellation to native space
-        lh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'lh.hippoAmygLabels-T1.v21.mgz')
-        lh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-L_desc-' + out_str + '_dseg.nii.gz')
-        _conform2native(lh_mgz, lh_gz, fssubj_dir, fullid)
-
-        rh_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'rh.hippoAmygLabels-T1.v21.mgz')
-        rh_gz = os.path.join(volatlas_dir, fullid + '_space-orig_hemi-R_desc-' + out_str + '_dseg.nii.gz')
-        _conform2native(rh_mgz, rh_gz, fssubj_dir, fullid)
-        out_parc = [lh_gz, rh_gz]
-
-    elif parcid == 'hypothalamus':
-
-    # Running Hypothalamus parcellation
-        os.system("WRITE_POSTERIORS=1")
-        process = subprocess.run(
-            ['mri_segment_hypothalamic_subunits', '--s', fullid, '--sd', fssubj_dir, '--write_posteriors'],
-            stdout=subprocess.PIPE, universal_newlines=True)
-
-        # Moving Hypothalamus to native space
-        hypo_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'hypothalamic_subunits_seg.v1.mgz')
-        hypo_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-        _conform2native(hypo_mgz, hypo_gz, fssubj_dir, fullid)
-        out_parc = [hypo_gz]
-
-    elif parcid == 'brainstem':
-
-        # Running Brainstem parcellation
-        # os.environ["WRITE_POSTERIORS"] = 1
-        os.system("WRITE_POSTERIORS=1")
-        process = subprocess.run(
-            ['segmentBS.sh', fullid, fssubj_dir],
-            stdout=subprocess.PIPE, universal_newlines=True)
+        cmd_bashargs = ['antsRegistrationSyNQuick.sh', '-d', '3', '-f', t1_temp, '-m', t1, '-t', 's',
+                        '-o', tmp_xfm_basename + '_']
         
-        # Moving Hypothalamus to native space
-        bs_mgz = os.path.join(fssubj_dir, fullid, 'mri', 'brainstemSsLabels.v12.mgz')
-        bs_gz = os.path.join(volatlas_dir, fullid + '_space-orig_desc-' + out_str + '_dseg.nii.gz')
-        _conform2native(bs_mgz, bs_gz, fssubj_dir, fullid)
-        out_parc = [bs_gz]
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+        # Changing the names
+        cmd_bashargs = ['mv', temp_xfm_affine, xfm_affine]
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
 
+        cmd_bashargs = ['mv', temp_xfm_nl, xfm_nl]
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+        cmd_bashargs = ['mv', temp_xfm_invnl, xfm_invnl]
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+
+    if not os.path.isfile(out_parc):
+        
+        if atlas_type == 'spam':
+            # Applying spatial transform
+            cmd_bashargs = ['antsApplyTransforms', '-d', '3', '-e', '3', '-i', atlas,
+                            '-o', out_parc, '-r', t1, '-t', xfm_invnl,
+                            '-t','[' + xfm_affine + ',1]', '-n', interp]
+    
+        elif atlas_type == 'maxprob':
+            # Applying spatial transform
+            cmd_bashargs = ['antsApplyTransforms', '-d', '3', '-e', '3', '-i', atlas,
+                            '-o', out_parc, '-r', t1, '-t', xfm_invnl,
+                            '-t','[' + xfm_affine + ',1]', '-n', 'NearestNeighbor']
+
+        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
+        
+        # Removing the Warped images
+        if os.path.isfile(temp_xfm_invnlw):
+            os.remove(temp_xfm_invnlw)
+            
+        if os.path.isfile(temp_xfm_nlw):
+            os.remove(temp_xfm_nlw)
+        
     return out_parc
 
+def _spams2maxprob(spam_image:str,
+                    prob_thresh:float=0.05,
+                    vol_indexes:np.array=None,
+                    maxp_name:str=None):
+    """
+    This method converts a SPAMs image into a maximum probability image.
+    
+    Parameters:
+    -----------
+    
+    spam_image : str
+        SPAMs image filename.
+        
+    prob_thresh : float
+        Threshold value.
+        
+    vol_indexes : np.array
+        Volume indexes.
+        
+    maxp_name : str 
+        Output maximum probability image filename. 
+        If None, the image will not be saved and the function will return the image as a nunmpy array.
+        
+    Returns:
+    --------
+    
+    maxp_name : str 
+        Output maximum probability image filename. 
+        If None, the image will not be saved and the function will return the image as a nunmpy array.
 
-def _spams2maxprob(spamImage:str, thresh:float=0.05, maxpName:str=None, thalMask:str=None, thl_code:int=10, thr_code:int=49):
-    # ---------------- Thalamic nuclei (MIAL) ------------ #
-    thalm_codesl       = np.array([1, 2, 3, 4, 5, 6, 7])
-    thalm_codesr       = np.array([8, 9, 10, 11, 12, 13, 14])
-    thalm_names        =  ['pulvinar', 'ventral-anterior', 'mediodorsal', 'lateral-posterior-ventral-posterior-group', 'pulvinar-medial-centrolateral-group', 'ventrolateral', 'ventral-posterior-ventrolateral-group']
-    prefix             = "thal-lh-"
-    thalm_namesl       = [prefix + s.lower() for s in thalm_names]
-    prefix             = "thal-rh-"
-    thalm_namesr       = [prefix + s.lower() for s in thalm_names]
-    thalm_colorsl      = np.array([[255,   0,   0], [0, 255,   0], [255, 255, 0], [255, 123, 0], [0, 255, 255], [255, 0, 255], [0, 0, 255]])
-    thalm_colorsr      = thalm_colorsl
+    """
+    
+    spam_img           = nib.load(spam_image)
+    affine             = spam_img.affine
+    spam_vol           = spam_img.get_fdata()
 
-    # ---------------- Creating output filenames ------------ #
-    outDir           = os.path.dirname(spamImage)
-    fname            = os.path.basename(spamImage)
-    tempList         = fname.split('_')
-    tempList[-1]     = 'dseg.nii.gz'
-    if not maxpName:
-        maxpName         =  os.path.join(outDir, '_'.join(tempList))
-
-    tempList[-1]     = 'dseg.lut'
-    lutName          =  os.path.join(outDir, '_'.join(tempList))
-    tempList[-1]     = 'dseg.tsv'
-    tsvName          =  os.path.join(outDir, '_'.join(tempList))
-
-    maxlist = maxpName.split(os.path.sep)
-    tsvlist = tsvName.split(os.path.sep)
-    lutlist = lutName.split(os.path.sep)
-
-    # ---------------- Creating Maximum probability Image ------------- #
-    # Reading the thalamic parcellation
-    spam_Ip          = nib.load(spamImage)
-    affine           = spam_Ip.affine
-    spam_Ip          = spam_Ip.get_fdata()
-    spam_Ip[spam_Ip < thresh] = 0
-    spam_Ip[spam_Ip > 1]      = 1
-
-    # 1. Left Hemisphere
-    It               = spam_Ip[:, :, :, :7]
-    ind              = np.where(np.sum(It, axis=3) == 0)
-    maxprob_thl      = spam_Ip[:, :, :, :7].argmax(axis=3) + 1
+    spam_vol[spam_vol < prob_thresh] = 0
+    spam_vol[spam_vol > 1]      = 1
+    
+    if vol_indexes is not None:   
+        # Creating the maxprob
+        array_data = np.delete(spam_vol, vol_indexes, 3)
+        
+    else:
+        array_data = spam_vol
+    
+    ind = np.where(np.sum(array_data, axis=3) == 0)
+    maxprob_thl      = array_data.argmax(axis=3) + 1
     maxprob_thl[ind] = 0
-
-    if thalMask:
-        Itemp        = nib.load(thalMask)
-        Itemp        = Itemp.get_fdata()
-        index        = np.where(Itemp != thl_code)
-        maxprob_thl[index[0], index[1], index[2]] = 0
-
-    # 2. Right Hemisphere
-    It               = spam_Ip[:, :, :, 7:]
-    ind              = np.where(np.sum(It, axis=3) == 0)
-    maxprob_thr      = spam_Ip[:, :, :, 7:].argmax(axis=3) + 1
-    maxprob_thr[ind] = 0
-
-    if thalMask:
-        index        = np.where(Itemp != thr_code)
-        maxprob_thr[index[0], index[1], index[2]] = 0
-
-    ind              = np.where(maxprob_thr != 0)
-    maxprob_thr[ind] = maxprob_thr[ind] + 7
-
-    # Saving the Nifti file
-    imgcoll          = nib.Nifti1Image(maxprob_thr.astype('int16') + maxprob_thl.astype('int16'), affine)
-    nib.save(imgcoll, maxpName)
-
-    # Creating the corresponding TSV file
-    _parc_tsv_table(np.concatenate((thalm_codesl, thalm_codesr)),
-                    np.concatenate((thalm_namesl, thalm_namesr)),
-                    np.concatenate((thalm_colorsl, thalm_colorsr)),
-                    tsvName)
-
-    # Creating and saving the corresponding colorlut table
-    now = datetime.now()
-    date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
-    luttable = ['# $Id: <BIDsDirectory>/derivatives/{} {} \n'.format('/'.join(lutlist[-5:]), date_time),
-                        '# Corresponding parcellation: ',
-                        '# <BIDsDirectory>/derivatives/' + '/'.join(maxlist[-5:]) ,
-                        '# <BIDsDirectory>/derivatives/' + '/'.join(tsvlist[-5:]) + '\n']
-    luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3} \n '.format("#No.", "Label Name:", "R", "G", "B", "A"))
-
-    luttable.append("# Left Hemisphere. Thalamic nuclei parcellation (MIAL, Najdenovska and Alemán-Gómez et al, 2018)")
-    for roi_pos, roi_name in enumerate(thalm_namesl):
-        luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(roi_pos + 1, roi_name, thalm_colorsl[roi_pos,0], thalm_colorsl[roi_pos,1], thalm_colorsl[roi_pos,2], 0))
-    nright = roi_pos +1
-
-    luttable.append('\n')
-
-    luttable.append("# Right Hemisphere. Thalamic nuclei parcellation")
-    for roi_pos, roi_name in enumerate(thalm_namesr):
-        luttable.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format(nright + roi_pos + 1, roi_name, thalm_colorsr[roi_pos,0], thalm_colorsr[roi_pos,1], thalm_colorsr[roi_pos,2], 0))
-
-    with open(lutName, 'w') as colorLUT_f:
-                colorLUT_f.write('\n'.join(luttable))
-
-# def _build_parcellation(layout, bids_dir, deriv_dir, ent_dict, parccode):
-
+    
+    if maxp_name is not None:
+        # Save the image
+        imgcoll          = nib.Nifti1Image(maxprob_thl.astype('int16'), affine)
+        nib.save(imgcoll, maxp_name)
+    else:
+        maxp_name = maxprob_thl
+    
+    return maxp_name
 
 
 def _build_parcellation(t1, bids_dir, deriv_dir, parccode, growwm):
