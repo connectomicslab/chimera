@@ -1,0 +1,11 @@
+tpl-fsaverage_hemi-*_den-164k_atlas-Broadmann1909_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-Campbell1905_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-DKT2012_scale-40_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-Flechsig1920_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-HCPMM1_seg-5p3_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-HCPMM1_seg-6p0_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-HCPMM1_seg-7p1_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-Kleist1934_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-Smith1907_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-vonEconomo1925_dseg.label
+tpl-fsaverage_hemi-*_den-164k_atlas-Yeo2011_seg-7n_dseg.label

@@ -1,0 +1,29 @@
+index	name	colors
+1	Left I-IV	#049494
+2	Right I-IV	#049494
+3	Left V	#fabe77
+4	Right V	#fabe77
+5	Left VI	#a018ce
+6	Vermis VI	#ff5733
+7	Right VI	#a018ce
+8	Left Crus I	#34a853
+9	Vermis Crus I	#33ff57
+10	Right Crus I	#34a853
+11	Left Crus II	#dfe6fc
+12	Vermis Crus II	#5733ff
+13	Right Crus II	#dfe6fc
+14	Left VIIb	#16394f
+15	Vermis VIIb	#a3e635
+16	Right VIIb	#16394f
+17	Left VIIIa	#c3f7e4
+18	Vermis VIIIa	#a1ff33
+19	Right VIIIa	#c3f7e4
+20	Left VIIIb	#ffd9b3
+21	Vermis VIIIb	#ffa533
+22	Right VIIIb	#ffd9b3
+23	Left IX	#ff33a1
+24	Vermis IX	#a3e635
+25	Right IX	#ff33a1
+26	Left X	#ffbe0b
+27	Vermis X	#9a031e
+28	Right X	#ffbe0b
