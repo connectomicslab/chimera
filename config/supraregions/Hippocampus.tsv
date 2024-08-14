@@ -19,10 +19,10 @@ Hippocampus	I	lh	246	hipp-lh-molecular-layer-hp-body	#800000
 Hippocampus	I	lh	212	hipp-lh-fimbria	#cc99cc
 Hippocampus	I	lh	226	hipp-lh-hp-tail	#aaaaff
 Hippocampus	I	lh	215	hipp-lh-hippocampal-fissure	#8020ff
-Hippocampus	H	lh	1	hipp-lh-hippocampus-head	#ff0000
-Hippocampus	H	lh	2	hipp-lh-hippocampus-body	#00ff00
-Hippocampus	H	lh	3	hipp-lh-hippocampus-tail	#ffff00
-Hippocampus	H	lh	4	hipp-lh-hippocampus-fissure	#ff7b00
+Hippocampus	H	lh	232	hipp-lh-hippocampus-head	#ff0000
+Hippocampus	H	lh	231	hipp-lh-hippocampus-body	#00ff00
+Hippocampus	H	lh	226	hipp-lh-hippocampus-tail	#ffff00
+Hippocampus	H	lh	215	hipp-lh-hippocampus-fissure	#ff7b00
 Hippocampus	R	lh	17	hipp-lh-hippocampus	#dcd814
 Hippocampus	F	rh	53	hipp-rh-hippocampus	#dcd814
 Hippocampus	I	rh	203	hipp-rh-parasubiculum	#afaf4b
@@ -44,8 +44,8 @@ Hippocampus	I	rh	246	hipp-rh-molecular-layer-hp-body	#800000
 Hippocampus	I	rh	212	hipp-rh-fimbria	#cc99cc
 Hippocampus	I	rh	226	hipp-rh-hp-tail	#aaaaff
 Hippocampus	I	rh	215	hipp-rh-hippocampal-fissure	#8020ff
-Hippocampus	H	rh	1	hipp-rh-hippocampus-head	#ff0000
-Hippocampus	H	rh	2	hipp-rh-hippocampus-body	#00ff00
-Hippocampus	H	rh	3	hipp-rh-hippocampus-tail	#ffff00
-Hippocampus	H	rh	4	hipp-rh-hippocampus-fissure	#ff7b00
+Hippocampus	H	rh	232	hipp-rh-hippocampus-head	#ff0000
+Hippocampus	H	rh	231	hipp-rh-hippocampus-body	#00ff00
+Hippocampus	H	rh	226	hipp-rh-hippocampus-tail	#ffff00
+Hippocampus	H	rh	215	hipp-rh-hippocampus-fissure	#ff7b00
 Hippocampus	R	rh	53	hipp-rh-hippocampus	#dcd814

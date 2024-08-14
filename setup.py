@@ -31,7 +31,7 @@ setup(
     description="Atlases and parcellation methods are key to unravel the anatomo-functional organization of the human brain. They subdivide brain's anatomy allowing us to perform region-based analyses and narrowing the hypotheses",
     entry_points={
         'console_scripts': [
-            'chimera=chimera.cli:main',
+            'chimera=chimera.chimera:main',
         ],
     },
     install_requires=requirements,
