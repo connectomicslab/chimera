@@ -80,8 +80,7 @@ class Chimera:
 
         """
 
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        chim_dir = os.path.dirname(cwd)
+        chim_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Rise an error if the parcellation code is not provided
         if parc_code is None:
@@ -1152,8 +1151,8 @@ class Chimera:
             nmid_subc = len(mid_parc.index)
         
         
-        if "WhiteMatter" in supra_names:
-            self.supra_dict[supra][supra][atlas_code]["none"]["index"]
+        # if "WhiteMatter" in supra_names:
+            #self.supra_dict[supra][supra][atlas_code]["none"]["index"]
             
         
         
@@ -1383,7 +1382,7 @@ def _pipeline_info(pipe_json:str=None):
 
     """
     cwd = os.path.dirname(os.path.abspath(__file__))
-    cwd = os.path.dirname(cwd)
+
     # Get the absolute of this file
     if pipe_json is None:
         
@@ -1419,8 +1418,7 @@ def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
         Dictionary containing the supraregions information
 
     """
-    cwd = os.path.dirname(os.path.abspath(__file__))
-    chim_dir = os.path.dirname(cwd)
+    chim_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Get the absolute of this file
     if parc_json is None:

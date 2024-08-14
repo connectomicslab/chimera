@@ -19,7 +19,7 @@ script: tox
 deploy:
   provider: pypi
   distributions: sdist bdist_wheel
-  user: to specific regions of interest to the research question. Although widely applied, combining parcellations obtained with different approaches remains a challenging task. Here, we propose Chimera to flexibly integrate
+  user: yasseraleman
   password:
     secure: PLEASE_REPLACE_ME
   on:

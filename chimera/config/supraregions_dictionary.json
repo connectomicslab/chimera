@@ -423,6 +423,17 @@
                   "OutVolLocation":"freesurfer"}
       },
       "WhiteMatter": {
+      	    "F": {"atlas":"Aseg",
+                  "name":"Aseg",
+                  "description":"# 10. White matter parcellation (F): Aseg subcortical parcellation.",
+                  "citation":"(Fischl et al, 2002)",
+                  "source": "freesurfer",
+                  "reference":"conform",
+                  "parcels":"custom",
+                  "mask":"custom",
+                  "type":"custom",
+                  "deriv_volfold":"freesurfer"},
+      	
             "J": {"atlas":"Hua2008",
                   "name":"JHU",
                   "description":"# 10. Tract probability maps in stereotaxic spaces (J): White matter segmentation.",
@@ -433,5 +444,6 @@
                   "mask":"custom",
                   "type":"maxprob",
                   "OutVolLocation":"freesurfer"}
+           
       }
 }
