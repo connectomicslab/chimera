@@ -40,7 +40,7 @@ setup(
     include_package_data=True,
     keywords='chimera',
     name='chimera',
-    packages=find_packages(include=['chimera', 'chimera.*']),
+    package_data={'chimera' :['chimera/data/*','chimera/config/*']},
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/yasseraleman/chimera',
