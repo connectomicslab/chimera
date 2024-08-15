@@ -59,7 +59,7 @@
                   "name":"HCP-MMP1",
                   "description":"# 1. Cortical parcellation (H): HCP-MMP1 cortical parcellation (Glasser et al, 2016).",
                   "citation":"(Glasser et al, 2016)",
-                  "source": "templateflow",
+                  "source": "local",
                   "reference":"fsaverage",
                   "type":"gcs",
                   "parcels":["atlas-HCPMM1_seg-5p3","atlas-HCPMM1_seg-6p0","atlas-HCPMM1_seg-7p1"],
