@@ -5,11 +5,14 @@ include LICENSE
 include README.rst
 
 recursive-include tests *
+recursive-include chimera/data/ *.annot
+recursive-include chimera/data/ *.nii.gz
+recursive-include chimera/data/ *.gcs
+recursive-include chimera/data/ *.tsv
+
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 
 recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
 
 packages = ['.','data','config','docs'],
-
-package_data={'data':['*'],'config':['*'],'docs':['*'],},

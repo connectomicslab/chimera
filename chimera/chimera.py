@@ -193,9 +193,8 @@ class Chimera:
         
         
         # Detecting the base directory
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        chim_dir = os.path.dirname(cwd)
-        
+        chim_dir = os.path.dirname(os.path.abspath(__file__))
+
         # Reading the names of the supra-regions
         supra_names = list(self.parc_dict.keys())
         
@@ -281,6 +280,8 @@ class Chimera:
                         atlas_ext = '.gcs'
                         method = 'gcs2indiv'
                         
+                        
+                        
                     ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
                     ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
                     
@@ -288,7 +289,7 @@ class Chimera:
                     ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
                     ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
                     
-                    if not ctx_parc_lh_annot or not ctx_parc_rh_annot:
+                    if not ctx_parc_lh or not ctx_parc_rh:
                         raise ValueError("Cortical parcellations should be supplied for both hemispheres.")
                     
                     else:
@@ -740,11 +741,6 @@ class Chimera:
         # Create the Chimera directory if it does not exist
         chim_dir = Path(chim_dir)
         chim_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Create the anat directory if it does not exist
-        tmp_dir = os.path.join(str(chim_dir), 'tmp')
-        tmp_dir = Path(tmp_dir)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
         
         ######## ----------- Detecting FREESURFER_HOME directory ------------- #
         fshome_dir = os.getenv('FREESURFER_HOME')
@@ -1231,138 +1227,106 @@ class Chimera:
                 
                 ## -------- Creating the volumetric parcellation ---------------
                 out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
-                if growwm is not None:
-                    for ngrow in np.arange(len(growwm)):
-                        if growwm[ngrow] == '0':
-                            out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
-                        else:
-                            
-                            ent_dict = cltbids._str2entity(at_name)
-                            if 'desc' in ent_dict.keys():
+                if growwm is None:
+                    growwm = ['0']
+                    
+                for ngrow in np.arange(len(growwm)):
+                    if growwm[ngrow] == '0':
+                        out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
+                    else:
+                        
+                        ent_dict = cltbids._str2entity(at_name)
+                        if 'desc' in ent_dict.keys():
+                            if bool_mixwm:
+                                ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm+mixwm'
+                            else:
                                 ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
-                                tmp_str = cltbids._entity2str(ent_dict)
-                                out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
+                            tmp_str = cltbids._entity2str(ent_dict)
+                            out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
+                        else:
+                            if bool_mixwm:
+                                out_vol_name = fullid + '_' + at_name + '_desc-grow' + str(growwm[ngrow]) + 'mm+mixwm_dseg.nii.gz'
                             else:
                                 out_vol_name = fullid + '_' + at_name + '_desc-grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
 
-                        sub2proc._surf2vol(atlas=at_name, 
-                                            out_vol=os.path.join(out_vol_dir, out_vol_name), 
-                                            gm_grow=growwm[ngrow], 
-                                            bool_mixwm = bool_mixwm,
-                                            force=False, bool_native=True, 
-                                            color_table=['tsv', 'lut'])
-                        
-                        chim_parc_name = cltbids._replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
-                        chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
-                        chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
-                        chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
-                        
-                        if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv)  or force:
-                            # Creating the joined parcellation
-                            ref_image = np.zeros_like(t1_image.get_fdata(), dtype=np.int32)
-                            chim_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine)
-                            
-                            ctx_parc = cltparc.Parcellation(parc_file=os.path.join(out_vol_dir, out_vol_name))
-                            ctx_parc._remove_by_name(names2remove=['unknown', 'medialwall', 'corpuscallosum'])
-                            
-                            lh_ctx_parc = copy.deepcopy(ctx_parc)    
-                            rh_ctx_parc = copy.deepcopy(ctx_parc)
-                            
-                            lh_ctx_parc._keep_by_name(names2look='ctx-lh-')
-                            rh_ctx_parc._keep_by_name(names2look='ctx-rh-')
-                            
-                            # Detect if wm is in the names
-                            # tmp_brain = cltmisc._filter_by_substring(ctx_parc.name, 'wm-brain-')
-                            # if tmp_brain:
-                            #     bool_wm = True
-                            #     brain_wm_parc = copy.deepcopy(ctx_parc)
-                            #     brain_wm_parc._keep_by_name(names2look=tmp_brain)
-                            #     brain_wm_parc._rearange_parc(offset=2999)
-                            # else:
-                            #     bool_wm = False
-                            
-                            tmp_lh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-lh-')
-                            if tmp_lh:
-                                bool_wm = True
-                                lh_wm_parc = copy.deepcopy(ctx_parc)
-                                lh_wm_parc._keep_by_name(names2look=tmp_lh)
-
-                            else:
-                                bool_wm = False
-                            
-                            
-                            tmp_rh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-rh-')
-                            if tmp_rh:
-                                bool_wm = True
-                                rh_wm_parc = copy.deepcopy(ctx_parc)
-                                rh_wm_parc._keep_by_name(names2look=tmp_rh)
-                                rh_wm_parc._rearange_parc(offset=3000)
-                                
-                            else:
-                                bool_wm = False
-                            
-                            rh_ctx_parc._rearange_parc()
-                            chim_parc._add_parcellation(rh_ctx_parc, append=True)
-                            if "rh_parc" in locals():
-                                chim_parc._add_parcellation(rh_parc, append=True)
-                            
-                            lh_ctx_parc._rearange_parc()
-                            chim_parc._add_parcellation(lh_ctx_parc, append=True)
-                            if "lh_parc" in locals():
-                                chim_parc._add_parcellation(lh_parc, append=True)
-                                
-                            if "mid_parc" in locals():
-                                chim_parc._add_parcellation(mid_parc, append=True)
-                                
-                            if bool_wm:
-                                chim_parc._add_parcellation(rh_wm_parc, append=True, )
-                                
-                                lh_wm_parc._rearange_parc(offset=3000 + rh_ctx_parc.maxlab + nrh_subc)
-                                chim_parc._add_parcellation(lh_wm_parc, append=True)
-                            
-                            chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, save_lut=True, save_tsv=True)
-
-                else:
-                    out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
                     sub2proc._surf2vol(atlas=at_name, 
                                         out_vol=os.path.join(out_vol_dir, out_vol_name), 
                                         gm_grow=growwm[ngrow], 
                                         bool_mixwm = bool_mixwm,
-                                        force=force, bool_native=True)
+                                        force=False, bool_native=True, 
+                                        color_table=['tsv', 'lut'])
                     
-                ctx_parc = cltparc.Parcellation(parc_file=os.path.join(out_vol_dir, out_vol_name))
+                    chim_parc_name = cltbids._replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+                    chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
+                    chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
+                    chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+                    
+                    if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv)  or force:
+                        # Creating the joined parcellation
+                        ref_image = np.zeros_like(t1_image.get_fdata(), dtype=np.int32)
+                        chim_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine)
                         
-                lh_ctx_parc = copy.deepcopy(ctx_parc)    
-                rh_ctx_parc = copy.deepcopy(ctx_parc)
-                
-                lh_ctx_parc._keep_by_name(names2look='ctx-lh-')
-                rh_ctx_parc._keep_by_name(names2look='ctx-rh-')
-                
-                # Detect if wm is in the names
-                tmp_names = lh_ctx_parc.name
-                tmp_lh = cltmisc._filter_by_substring(tmp_names, 'wm-')
-                if tmp_lh:
-                    bool_wm = True
-                    lh_wm_parc = copy.deepcopy(ctx_parc)
-                    lh_wm_parc._keep_by_name(names2look='wm-lh-') 
-                else:
-                    bool_wm = False
-                
-                tmp_names = rh_ctx_parc.name
-                tmp_rh = cltmisc._filter_by_substring(tmp_names, 'wm-rh-')
-                if tmp_rh:
-                    bool_wm = True
-                    rh_wm_parc = copy.deepcopy(ctx_parc)
-                else:
-                    bool_wm = False
-                
-                
-                
-                
-                
-                
-                    
-                    
+                        ctx_parc = cltparc.Parcellation(parc_file=os.path.join(out_vol_dir, out_vol_name))
+                        ctx_parc._remove_by_name(names2remove=['unknown', 'medialwall', 'corpuscallosum'])
+                        
+                        lh_ctx_parc = copy.deepcopy(ctx_parc)    
+                        rh_ctx_parc = copy.deepcopy(ctx_parc)
+                        
+                        lh_ctx_parc._keep_by_name(names2look='ctx-lh-')
+                        nlh_ctx = len(lh_ctx_parc.index)
+                        rh_ctx_parc._keep_by_name(names2look='ctx-rh-')
+                        nrh_ctx = len(rh_ctx_parc.index)
+                        
+                        # Detect the global White Matter
+                        brain_wm_parc = copy.deepcopy(ctx_parc)
+                        brain_wm_parc._keep_by_code(codes2look=[2, 41, 5001, 5002, 250, 251, 252, 253, 254, 255, 7, 46])
+                        ind = np.where(brain_wm_parc.data != 0)
+                        brain_wm_parc.data[ind] = 1
+                        brain_wm_parc.index = [1]
+                        brain_wm_parc.name = ['wm-brain-whitematter']
+                        brain_wm_parc.color = ['#ffffff']
+                        brain_wm_parc._rearange_parc(offset=2999)
+                        
+                        # White Matter for the Right Hemisphere
+                        tmp_rh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-rh-')
+                        if tmp_rh:
+                            bool_wm = True
+                            rh_wm_parc = copy.deepcopy(ctx_parc)
+                            rh_wm_parc._keep_by_name(names2look=tmp_rh)
+                            rh_wm_parc._rearange_parc(offset=3000)
+                            
+                        else:
+                            bool_wm = False
+                        
+                        # White Matter for the Left Hemisphere
+                        tmp_lh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-lh-')
+                        if tmp_lh:
+                            bool_wm = True
+                            lh_wm_parc = copy.deepcopy(ctx_parc)
+                            lh_wm_parc._keep_by_name(names2look=tmp_lh)
+                            lh_wm_parc._rearange_parc(offset=3000 + nrh_ctx + nrh_subc)
+                        else:
+                            bool_wm = False
+
+                        rh_ctx_parc._rearange_parc()
+                        chim_parc._add_parcellation(rh_ctx_parc, append=True)
+                        if "rh_parc" in locals():
+                            chim_parc._add_parcellation(rh_parc, append=True)
+                        
+                        lh_ctx_parc._rearange_parc()
+                        chim_parc._add_parcellation(lh_ctx_parc, append=True)
+                        if "lh_parc" in locals():
+                            chim_parc._add_parcellation(lh_parc, append=True)
+                            
+                        if "mid_parc" in locals():
+                            chim_parc._add_parcellation(mid_parc, append=True)
+                        
+                        if bool_wm:
+                            chim_parc._add_parcellation(brain_wm_parc, append=False)
+                            chim_parc._add_parcellation(rh_wm_parc, append=False)
+                            chim_parc._add_parcellation(lh_wm_parc, append=False)
+                        
+                        chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, save_lut=True, save_tsv=True)
 
 
 # Loading the JSON file containing the available parcellations
