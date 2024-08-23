@@ -153,7 +153,7 @@ class Chimera:
                         parcel_names = cltmisc._filter_by_substring(parcel_names, seg_tmp, boolcase=False)
                     
                     # Saving the new parcels names
-                    meth_dict['Parcels'] = parcel_names
+                    meth_dict['parcels'] = parcel_names
             
                 # Adding the dictionary to the temp_dict
                 temp_dict[supra_names[i]] = meth_dict
@@ -188,8 +188,8 @@ class Chimera:
         cltfree.FreeSurferSubject._set_freesurfer_directory(fssubj_dir)
         
         # Create the simlink to the FreeSurfer directory
-        
-        cltfree._create_fsaverage_links(fssubj_dir, fsavg_dir=None, refsubj_name=self.parc_dict["Cortical"]["reference"])
+        if "Cortical" in self.parc_dict.keys():
+            cltfree._create_fsaverage_links(fssubj_dir, fsavg_dir=None, refsubj_name=self.parc_dict["Cortical"]["reference"])
         
         
         # Detecting the base directory
@@ -280,8 +280,7 @@ class Chimera:
                         atlas_ext = '.gcs'
                         method = 'gcs2indiv'
                         
-                        
-                        
+
                     ctx_parc_lh = glob(os.path.join(atlas_dir, '*-L_*' + atlas_ext))
                     ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
                     
@@ -682,6 +681,48 @@ class Chimera:
                     colors = tab_df['color'].tolist()
                     cltparc.Parcellation.write_luttable(codes=codes, names=names, colors=colors, out_file=out_file_lut, headerlines=parc_desc, force=True)
     
+    def _build_lut_header(self):
+        """
+        This method builds the header of the LUT file.
+        
+        """
+        
+        # Detecting the base directory
+        chim_dir = os.path.dirname(os.path.abspath(__file__))
+    
+        # Get the absolute of this file
+        parc_json = os.path.join(chim_dir, 'config', 'supraregions_dictionary.json')
+
+        # Reading the parcellation dictionary
+        with open(parc_json) as f:
+            parc_dict = json.load(f)
+        
+        # Reading the names of the supra-regions
+        supra_names = list(parc_dict.keys())
+        
+        # Reading the parcellation code
+        chim_code = self.parc_code
+        
+        # Creating the header lines
+        headerlines = [" # Chimera parcellation code: {}".format(self.parc_code)]
+        for i, supra in enumerate(supra_names):
+            tmp_dict = parc_dict[supra]
+            
+            # Check if the parcellation code is in the dictionary
+            if chim_code[i] in tmp_dict.keys():
+                tmp_dict = tmp_dict[chim_code[i]]
+                
+                if tmp_dict["description"].endswith('.'):
+                    tmp_dict["description"] = tmp_dict["description"][:-1]
+                
+                cite = "{} {}.". format (tmp_dict["atlas"], tmp_dict["citation"])  
+                glob_desc = tmp_dict["description"] + ". Name: " + cite              
+                headerlines.append("    " + glob_desc)
+            else: 
+                headerlines.append("    # {}. The parcellation code {} is not present in the dictionary for the supra-region {}.".format(i+1, chim_code[i], supra))
+        
+        return headerlines
+        
     def _build_parcellation1(self, t1:str, bids_dir:str, 
                             deriv_dir:str = None,
                             fssubj_dir:str = None,
@@ -764,12 +805,12 @@ class Chimera:
             sub2proc._launch_freesurfer(force=force, 
                                         cont_tech=cont_tech_freesurfer, 
                                         cont_image=cont_image_freesurfer)
+        
+        # Building the main header information for the LUT file
+        glob_header_info = self._build_lut_header()
+
+        # Detecting if Cortical is on the list of supra-regions
         bool_ctx = False
-        
-        # This is done to avoid the cortical parcellation in the first step. 
-        # We are going to create parcellations Right, Left and Middle parcellations 
-        # that will be added to the different cortical configurations
-        
         if 'Cortical' in supra_names:
             # Remove it from the list
             supra_names.remove('Cortical')
@@ -1123,17 +1164,20 @@ class Chimera:
                 lh_supra_parc._rearange_parc()
                 lh_parc._add_parcellation(lh_supra_parc, append=True)
                 nlh_subc = len(lh_parc.index)
+                del lh_supra_parc
                 # lh_parc._save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
                 
             if "rh_supra_parc" in locals():
                 rh_supra_parc._rearange_parc()
                 rh_parc._add_parcellation(rh_supra_parc, append=True)
                 nrh_subc = len(rh_parc.index)
+                del rh_supra_parc
                 # rh_parc._save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
                 
             if 'mid_supra_parc' in locals():
                 mid_supra_parc._rearange_parc()
                 mid_parc._add_parcellation(mid_supra_parc, append=True)
+                del mid_supra_parc
                 # mid_parc._save_parcellation(out_file= '/home/yaleman/mid_test.nii.gz', save_lut=True)
 
         # Detecting the number of regions 
@@ -1146,13 +1190,10 @@ class Chimera:
         if 'mid_parc' in locals():
             nmid_subc = len(mid_parc.index)
         
-        
         # if "WhiteMatter" in supra_names:
             #self.supra_dict[supra][supra][atlas_code]["none"]["index"]
             
-        
-        
-        
+        date_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         if bool_ctx:
             
             # Atributes for the cortical parcellation
@@ -1163,6 +1204,9 @@ class Chimera:
             
             nctx_parc     = len(self.parc_dict["Cortical"]["processing"]["labels"]["lh"])
             for c in np.arange(nctx_parc):
+                
+                # Temporal header lines
+                glob_header_info_tmp = copy.deepcopy(glob_header_info)
                 
                 ## -------- Cortical parcellation for the left hemisphere ---------------
                 # Creating the name for the output file
@@ -1220,7 +1264,7 @@ class Chimera:
                 # Copying to the labels folder
                 temp_lh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'lh.' + at_name + '.annot')
                 shutil.copyfile(lh_out_annot, temp_lh)
-
+                
                 # Copying to the labels folder
                 temp_rh = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'label',  'rh.' + at_name + '.annot')
                 shutil.copyfile(rh_out_annot, temp_rh)
@@ -1229,7 +1273,31 @@ class Chimera:
                 out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
                 if growwm is None:
                     growwm = ['0']
+                
+                ent_dict = cltbids._str2entity(at_name)
+                if "scale" in ent_dict.keys():
+                        scale_cad = 'Scale: {}'.format(ent_dict["scale"])
+                else:
+                    scale_cad = None
                     
+                if "seg" in ent_dict.keys():
+                    seg_cad = 'Segmentation: {}'.format(ent_dict["seg"])
+                else:
+                    seg_cad = None
+
+                if scale_cad is not None or seg_cad is not None:
+                    if scale_cad is not None and seg_cad is not None:
+                        cad2add = '. ' + scale_cad + ' - ' + seg_cad 
+                        
+                    elif scale_cad is not None and seg_cad is None:
+                        cad2add = '. ' + scale_cad 
+                        
+                    elif scale_cad is None and seg_cad is not None:
+                        cad2add = '. ' + seg_cad
+                    
+                    glob_header_info_tmp[0] = glob_header_info_tmp[0] + cad2add
+                    
+                            
                 for ngrow in np.arange(len(growwm)):
                     if growwm[ngrow] == '0':
                         out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
@@ -1261,6 +1329,15 @@ class Chimera:
                     chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
                     chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
                     
+                    # Creating the first part of the headers
+                    part_header = ['# $Id: {} {} \n'.format(chim_parc_lut, date_time)]
+                    
+                    part_header.append('# Corresponding parcellation: {} \n'.format(chim_parc_file))
+                    
+                    lut_header = part_header + glob_header_info_tmp
+                    lut_header = lut_header + ['\n']
+                    lut_header.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format("#No.", "Label Name:", "R", "G", "B", "A"))
+
                     if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv)  or force:
                         # Creating the joined parcellation
                         ref_image = np.zeros_like(t1_image.get_fdata(), dtype=np.int32)
@@ -1307,27 +1384,81 @@ class Chimera:
                             lh_wm_parc._rearange_parc(offset=3000 + nrh_ctx + nrh_subc)
                         else:
                             bool_wm = False
-
+                        
+                        # Adding the right cortical parcellation to the final image
                         rh_ctx_parc._rearange_parc()
                         chim_parc._add_parcellation(rh_ctx_parc, append=True)
+                        del rh_ctx_parc
+                        
+                        # Adding the right non-cortical parcellation to the final image
                         if "rh_parc" in locals():
                             chim_parc._add_parcellation(rh_parc, append=True)
                         
+                        # Adding the left cortical parcellation to the final image
                         lh_ctx_parc._rearange_parc()
                         chim_parc._add_parcellation(lh_ctx_parc, append=True)
+                        del lh_ctx_parc
+                        
+                        # Adding the left non-cortical parcellation to the final image
                         if "lh_parc" in locals():
                             chim_parc._add_parcellation(lh_parc, append=True)
-                            
+                        
+                        # Adding the regions that do not belong to any hemisphere to the final image
                         if "mid_parc" in locals():
                             chim_parc._add_parcellation(mid_parc, append=True)
                         
+                        # Adding the white matter to the final image
                         if bool_wm:
                             chim_parc._add_parcellation(brain_wm_parc, append=False)
+                            del brain_wm_parc
+                            
                             chim_parc._add_parcellation(rh_wm_parc, append=False)
+                            del rh_wm_parc
+                            
                             chim_parc._add_parcellation(lh_wm_parc, append=False)
+                            del lh_wm_parc
                         
-                        chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, save_lut=True, save_tsv=True)
+                        # Saving the FINAL parcellation
+                        chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
+                        del chim_parc
+        else:
+            out_vol_name = fullid + '_dseg.nii.gz'
 
+            chim_parc_name = cltbids._insert_entity(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+            chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
+            chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
+            chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+            
+            if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv) or force:
+                part_header = ['# $Id: {} {} \n'.format(chim_parc_lut, date_time)]
+                part_header.append('# Corresponding parcellation: {} \n'.format(chim_parc_file))
+                    
+                lut_header = part_header + glob_header_info
+                lut_header = lut_header + ['\n']
+                lut_header.append('{:<4} {:<50} {:>3} {:>3} {:>3} {:>3}'.format("#No.", "Label Name:", "R", "G", "B", "A"))
+                
+                # Creating the joined parcellation
+                ref_image = np.zeros_like(t1_image.get_fdata(), dtype=np.int32)
+                chim_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine)
+            
+                # Adding the right non-cortical parcellation to the final image
+                if "rh_parc" in locals():
+                    rh_parc._rearange_parc()
+                    chim_parc._add_parcellation(rh_parc, append=True)
+                
+                # Adding the left non-cortical parcellation to the final image
+                if "lh_parc" in locals():
+                    lh_parc._rearange_parc()
+                    chim_parc._add_parcellation(lh_parc, append=True)
+                
+                # Adding the regions that do not belong to any hemisphere to the final image
+                if "mid_parc" in locals():
+                    mid_parc._rearange_parc()
+                    chim_parc._add_parcellation(mid_parc, append=True)
+        
+                # Saving the FINAL parcellation
+                chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
+                del chim_parc
 
 # Loading the JSON file containing the available parcellations
 def _pipeline_info(pipe_json:str=None):
@@ -1532,10 +1663,10 @@ def _build_args_parser():
     requiredNamed.add_argument('--growwm', '-g', action='store', required=False, metavar='GROWWM', type=str, nargs=1,
                                 help="R| Grow of GM labels inside the white matter in mm. \n", default=None)
 
-    requiredNamed.add_argument('--txt2filter', '-x', action='store', required=False, metavar='FILE', type=str, nargs=1,
-                                help="R| File containing the basename of the NIFTI images that will be ran. \n"
-                                    "   This file is useful to tun Chimera, only, on certain T1s in case of multiple T1s \n"
-                                    " for the same session.\n"
+    requiredNamed.add_argument('--subjids', '-ids', action='store', required=False, metavar='FILE', type=str, nargs=1,
+                                help="R| Subject IDs. Multiple subject ids can be specified separating them by a comma. \n"
+                                    " The ID should be the basename of the T1-weighted image that will be ran. \n"
+                                    " A txt file containing the IDs can be also used. \n"
                                     " Example of this file: \n"
                                     "   sub-00001_ses-0001_run-2 \n"
                                     "   sub-00001_ses-0003_run-1\n"
@@ -2308,8 +2439,8 @@ def main():
     code_dict = {"code": parcodes, "scale": scale_id, "seg": seg_id}
         
     
-    if args.txt2filter is not None:
-        t1s2run_file = args.txt2filter[0]
+    if args.subjids is not None:
+        t1s2run_file = args.subjids[0]
     else:
         t1s2run_file = ''
     
