@@ -28,11 +28,16 @@ Brief description of input options:
 | Option | Description |
 | ---------- | ------ |
 | `--regions`, `-r` | List available parcellations for each supra-region.|
-| `--bidsdir`, `-b` | BIDs dataset folder. |
-| `--derivdir`, `-d` | Derivatives folder. |
+| `--bidsdir`, `-b` | BIDs dataset folder. Different BIDs directories could be entered separating them by a comma.|
 | `--parcodes`, `-p` | Sequence of nine one-character identifiers (one per each supra-region). |
+| `--derivdir`, `-d` | Derivatives folder. Different directories could be entered separating them by a comma.|
+| `--freesurferdir`, `-fr` | FreeSurfer subjects dir. If the folder does not exist it will be created.|
+| `--scale`, `-s` | Scale identification. This option should be supplied for multi-resolution cortical parcellations (e.g. Lausanne or Schaeffer). |
+| `--seg`, `-e` | Segmentation identifier. |
+| `--nthreads`, `-n` | Number of processes to run in parallel (default= Number of cores - 4). |
 | `--growwm`, `-g` | Grow of GM labels inside the white matter (mm). |
-| `--t1file`, `-t` | File containing the basenames of T1w images that will be ran. |
+| `--subjids`, `-ids` | Subject IDs. Multiple subject ids can be specified separating them by a comma. |
+| `--mergectx,`, `-mctx` | Join cortical white matter and cortical gray matter regions. |
 | `--force`, `-f` | Overwrite the results. |
 | `--verbose`, `-v` | Verbose (**0**, **1** or **2**). |
 | `--help`, `-h` | Help. |
@@ -41,20 +46,23 @@ Brief description of input options:
 ##### Usage
 General command line to use **Chimera**:
 ```sh
-    $ python chimera_parcellation.py -b <BIDs directory> -d <Derivatives directory> -p <Chimera code>
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -p <Chimera code>
 ```
+
+This command will run Chimera for all the subjects in the BIDs directory.
+
 
 ##### Simple examples
 
 1. Running **Chimera** for 3 different parcellation codes (LFMFIIFIF,SFMFIIFIF,CFMFIIFIF). This will obtain the combined parcellations for all the T1-weighted images inside the BIDs dataset.
 
 ```sh
-    $ python chimera_parcellation.py -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF,SFMFIIFIF,CFMFIIFI
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF,SFMFIIFIF,CFMFIIFI
 ```
 2. Running **Chimera** for T1-weighted images included in a txt file: 
 
 ```sh
-    $ python chimera_parcellation.py -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -t <t1s.txt>
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -ids <t1s.txt>
 ```
 Example of **t1s.txt** file
 |   sub-00001_ses-0001_run-2
@@ -63,15 +71,14 @@ Example of **t1s.txt** file
 
 3. Cortical volumes will grow 0 and 2 mm respectively inside the white matter for the selected cortical parcellations. 
 ```sh
-    $ python chimera_parcellation.py -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -g 0,2
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -g 0,2
 ```
 
 ## Main files in the repository
-1. __chimera_parcellation.py__: Main python library for performing **Chimera** parcellations. 
-2. __parcTypes.json__: JSON file especifying the available parcellation sources per supra-region.
-3. **ANNOT_atlases** and **GCS_atlases**: Folder containing cortical atlases in *.annot* and *.gcs* file formats.
-4. **mni_icbm152_t1_tal_nlin_asym_09c**: Folder containing the reference atlas used by the MIAL atlas-based thalamic parcellation method. The atlas is referenced in standard [MNI] (_Montreal Neurological Institute_) space with a high resolution T1 weighted image (__ICBM 2009c Nonlinear Asymmetric__ ). 
-5. **thalamic_nuclei_MIALatlas**: Folder containing the spatial probabilistic maps of 14 thalamic nuclei.
+1. chimera.py__: Main python library for performing **Chimera** parcellations. 
+2. supraregions_dictionary.json__: JSON file especifying the available parcellation sources per supra-region.
+3. **annot_atlases** and **gcs_atlases**: Folder containing cortical atlases in *.annot* and *.gcs* file formats.
+
 
 #### Parcellations and methodologies for each supra-region
 #### 1. Cortical parcellation
