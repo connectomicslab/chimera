@@ -160,7 +160,7 @@
                   "citation":"(Yeo et al, 2011)",
                   "source": "local",
                   "reference":"fsaverage",
-                  "type":"gcs",
+                  "type":"annot",
                   "parcels":["Yeo2011_seg-7n","Yeo2011_seg-17n"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc"}
