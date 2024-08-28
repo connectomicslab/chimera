@@ -455,9 +455,9 @@ class Chimera:
                     meth_dict = self.parc_dict[supra]
                     st_dict = self.supra_dict[supra][supra][meth_dict["code"]]
                     if len(st_dict) == 1:
-                            bs_noctx_codes = bs_noctx_codes + st_dict['none']['index']
-                            bs_noctx_names = bs_noctx_names + st_dict['none']['name']
-                            bs_noctx_colors = bs_noctx_colors + st_dict['none']['color']
+                            bs_noctx_codes = bs_noctx_codes + st_dict['mid']['index']
+                            bs_noctx_names = bs_noctx_names + st_dict['mid']['name']
+                            bs_noctx_colors = bs_noctx_colors + st_dict['mid']['color']
                             
                     elif len(st_dict) == 2:
                         lh_noctx_codes = lh_noctx_codes + st_dict['lh']['index']
@@ -723,7 +723,7 @@ class Chimera:
         
         return headerlines
         
-    def _build_parcellation1(self, t1:str, bids_dir:str, 
+    def _build_parcellation(self, t1:str, bids_dir:str, 
                             deriv_dir:str = None,
                             fssubj_dir:str = None,
                             growwm:Union[str, int] = None, 
@@ -801,10 +801,31 @@ class Chimera:
         cont_tech_fsl         = pipe_dict["packages"]["fsl"]["cont_tech"]
         cont_image_fsl        = pipe_dict["packages"]["fsl"]["container"]
         
-        if 'F' in self.parc_code:
-            sub2proc._launch_freesurfer(force=force, 
+        # Running FreeSurfer if it was not previously computed is mandatory
+        sub2proc._launch_freesurfer(force=force, 
+                                    t1w_img=t1,
                                         cont_tech=cont_tech_freesurfer, 
                                         cont_image=cont_image_freesurfer)
+        
+
+        nii_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'tmp', 'aparc+aseg.nii.gz')
+        mgz_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'mri', 'aparc+aseg.mgz')
+                
+        if not os.path.isfile(nii_image):
+            sub2proc._conform2native(mgz_conform=mgz_image,
+                                    nii_native=nii_image,
+                                    cont_image=cont_image_freesurfer,
+                                    cont_tech=cont_tech_freesurfer,
+                                    force=force)
+            
+        if "aseg_parc" not in locals():
+            aseg_parc = cltparc.Parcellation(parc_file=nii_image)
+            
+        # Creating the parcellation for the extra regions
+        extra_parc = _create_extra_regions_parc(aparc=nii_image)
+            
+        # Remove the nifti file
+        os.remove(nii_image)
         
         # Building the main header information for the LUT file
         glob_header_info = self._build_lut_header()
@@ -859,21 +880,6 @@ class Chimera:
             deriv_fold    = self.parc_dict[supra]["deriv_volfold"]
             proc_dict     = self.parc_dict[supra]["processing"]
             
-            if atlas_parcs == 'aparc+aseg' or atlas_mask == 'aparc+aseg':
-                # Moving the Aseg to native space
-                nii_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'tmp', 'aparc+aseg.nii.gz')
-                mgz_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'mri', 'aparc+aseg.mgz')
-                
-                if not os.path.isfile(nii_image):
-                    sub2proc._conform2native(mgz_conform=mgz_image,
-                                                nii_native=nii_image,
-                                                cont_image=cont_image_freesurfer,
-                                                cont_tech=cont_tech_freesurfer,
-                                                force=force)
-                files2del.append(nii_image)
-                
-                if "aseg_parc" not in locals():
-                    aseg_parc = cltparc.Parcellation(parc_file=nii_image)
             
             if proc_dict["method"] == 'comform2native':
                 
@@ -971,12 +977,12 @@ class Chimera:
                             rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                         
                         # Non-hemispheric structures
-                        if 'none' in self.supra_dict[supra][supra][atlas_code].keys():
+                        if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                             mid_supra_parc = copy.deepcopy(tmp_parc)
-                            mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["none"]["index"]
-                            mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["none"]["name"]
-                            mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["none"]["color"]
-                            mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['none']['index'])    
+                            mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
+                            mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["mid"]["name"]
+                            mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["mid"]["color"]
+                            mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
 
                 else:
                 
@@ -1011,12 +1017,12 @@ class Chimera:
                         rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                     
                     # Non-hemispheric structures
-                    if 'none' in self.supra_dict[supra][supra][atlas_code].keys():
+                    if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc        = copy.deepcopy(tmp_parc)
-                        mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["none"]["index"]
-                        mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["none"]["name"]
-                        mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["none"]["color"]
-                        mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['none']['index'])    
+                        mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
+                        mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["mid"]["name"]
+                        mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["mid"]["color"]
+                        mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
                     
 
             elif proc_dict["method"] == None:
@@ -1057,12 +1063,12 @@ class Chimera:
                     rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                 
                 # Non-hemispheric structures
-                if 'none' in self.supra_dict[supra][supra][atlas_code].keys():
+                if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                     mid_supra_parc = copy.deepcopy(tmp_parc)
-                    mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["none"]["index"]
-                    mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["none"]["name"]
-                    mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["none"]["color"]
-                    mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['none']['index'])    
+                    mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
+                    mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["mid"]["name"]
+                    mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["mid"]["color"]
+                    mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
                 
             elif proc_dict["method"] == 'atlasbased':
                 t1_temp = proc_dict["reference"]
@@ -1151,12 +1157,12 @@ class Chimera:
                     rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                 
                 # Non-hemispheric structures
-                if 'none' in self.supra_dict[supra][supra][atlas_code].keys():
+                if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                     mid_supra_parc = copy.deepcopy(tmp_parc)
-                    mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["none"]["index"]
-                    mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["none"]["name"]
-                    mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["none"]["color"]
-                    mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['none']['index'])    
+                    mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
+                    mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["mid"]["name"]
+                    mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["mid"]["color"]
+                    mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
 
             
             # Appending the parcellations
@@ -1191,7 +1197,7 @@ class Chimera:
             nmid_subc = len(mid_parc.index)
         
         # if "WhiteMatter" in supra_names:
-            #self.supra_dict[supra][supra][atlas_code]["none"]["index"]
+            #self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
             
         date_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         if bool_ctx:
@@ -1356,7 +1362,7 @@ class Chimera:
                         
                         # Detect the global White Matter
                         brain_wm_parc = copy.deepcopy(ctx_parc)
-                        brain_wm_parc._keep_by_code(codes2look=[2, 41, 5001, 5002, 250, 251, 252, 253, 254, 255, 7, 46])
+                        brain_wm_parc._keep_by_code(codes2look=[2, 41, 5001, 5002, 7, 46])
                         ind = np.where(brain_wm_parc.data != 0)
                         brain_wm_parc.data[ind] = 1
                         brain_wm_parc.index = [1]
@@ -1367,23 +1373,16 @@ class Chimera:
                         # White Matter for the Right Hemisphere
                         tmp_rh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-rh-')
                         if tmp_rh:
-                            bool_wm = True
                             rh_wm_parc = copy.deepcopy(ctx_parc)
                             rh_wm_parc._keep_by_name(names2look=tmp_rh)
                             rh_wm_parc._rearange_parc(offset=3000)
-                            
-                        else:
-                            bool_wm = False
                         
                         # White Matter for the Left Hemisphere
                         tmp_lh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-lh-')
                         if tmp_lh:
-                            bool_wm = True
                             lh_wm_parc = copy.deepcopy(ctx_parc)
                             lh_wm_parc._keep_by_name(names2look=tmp_lh)
                             lh_wm_parc._rearange_parc(offset=3000 + nrh_ctx + nrh_subc)
-                        else:
-                            bool_wm = False
                         
                         # Adding the right cortical parcellation to the final image
                         rh_ctx_parc._rearange_parc()
@@ -1408,16 +1407,28 @@ class Chimera:
                             chim_parc._add_parcellation(mid_parc, append=True)
                         
                         # Adding the white matter to the final image
-                        if bool_wm:
-                            chim_parc._add_parcellation(brain_wm_parc, append=False)
-                            del brain_wm_parc
+                        chim_parc._add_parcellation(brain_wm_parc, append=False)
+                        del brain_wm_parc
                             
+                        if "rh_wm_parc" in locals():
                             chim_parc._add_parcellation(rh_wm_parc, append=False)
                             del rh_wm_parc
                             
+                        if "lh_wm_parc" in locals():
                             chim_parc._add_parcellation(lh_wm_parc, append=False)
                             del lh_wm_parc
                         
+                        # Adding the extra regions
+                        if "extra_parc" in locals():
+                            # Detecting if there is region overlap and removing it
+                            tmp_extra = copy.deepcopy(extra_parc)  
+                            mask = np.logical_and(tmp_extra.data  != 0, chim_parc.data != 0)
+                            indexes = np.where(mask)
+                            tmp_extra.data[indexes] = 0
+                            tmp_extra._adjust_values()
+                            chim_parc._add_parcellation(extra_parc, append=False)
+                            del tmp_extra
+                            
                         # Saving the FINAL parcellation
                         chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
                         del chim_parc
@@ -1596,8 +1607,102 @@ def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
         supra_dict[spr_name] = sint_dict
         
         
-    return parc_dict, supra_dict    
+    return parc_dict, supra_dict  
 
+
+def _create_extra_regions_parc(aparc:str, offset:int=5000):
+    """
+    Create a parcellation object containing the extra regions. These parcellations 
+    are included in the Aparc+aseg image and include the regions stored in the Axiliary*.tsv files.
+    These files are stored in the config/supraregions folder.
+    
+    Parameters:
+    ----------
+    aparc : str
+        Aparc+aseg image obrained by FreeSurfer.
+
+    Returns:
+    --------
+    extra_parc : Parcellation object
+        Parcellation object containing the extra regions.
+
+    """
+    chim_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Reading the auxiliary tsv file
+    extra_tsv = glob(os.path.join(chim_dir, 'config', 'supraregions', 'Auxiliary*.tsv'))
+    
+    # Reading the tsv file
+    if extra_tsv:
+        
+        # Do a loop and read and concatenate all the files
+        for ind, et in enumerate(extra_tsv):
+            temp_df = pd.read_csv(et, sep='\t')
+            # Append pandas dataframes
+            if ind == 0:
+                extra_df = temp_df
+            else:
+                extra_df = extra_df.append(temp_df, ignore_index=True)
+
+    else:
+        raise ValueError("Please, provide a valid auxiliary TSV file.")
+    
+    # Reading the Aparc+aseg image
+    aparc_parc = cltparc.Parcellation(parc_file=aparc)
+    
+    # Create a dataframe for the left hemisphere
+    lh_df = extra_df.loc[extra_df["hemi"] == "lh"]
+    
+    # Sort the dataframe according to the name
+    lh_df = lh_df.sort_values(by='name')
+    
+    # Create a dataframe for the right hemisphere
+    rh_df = extra_df.loc[extra_df["hemi"] == "rh"]
+    
+    # Sort the dataframe according to the name
+    rh_df = rh_df.sort_values(by='name')
+    
+    # Create a dictionary for the structures without hemispheres
+    mid_df = extra_df.loc[extra_df["hemi"] == "mid"]
+    
+    # Sort the dataframe according to the name
+    mid_df = mid_df.sort_values(by='name')
+    
+    # Create the parcellation for the left hemisphere
+    lh_tmp_parc = copy.deepcopy(aparc_parc)
+    lh_tmp_parc._keep_by_code(codes2look=lh_df["index"].tolist())
+    lh_tmp_parc.index = lh_df["index"].tolist()
+    lh_tmp_parc.name  = lh_df["name"].tolist()
+    lh_tmp_parc.color = lh_df["color"].tolist()
+    lh_tmp_parc._adjust_values()
+    lh_tmp_parc._rearange_parc()
+        
+    # Create the parcellation for the right hemisphere
+    rh_tmp_parc = copy.deepcopy(aparc_parc)
+    rh_tmp_parc._keep_by_code(codes2look=rh_df["index"].tolist())
+    rh_tmp_parc.index = rh_df["index"].tolist()
+    rh_tmp_parc.name  = rh_df["name"].tolist()
+    rh_tmp_parc.color = rh_df["color"].tolist()
+    rh_tmp_parc._adjust_values()
+    rh_tmp_parc._rearange_parc()
+    
+    # Create the parcellation for the structures without hemispheres
+    mid_tmp_parc = copy.deepcopy(aparc_parc)
+    mid_tmp_parc._keep_by_code(codes2look=mid_df["index"].tolist())
+    mid_tmp_parc.index = mid_df["index"].tolist()
+    mid_tmp_parc.name  = mid_df["name"].tolist()
+    mid_tmp_parc.color = mid_df["color"].tolist()
+    mid_tmp_parc._adjust_values()
+    mid_tmp_parc._rearange_parc()
+    
+    # Unify the parcellations
+    rh_tmp_parc._add_parcellation(lh_tmp_parc, append=True)
+    rh_tmp_parc._add_parcellation(mid_tmp_parc, append=True)
+    rh_tmp_parc._rearange_parc(offset=offset)
+    
+    return rh_tmp_parc
+
+    
 def _build_args_parser():
 
     formatter = lambda prog: argparse.HelpFormatter(prog, max_help_position=52)
@@ -2175,14 +2280,6 @@ def progress_indicator(future):
         # pb.update(task_id=pb1, description= f'[red]Completed {n_comp}/{n_subj}', completed=n_subj)
         pb.update(task_id=pb1, description= f'[red]{chim_code}: Finished ({n_comp}/{n_subj})', completed=n_comp) 
 
-def test(name):
-    
-    
-    # Create folders with the name of the task
-    os.system('cp ' + name + ' /home/yaleman/Test/')
-    time.sleep(1)
-
-
 def code2table(code:str, 
             lut_file:str=None, boolsave:bool=False):
     """
@@ -2373,7 +2470,7 @@ def chimera_parcellation(bids_dir:str,
                     t1_name = os.path.basename(t1)
                     temp = t1_name.split("_")
                     full_id = '_'.join(temp[:-1])
-                    chim_obj._build_parcellation1(t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm)
+                    chim_obj._build_parcellation(t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm)
                     pb.update(task_id=pb1, description= f'[red]{chim_code}: {full_id} ({i+1}/{n_subj})', completed=i+1) 
                 
             else:
@@ -2392,7 +2489,7 @@ def chimera_parcellation(bids_dir:str,
                     # futures = [executor.submit(_build_parcellation, t1s[i],
                     # bids_dir, deriv_dir, parccode, growwm, mixwm) for i in range(n_subj)]
                     
-                    futures = [executor.submit(test, t1s[i]) for i in range(n_subj)]
+                    futures = [executor.submit(_build_parcellation, t1s[i]) for i in range(n_subj)]
                     
                     # register the progress indicator callback
                     for future in futures:
