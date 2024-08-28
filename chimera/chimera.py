@@ -2010,6 +2010,18 @@ def _launch_fsl_first(t1:str,
         subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
     
 def _print_availab_parcels(reg_name=None):
+    """
+    Print the available parcellations for each supra-region.
+    
+    Parameters:
+    ----------
+    reg_name : str
+        Supra-region name. Default is None.
+        
+    Returns:
+    --------
+    
+    """
 
     data, supra_dict = _load_parcellations_info()
 
@@ -2041,55 +2053,6 @@ def _print_availab_parcels(reg_name=None):
                                                         bcolors.ITALIC, bcolors.DARKWHITE, desc, bcolors.ENDC, bcolors.ENDC, 
                                                         bcolors.OKYELLOW, cita, bcolors.ENDC)) 
         print('')
-
-# Search the value inside a vector
-def search(values, st_tolook):
-    ret = []
-    for v in st_tolook:
-        index = values.index(v)
-        ret.append(index)
-    return ret
-
-
-def _subfields2hbt(temp_ip, hipp_codes):
-    # This function groups hippocampus subfields in head, body and tail
-    hbtimage = np.zeros(np.shape(temp_ip), dtype='int16')
-
-    # Creating Head
-    bool_ind = np.in1d(temp_ip, hipp_codes[0:8])
-    bool_ind = np.reshape(bool_ind, np.shape(temp_ip))
-    result = np.where(bool_ind == True)
-    hbtimage[result[0], result[1], result[2]] = 1
-
-    # Creating Body
-    bool_ind = np.in1d(temp_ip, hipp_codes[9:16])
-    bool_ind = np.reshape(bool_ind, np.shape(temp_ip))
-    result = np.where(bool_ind == True)
-    hbtimage[result[0], result[1], result[2]] = 2
-
-    # Creating Tail
-    bool_ind = np.in1d(temp_ip, hipp_codes[17])
-    bool_ind = np.reshape(bool_ind, np.shape(temp_ip))
-    result = np.where(bool_ind == True)
-    hbtimage[result[0], result[1], result[2]] = 3
-
-    # Creating Fissure
-    bool_ind = np.in1d(temp_ip, hipp_codes[18])
-    bool_ind = np.reshape(bool_ind, np.shape(temp_ip))
-    result = np.where(bool_ind == True)
-    hbtimage[result[0], result[1], result[2]] = 4
-
-    return hbtimage
-
-def _select_t1s(t1s, t1file):
-
-    with open(t1file) as file:
-        t1s2run = [line.rstrip() for line in file]
-
-    out_t1s = [s for s in t1s if any(xs in s for xs in t1s2run)]
-
-    return out_t1s
-
 
 def _abased_parcellation(t1: str,
                             t1_temp: str,
@@ -2318,100 +2281,6 @@ def progress_indicator(future):
         # pb.update(task_id=pb1, description= f'[red]Completed {n_comp}/{n_subj}', completed=n_subj)
         pb.update(task_id=pb1, description= f'[red]{chim_code}: Finished ({n_comp}/{n_subj})', completed=n_comp) 
 
-def code2table(code:str, 
-            lut_file:str=None, boolsave:bool=False):
-    """
-    Extract the LUT information from the LUT file.
-    
-    Parameters
-    ----------
-    code : str
-        The code of the parcellation.
-
-    lut_file : str
-        The LUT file.
-        
-    Returns
-    -------
-    st_codes_lut : list
-        List of codes.
-
-    st_names_lut : list
-        List of names.
-        
-    st_colors_lut : list
-        List of colors.
-        
-    """
-    
-    # Reading the parcellations dictionary
-    parc_dict, supra_dict = _load_parcellations_info()
-    
-
-    ######## ------------ Selecting the templates  ------------ #
-    if pipe_dict["templates"]["reference"]["tool"] == "templateflow":
-        ###########################################################
-        ################ Downloading the templates ################
-        ###########################################################
-        
-        # Setting templateflow home directory
-        tflow_dir = pipe_dict["packages"]["templateflow"]["home_dir"]
-        
-        if tflow_dir == "local":
-            
-            tflow_dir = os.environ.get('TEMPLATEFLOW_HOME')
-            
-            if tflow_dir is None:
-                # Setting the templateflow home directory in the same directory as the script
-                temp_dir = os.path.dirname(os.path.realpath(__file__))
-                
-                # Select the directory before 
-                temp_dir = os.path.dirname(temp_dir)
-                tflow_dir = os.path.join(temp_dir, 'templateflow')
-        
-        # Create the directory if it does not exist using the library Path
-        tflow_dir = Path(tflow_dir)
-        
-        # If the directory does not exist create the directory and if it fails because it does not have write access send an error
-        try:
-            tflow_dir.mkdir(parents=True, exist_ok=True)
-        except PermissionError:
-            print("The TemplateFlow directory does not have write access.")
-            sys.exit()
-            
-        if os.path.isdir(tflow_dir):        
-            # Setting the templateflow home directory
-            os.environ["TEMPLATEFLOW_HOME"] = tflow_dir.as_posix()
-            reload(api)
-            
-        else:
-            print("The TemplateFlow directory does not exist.")
-            sys.exit()
-            
-        # Getting the templates
-        # Reference space
-        temp_cad = pipe_dict["templates"]["reference"]["space"]
-        t1_temp = tflow.get(temp_cad, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
-        
-        # Getting the thalamic nuclei spams 
-        atlas_cad = pipe_dict["templates"]["spams"]["atlas"]
-        thal_spam = tflow.get(temp_cad, desc=None, resolution=1,atlas=atlas_cad, suffix='probseg', extension='nii.gz')
-        
-    else:
-        t1_temp = pipe_dict["templates"]["reference"]["space"]
-        if not os.path.isfile(t1_temp):
-            print("The template file does not exist.")
-            sys.exit()
-        
-        thal_spam = pipe_dict["templates"]["spams"]["atlas"]
-        if not os.path.isfile(thal_spam):
-            print("The thalamic atlas file does not exist.")
-            sys.exit()
-        
-        temp_cad = "CustomSpace"
-        atlas_cad = "CustomParc"
-    
-    
 
 def chimera_parcellation(bids_dir:str, 
                         deriv_dir:str,
@@ -2527,7 +2396,7 @@ def chimera_parcellation(bids_dir:str,
                     # futures = [executor.submit(_build_parcellation, t1s[i],
                     # bids_dir, deriv_dir, parccode, growwm, mixwm) for i in range(n_subj)]
                     
-                    futures = [executor.submit(_build_parcellation, t1s[i]) for i in range(n_subj)]
+                    futures = [executor.submit(chim_obj._build_parcellation, t1s[i], bids_dir, deriv_dir, fssubj_dir, growwm, mixwm) for i in range(n_subj)]
                     
                     # register the progress indicator callback
                     for future in futures:
