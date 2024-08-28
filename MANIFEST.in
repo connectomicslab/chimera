@@ -8,7 +8,8 @@ recursive-include tests *
 recursive-include chimera/data/ *.annot
 recursive-include chimera/data/ *.nii.gz
 recursive-include chimera/data/ *.gcs
-recursive-include chimera/data/ *.tsv
+recursive-include chimera/config/ *.tsv
+recursive-include chimera/config/ *.json
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
