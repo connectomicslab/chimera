@@ -124,7 +124,7 @@
             "T": {"atlas":"DKT2012",
                   "name":"Desikan-Killiany-Tourville",
                   "description":"# 1. Cortical parcellation (T): Desikan-Killiany-Tourville cortical parcellation",
-                  "citation":"(Klein and Tourville, 2012).",
+                  "citation":"(Klein and Tourville, 2012)",
                   "source": "local",
                   "reference":"fsaverage",
                   "type":"gcs",
