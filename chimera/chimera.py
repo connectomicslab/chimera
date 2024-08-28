@@ -804,9 +804,9 @@ class Chimera:
             
         # Creating Chimera directories
         if deriv_dir is None:
-            chim_dir = os.path.join(bids_dir, 'derivatives', 'chimera', path_cad)
+            chim_dir = os.path.join(bids_dir, 'derivatives', 'chimera', path_cad, 'anat')
         else:
-            chim_dir = os.path.join(deriv_dir,'chimera', path_cad)
+            chim_dir = os.path.join(deriv_dir,'chimera', path_cad, 'anat')
         
         # Create the Chimera directory if it does not exist
         chim_dir = Path(chim_dir)
@@ -2031,11 +2031,15 @@ def _print_availab_parcels(reg_name=None):
             print('')
     else:
         parc_opts = data[reg_name]
-        print(reg_name + ':')
+        print(' ')
+        print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.DARKCYAN, reg_name, bcolors.ENDC, bcolors.ENDC))  
+        
         for opts in parc_opts:
             desc = data[reg_name][opts]["name"]
             cita = data[reg_name][opts]["citation"]
-            print('     {}: {} {}'.format(opts, desc, cita))
+            print('{}     {}{}: {}{}{}{}{} {}{}{}'.format(bcolors.OKGREEN, opts, bcolors.ENDC, 
+                                                        bcolors.ITALIC, bcolors.DARKWHITE, desc, bcolors.ENDC, bcolors.ENDC, 
+                                                        bcolors.OKYELLOW, cita, bcolors.ENDC)) 
         print('')
 
 # Search the value inside a vector
