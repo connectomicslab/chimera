@@ -1775,8 +1775,7 @@ def _build_args_parser():
                                 "\n",
                                 default=None)
     requiredNamed.add_argument('--freesurferdir', '-fr', action='store', required=False, metavar='FREESURFERDIR', type=str, nargs=1,
-                                help="R| FreeSurfer subjects dir. If the folder is not supplied \n"
-                                    " If the folder does not exist it will be created. \n"
+                                help="R| FreeSurfer subjects dir. If the folder does not exist it will be created. \n"
                                 "\n",
                                 default=None)
     requiredNamed.add_argument('--scale', '-s', action='store', required=False,
