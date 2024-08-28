@@ -35,6 +35,35 @@ import clabtoolkit.parcellationtools as cltparc
 import clabtoolkit.bidstools as cltbids
 from rich.progress import Progress
 
+class bcolors:
+    """
+    Class to define the colors for the terminal output.
+    
+    
+    """
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    OKYELLOW = '\033[93m'
+    OKRED = '\033[91m'
+    OKMAGENTA = '\033[95m'
+    PURPLE = '\033[35m'
+    OKCYAN = '\033[96m'
+    DARKCYAN = "\033[36m"
+    ORANGE = "\033[48:5:208m%s\033[m"
+    OKWHITE = '\033[97m'
+    DARKWHITE = '\033[37m'
+    OKBLACK = '\033[30m'
+    OKGRAY = '\033[90m'
+    OKPURPLE = '\033[35m'
+    
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    ITALIC = '\033[3m'
+    UNDERLINE = '\033[4m'
 
 # Define the Chimera class. This class will be used to create and work with Chimera objects
 class Chimera:
@@ -1716,10 +1745,10 @@ def _build_args_parser():
                                 help="R| List of available parcellations for each supra-region. \n"
                                 "\n")
 
-    requiredNamed.add_argument('--bidsdir', '-b', action='store', required=True, metavar='BIDSDIR', type=str, nargs=1,
+    requiredNamed.add_argument('--bidsdir', '-b', action='store', required=False, metavar='BIDSDIR', type=str, nargs=1,
                                 help="R| BIDs dataset folder. \n"
                                 "\n")
-    requiredNamed.add_argument('--parcodes', '-p', action='store', required=True,
+    requiredNamed.add_argument('--parcodes', '-p', action='store', required=False,
                                 metavar='CODE', type=str, nargs=1,
                                 help="R| Sequence of nine one-character identifiers (one per each supra-region).\n"
                                     " The defined supra-regions are: 1) Cortex, 2) Basal ganglia, 3) Thalamus, \n"
@@ -1794,14 +1823,21 @@ def _build_args_parser():
 
     global bids_dirs, deriv_dirs, fssubj_dirs, parcodes
     
-    if args.bidsdir is None or args.parcodes is None :
-        print('--bidsdir and --parcodes are REQUIRED arguments')
-        sys.exit()
+    if args.regions is True: 
+        if args.bidsdir is None and args.parcodes is None:
+            print(' ')
+            mess = "Available parcellations for each supra-region"
+            print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC))  
+            _print_availab_parcels()
+            sys.exit()
+        
+        elif args.bidsdir is None or args.parcodes is None:
+            print('--bidsdir and --parcodes are REQUIRED arguments')
+            sys.exit()
 
     bids_dirs = args.bidsdir[0].split(sep=',')
     # Remove possible empty elements
     bids_dirs = [x for x in bids_dirs if x]
-
     
     for bids_dir in bids_dirs:
         if not os.path.isdir(bids_dir):
@@ -1924,11 +1960,6 @@ def _build_args_parser():
                 print(f"The {sp} structures will not me included in the final parcellation")
                 print(" ")
     
-    if args.regions is True:
-        print('Available parcellations for each supra-region:')
-        _print_availab_parcels()
-        sys.exit()
-
     return p
 
 def _launch_fsl_first(t1:str, 
@@ -1988,18 +2019,21 @@ def _print_availab_parcels(reg_name=None):
         for sup in supra_keys:
             parc_opts = data[sup]
             parc_help = '{} "{}:\n"'.format(parc_help, sup)
-            print(sup + ':')
+            print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.DARKCYAN, sup, bcolors.ENDC, bcolors.ENDC))           
+
             for opts in parc_opts:
-                desc = data[sup][opts]["Name"]
+                desc = data[sup][opts]["name"]
                 cita = data[sup][opts]["citation"]
                 parc_help = '{} "{}: {} {}\n"'.format(parc_help, opts, desc, cita)
-                print('     {}: {} {}'.format(opts, desc, cita))
+                print('{}     {}{}: {}{}{}{}{} {}{}{}'.format(bcolors.OKGREEN, opts, bcolors.ENDC, 
+                                                        bcolors.ITALIC, bcolors.DARKWHITE, desc, bcolors.ENDC, bcolors.ENDC, 
+                                                        bcolors.OKYELLOW, cita, bcolors.ENDC))           
             print('')
     else:
         parc_opts = data[reg_name]
         print(reg_name + ':')
         for opts in parc_opts:
-            desc = data[reg_name][opts]["Name"]
+            desc = data[reg_name][opts]["name"]
             cita = data[reg_name][opts]["citation"]
             print('     {}: {} {}'.format(opts, desc, cita))
         print('')
