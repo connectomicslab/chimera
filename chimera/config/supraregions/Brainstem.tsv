@@ -1,6 +1,6 @@
 supraregion	method	hemi	index	name	color
-Brainstem	F	none	16	brain-stem-brainstem	#779fb0
-Brainstem	I	none	173	brain-stem-midbrain	#f2684c
-Brainstem	I	none	174	brain-stem-pons	#cec33a
-Brainstem	I	none	175	brain-stem-medulla	#779fb0
-Brainstem	I	none	178	brain-stem-scp	#8eb600
+Brainstem	F	mid	16	bstem-mid-brainstem	#779fb0
+Brainstem	I	mid	173	bstem-mid-midbrain	#f2684c
+Brainstem	I	mid	174	bstem-mid-pons	#cec33a
+Brainstem	I	mid	175	bstem-mid-medulla	#779fb0
+Brainstem	I	mid	178	bstem-mid-scp	#8eb600
