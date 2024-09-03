@@ -316,6 +316,8 @@ class Chimera:
                     # Filtering for selecting the correct cortical parcellation
                     ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
                     ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh.sort()
+                    ctx_parc_rh.sort()
                     
                     if not ctx_parc_lh or not ctx_parc_rh:
                         raise ValueError("Cortical parcellations should be supplied for both hemispheres.")
