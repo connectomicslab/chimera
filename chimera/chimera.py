@@ -262,6 +262,8 @@ class Chimera:
                     # Select the files that contain the atlas names
                     ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
                     ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh.sort()
+                    ctx_parc_rh.sort()
                     
                     ctx_parc_lh_annot = []
                     ctx_parc_rh_annot = []
