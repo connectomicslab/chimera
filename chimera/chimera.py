@@ -1459,7 +1459,7 @@ class Chimera:
                             indexes = np.where(mask)
                             tmp_extra.data[indexes] = 0
                             tmp_extra._adjust_values()
-                            chim_parc._add_parcellation(extra_parc, append=False)
+                            chim_parc._add_parcellation(tmp_extra, append=False)
                             del tmp_extra
                             
                         # Saving the FINAL parcellation
