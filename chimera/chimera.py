@@ -1376,7 +1376,7 @@ class Chimera:
                 shutil.copyfile(rh_out_annot, temp_rh)
                 
                 ## -------- Creating the volumetric parcellation ---------------
-                out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad)
+                out_vol_dir = os.path.join(deriv_dir, self.parc_dict["Cortical"]["deriv_volfold"], path_cad, 'anat')
                 if growwm is None:
                     growwm = ['0']
                 
