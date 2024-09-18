@@ -1430,8 +1430,8 @@ class Chimera:
                                         force=False, 
                                         bool_native=True, 
                                         color_table=['tsv', 'lut'],
-                                        cont_tech=cont_tech,
-                                        cont_image=cont_image)
+                                        cont_tech=cont_tech_freesurfer,
+                                        cont_image=cont_image_freesurfer)
                     
                     chim_parc_name = cltbids._replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
                     chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
