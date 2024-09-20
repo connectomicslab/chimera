@@ -40,7 +40,7 @@
                   "source": "templateflow",
                   "reference":"fsaverage",
                   "type":"annot",
-                  "parcels":["Desikan2006_seg-aparc_desc-curated"],
+                  "parcels":["atlas-Desikan2006_seg-aparc_desc-curated"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc"},
 
@@ -353,11 +353,12 @@
                   "type":"maxprob",
                   "deriv_volfold":"freesurfer"},
             
-            "R": {"atlas":"SUIT",
+            
+            "S": {"atlas":"SUIT",
                   "name":"FSLCerebParc",
-                  "description":"# 7. Cerebellum parcellation (R): Cerebellum parcellation using the cerebellum atlas inlcluded in FSL (Diedrichsen, J. et al, 2011).",
+                  "description":"# 7. Cerebellum parcellation (S): Cerebellum parcellation using the cerebellum atlas inlcluded in FSL (Diedrichsen, J. et al, 2011).",
                   "citation":"(Diedrichsen, J. et al, 2011)",
-                  "source": "fsl",
+                  "source": "templateflow",
                   "reference":"MNI152NLin2009cAsym",
                   "parcels":"custom",
                   "mask":"aparc+aseg",
