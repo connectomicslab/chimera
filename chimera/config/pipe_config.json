@@ -9,22 +9,22 @@
             },         
             "ants": 
             {
-                "cont_tech": "sngularity",
+                "cont_tech": "local",
                 "version": "2.5.3",
-                "container": "/media/COSAS/Yasser/singularity_images/ants_v2.5.3.sif"
+                "container": "local"
             },
             "freesurfer": 
             {
-                "cont_tech": "singularity",
+                "cont_tech": "local",
                 "version": "7.4.1",
-                "container": "/media/COSAS/Yasser/singularity_images/freesurfer_v7.4.1_mcr_lic.sif",
+                "container": "local",
                 "license": "/opt/freesurfer/.license"
             },
             "fsl": 
             {
-                "cont_tech": "singularity",
+                "cont_tech": "local",
                 "version": "6.10.0",
-                "container": "/media/COSAS/Yasser/singularity_images/fsl_v6.10.1.sif"
+                "container": "local"
             }
         },
     "templates": 
