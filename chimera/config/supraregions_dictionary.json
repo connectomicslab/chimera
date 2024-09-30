@@ -351,19 +351,7 @@
                   "parcels":"custom",
                   "mask":"aparc+aseg",
                   "type":"maxprob",
-                  "deriv_volfold":"freesurfer"},
-            
-            
-            "S": {"atlas":"SUIT",
-                  "name":"FSLCerebParc",
-                  "description":"# 7. Cerebellum parcellation (S): Cerebellum parcellation using the cerebellum atlas inlcluded in FSL (Diedrichsen, J. et al, 2011).",
-                  "citation":"(Diedrichsen, J. et al, 2011)",
-                  "source": "templateflow",
-                  "reference":"MNI152NLin2009cAsym",
-                  "parcels":"custom",
-                  "mask":"aparc+aseg",
-                  "type":"spam",
-                  "deriv_volfold":"abased-suitcerebellum"},
+                  "deriv_volfold":"abased-aal2cerebellum"},
 
             "F": {"atlas":"Aseg",
                   "name":"Aseg",
@@ -374,7 +362,18 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"}
+                  "deriv_volfold":"freesurfer"},
+
+            "S": {"atlas":"SUIT2009",
+                  "name":"SUIT",
+                  "description":"# 7. Cerebellum parcellation (S): Cerebellum parcellation using the cerebellum atlas inlcluded in FSL (Diedrichsen, J. et al, 2009).",
+                  "citation":"(Diedrichsen, J. et al, 2009)",
+                  "source": "templateflow",
+                  "reference":"SUIT",
+                  "parcels":"custom",
+                  "mask":"aparc+aseg",
+                  "type":"spam",
+                  "deriv_volfold":"abased-suitcerebellum"}
       },
 
       "Brainstem": {
