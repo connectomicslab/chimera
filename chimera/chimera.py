@@ -29,6 +29,8 @@ import copy
 from threading import Lock
 
 from templateflow import api as tflow
+
+
 import clabtoolkit.misctools as cltmisc
 import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.parcellationtools as cltparc
@@ -199,6 +201,8 @@ class Chimera:
         self.scale = scale
         self.seg = seg
     
+    
+    
     def _prepare_templates(self, fssubj_dir:str = None):
         """
         This method prepares the templates for the Chimera parcellation.
@@ -244,6 +248,8 @@ class Chimera:
                 if atlas_src == 'templateflow':
                     atlas_ext = '.gii'
                     method = 'annot2indiv'
+                    
+                    tflow_home = _set_templateflow_home(pipe_dict["packages"]["templateflow"]["home_dir"])
                     ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
                     ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
                     
@@ -340,7 +346,7 @@ class Chimera:
                     
                     # Getting the templates
                     # Reference space
-                    
+                    tflow_home = _set_templateflow_home(pipe_dict["packages"]["templateflow"]["home_dir"])
                     t1_temp = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
                     
                     # Getting the thalamic nuclei spams 
@@ -436,6 +442,7 @@ class Chimera:
                 
                 # Selecting the source and downloading the parcellation
                 if atlas_src == 'templateflow':
+                    tflow_home = _set_templateflow_home(pipe_dict["packages"]["templateflow"]["home_dir"])
                     ctx_parc_lh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='L' , suffix='dseg', extension='.label.gii')
                     ctx_parc_rh = tflow.get(template=atlas_ref, atlas=atlas_str, hemi='R' , suffix='dseg', extension='.label.gii')
                     
@@ -480,6 +487,7 @@ class Chimera:
                 if atlas_src == 'templateflow':
 
                     # Reference space
+                    tflow_home = _set_templateflow_home(pipe_dict["packages"]["templateflow"]["home_dir"])
                     ref_img = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
                     
                     # Getting the thalamic nuclei spams 
@@ -783,7 +791,7 @@ class Chimera:
             Overwrite the results.
         
         """
-        global pipe_dict, layout
+        global pipe_dict
         
         # Detecting the base directory
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -792,18 +800,17 @@ class Chimera:
         if not os.path.isfile(t1):
             raise ValueError("Please provide a valid T1 image.")
 
-        # Detecting the entities of the T1 image
-        ent_dict = layout.parse_file_entities(t1)
-        
         # Getting the entities from the name 
         anat_dir = os.path.dirname(t1)
         t1_name = os.path.basename(t1)
+        ent_dict = cltbids._str2entity(t1_name)
+        
         temp_entities = t1_name.split('_')[:-1]
         fullid = "_".join(temp_entities)
         ent_dict_fullid = cltbids._str2entity(fullid)
         
-        if 'session' in ent_dict.keys():
-            path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["session"]
+        if 'ses' in ent_dict.keys():
+            path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["ses"]
         else:
             path_cad       = "sub-" + ent_dict["subject"]
             
@@ -956,8 +963,6 @@ class Chimera:
                 aseg_parc.name = st_names
                 aseg_parc.color = st_colors
                 aseg_parc._adjust_values()
-                
-                
                 
             # Creating the parcellation for the extra regions
             extra_parc = _create_extra_regions_parc(aparc=nii_image)
@@ -1669,6 +1674,45 @@ def _pipeline_info(pipe_json:str=None):
     
     return pipe_dict
 
+def _set_templateflow_home(tflow_home: str='local'):
+    """
+    Setting up the templateflow home directory.
+    
+    Parameters:
+    ----------
+    tflow_home : str or Path
+        Templatefow home directory.
+
+    Returns:
+    --------
+    updated_tflow_home : str
+        Updated templateflow home directory.
+
+    """
+    
+    orig_tflow_home = os.getenv("TEMPLATEFLOW_HOME")
+    if tflow_home != 'local':
+        tflow_home = Path(tflow_home)
+        tflow_home.mkdir(parents=True, exist_ok=True)
+
+        if orig_tflow_home is None:
+            if tflow_home.is_dir():
+                updated_tflow_home = str(tflow_home)
+                os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
+                tflow.update()
+        else:   
+            if not os.path.samefile(orig_tflow_home, tflow_home):
+                if tflow_home.is_dir():
+                    updated_tflow_home = str(tflow_home)
+                    os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
+                    tflow.update()
+                else:
+                    updated_tflow_home = orig_tflow_home
+    else:
+        updated_tflow_home = orig_tflow_home
+            
+    return updated_tflow_home    
+
 def _mix_side_prop(st_dict: dict, boolsort: bool = True):
     """
     Method to mix all the properties for a specific supra-region and a specific method.
@@ -2294,17 +2338,37 @@ def chimera_parcellation(bids_dir:str,
     ######## -- Reading the configuration dictionary  ------------ #
     pipe_dict = _pipeline_info(pipe_json=pipe_json)
     
-    # Selecting all the T1w images for each BIDS directory
-    layout = BIDSLayout(bids_dir, validate=False, derivatives= False)
-    t1s = layout.get( extension=['nii.gz', 'nii'], suffix='T1w', return_type='filename')
-
-    # Filtering the T1w images to be processed
-    if os.path.isfile(t1s2run_file):
-        t1s = cltmisc._select_ids_from_file(t1s, t1s2run_file)
+    if t1s2run_file is None:
+        # Selecting all the T1w images for each BIDS directory
+        layout = BIDSLayout(bids_dir, validate=False, derivatives= False)
+        t1s = layout.get( extension=['nii.gz', 'nii'], suffix='T1w', return_type='filename')
     else:
-        t12run = t1s2run_file.split(',')
-        t1s = [s for s in t1s if any(xs in s for xs in t12run)]
-    
+        if os.path.exists(t1s2run_file):
+            with open(t1s2run_file) as file:
+                t1s2run = [line.rstrip() for line in file]
+        else:
+            t1s2run = t1s2run_file.split(',')
+        
+        t1s = []
+        for id in t1s2run:
+            
+            if not os.path.isfile(id):
+                id_ent = cltbids._str2entity(id)
+                if 'ses' in id_ent.keys():
+                    path_cad = os.path.join(bids_dir, 'sub-' + id_ent['sub'], 'ses-' + id_ent['ses'], 'anat')
+                else:
+                    path_cad = os.path.join(bids_dir, 'sub-' + id_ent['sub'], 'anat')
+                
+                if 'suffix' not in id_ent.keys():
+                    id_ent['suffix'] = 'T1w'
+                
+                if 'extension' not in id_ent.keys():
+                    id_ent['extension'] = 'nii.gz'
+                
+                t1_temp = os.path.join(path_cad, cltbids._entity2str(id_ent))
+                if os.path.isfile(t1_temp):
+                    t1s.append(t1_temp)         
+
     chim_codes = code_dict["code"]
 
     n_parc = len(chim_codes)
@@ -2417,7 +2481,7 @@ def main():
     if args.subjids is not None:
         t1s2run_file = args.subjids[0]
     else:
-        t1s2run_file = ''
+        t1s2run_file = None
     
     if args.growwm is not None:
         growwm = args.growwm[0].split(sep=',')
