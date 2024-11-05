@@ -1230,6 +1230,24 @@ class Chimera:
                     out_parc_maxp = os.path.join(work_dir, fullid + '_atlas-' + atlas_str + '_dseg.nii.gz')
 
                     if not os.path.isfile(out_parc_maxp) or force:
+                        work_dir.mkdir(parents=True, exist_ok=True) 
+                        
+                        # Detecting the side
+                        sides_ids = list(self.supra_dict[supra][supra][atlas_code].keys())
+                        sides_ids = sorted(sides_ids, key=lambda x: not ("lh" in x or "rh" in x))
+
+                        # Masking the cerebellum from T1w image
+                        tmp_t1 = t1
+                        if supra == 'Cerebellum':
+                            if self.parc_dict[supra]['name'] == 'SUIT':
+                                tmp_t1 = os.path.join(str(work_dir), 'tmp_cerb_bs.nii.gz')
+                                files2del.append(tmp_t1)
+                                
+                                cltimg.crop_image_from_mask(t1,
+                                                                aseg_parc.data,
+                                                                tmp_t1,
+                                                                [7, 8, 16, 46, 47, 15, 16])
+                            
                         if atlas_type == 'spam':
                             cltseg._abased_parcellation(t1, 
                                                     t1_temp, 
