@@ -1351,6 +1351,7 @@ class Chimera:
                     tmp_parc.index = index
                     tmp_parc.name = name
                     tmp_parc.color = color
+                    tmp_parc._adjust_values()
                     
                     tmp_parc._export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.lut'), lut_type="lut")
                     tmp_parc._export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.tsv'), lut_type="tsv")
