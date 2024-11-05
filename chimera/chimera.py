@@ -36,6 +36,7 @@ import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.parcellationtools as cltparc
 import clabtoolkit.bidstools as cltbids
 import clabtoolkit.segmentationtools as cltseg
+import clabtoolkit.imagetools as cltimg
 from rich.progress import Progress
 
 class bcolors:
@@ -166,7 +167,7 @@ class Chimera:
                             if '_scale-' not in scale :
                                 scale_tmp = '_scale-' + scale 
 
-                        parcel_names = cltmisc._filter_by_substring(parcel_names, scale_tmp, boolcase=False)
+                        parcel_names = cltmisc.filter_by_substring(parcel_names, scale_tmp, boolcase=False)
 
                     # Filtering the parcellation names by the segmentation
                     if seg is not None:
@@ -182,7 +183,7 @@ class Chimera:
                             if '_seg-' not in seg:
                                 seg_tmp = '_seg-' + seg
 
-                        parcel_names = cltmisc._filter_by_substring(parcel_names, seg_tmp, boolcase=False)
+                        parcel_names = cltmisc.filter_by_substring(parcel_names, seg_tmp, boolcase=False)
                     
                     # Saving the new parcels names
                     meth_dict['parcels'] = parcel_names
@@ -203,7 +204,7 @@ class Chimera:
     
     
     
-    def _prepare_templates(self, fssubj_dir:str = None):
+    def prepare_templates(self, fssubj_dir:str = None):
         """
         This method prepares the templates for the Chimera parcellation.
         Based on the code of the parcellation, it will download the necessary templates
@@ -219,11 +220,11 @@ class Chimera:
         global pipe_dict
         
         # Setting up the FreeSurfer directory
-        cltfree.FreeSurferSubject._set_freesurfer_directory(fssubj_dir)
+        cltfree.FreeSurferSubject.set_freesurfer_directory(fssubj_dir)
         
         # Create the simlink to the FreeSurfer directory
         if "Cortical" in self.parc_dict.keys():
-            cltfree._create_fsaverage_links(fssubj_dir, fsavg_dir=None, refsubj_name=self.parc_dict["Cortical"]["reference"])
+            cltfree.create_fsaverage_links(fssubj_dir, fsavg_dir=None, refsubj_name=self.parc_dict["Cortical"]["reference"])
         
         
         # Detecting the base directory
@@ -267,8 +268,8 @@ class Chimera:
                         ctx_parc_rh = [str(ctx_parc_rh)]
 
                     # Select the files that contain the atlas names
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh = cltmisc.filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc.filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
                     
@@ -323,8 +324,8 @@ class Chimera:
                     ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
                     
                     # Filtering for selecting the correct cortical parcellation
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh = cltmisc.filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc.filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
                     
@@ -347,15 +348,18 @@ class Chimera:
                     # Getting the templates
                     # Reference space
                     tflow_home = _set_templateflow_home(pipe_dict["packages"]["templateflow"]["home_dir"])
-                    t1_temp = tflow.get(atlas_ref, desc=None, resolution=1, suffix='T1w', extension='nii.gz')
+                    t1_temp = tflow.get(atlas_ref, desc=None, resolution=[None, 1], suffix='T1w', extension='nii.gz')
                     
                     # Getting the thalamic nuclei spams 
                     if type_cad == 'spam':
-                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_cad, suffix='probseg', extension='nii.gz')
+                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=[None, 1],atlas=atlas_cad, suffix='probseg', extension='nii.gz')
                         
                     elif type_cad == 'maxprob':
-                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=1,atlas=atlas_cad, suffix='dseg', extension='nii.gz')
-                        
+                        atlas_file = tflow.get(atlas_ref, desc=None, resolution=[None, 1],atlas=atlas_cad, suffix='dseg', extension='nii.gz')
+                    else:
+                        # Raise an error if the type of the atlas is not valid and exit
+                        raise ValueError("The type of the atlas is not valid. Please supply a valid type (spam or maxprob).")
+
                     meth_dict = {'method': 'atlasbased','type':type_cad,'reference': str(t1_temp),
                                             'labels': str(atlas_file)}
                 
@@ -386,7 +390,7 @@ class Chimera:
             
             self.parc_dict[supra]["processing"] = meth_dict
     
-    def _create_table(self, wm_index_offset:int = 3000, 
+    def create_table(self, wm_index_offset:int = 3000, 
                     reg2rem:Union[list, str] = ['unknown', 'medialwall', 'corpuscallosum']):
         """
         This method creates a table with the regions that will be created using the Chimera parcellation.
@@ -460,8 +464,8 @@ class Chimera:
                         ctx_parc_rh = [str(ctx_parc_rh)]
 
                     # Select the files that contain the atlas names
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh = cltmisc.filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc.filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
                     
                 elif atlas_src == 'local':
 
@@ -477,8 +481,8 @@ class Chimera:
                     ctx_parc_rh = glob(os.path.join(atlas_dir, '*-R_*' + atlas_ext))
                     
                     # Filtering for selecting the correct cortical parcellation
-                    ctx_parc_lh = cltmisc._filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
-                    ctx_parc_rh = cltmisc._filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
+                    ctx_parc_lh = cltmisc.filter_by_substring(ctx_parc_lh, atlas_names, boolcase=False)
+                    ctx_parc_rh = cltmisc.filter_by_substring(ctx_parc_rh, atlas_names, boolcase=False)
                     
             else:
                 
@@ -512,7 +516,7 @@ class Chimera:
                         rh_noctx_colors = rh_noctx_colors + st_dict['rh']['color']
 
         if rh_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
+            indexes = cltmisc.get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
             # Remove the elements in all_names and all_colors
             if indexes:
                 for i in indexes:
@@ -521,7 +525,7 @@ class Chimera:
                     rh_noctx_colors.pop(i)
 
         if lh_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
+            indexes = cltmisc.get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
             # Remove the elements in all_names and all_colors
             if indexes:
                 for i in indexes:
@@ -530,7 +534,7 @@ class Chimera:
                     lh_noctx_colors.pop(i)
         
         if bs_noctx_names:
-            indexes = cltmisc._get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
+            indexes = cltmisc.get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
             # Remove the elements in all_names and all_colors
             if indexes:
                 for i in indexes:
@@ -594,8 +598,8 @@ class Chimera:
                 lh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_lh[i])
                 rh_obj = cltfree.AnnotParcellation(parc_file = ctx_parc_rh[i])
 
-                df_lh, out_tsv = lh_obj._export_to_tsv(prefix2add='ctx-lh-')
-                df_rh, out_tsv = rh_obj._export_to_tsv(prefix2add='ctx-rh-')
+                df_lh, out_tsv = lh_obj.export_to_tsv(prefix2add='ctx-lh-')
+                df_rh, out_tsv = rh_obj.export_to_tsv(prefix2add='ctx-rh-')
 
                 # Convert the column name of the dataframe to a list
                 lh_ctx_name = df_lh['name'].tolist()
@@ -606,13 +610,13 @@ class Chimera:
                 rh_ctx_color = df_rh['color'].tolist()
                 
                 ## Removing elements from the table according to their name for both
-                indexes = cltmisc._get_indexes_by_substring(lh_ctx_name, reg2rem).tolist()
+                indexes = cltmisc.get_indexes_by_substring(lh_ctx_name, reg2rem).tolist()
                 if indexes:
                     for i in indexes:
                         lh_ctx_name.pop(i)
                         lh_ctx_color.pop(i)
                 
-                indexes = cltmisc._get_indexes_by_substring(rh_ctx_name, reg2rem).tolist()
+                indexes = cltmisc.get_indexes_by_substring(rh_ctx_name, reg2rem).tolist()
                 if indexes:
                     for i in indexes:
                         rh_ctx_name.pop(i)
@@ -622,11 +626,11 @@ class Chimera:
                 if 'GyralWM' in self.parc_dict.keys():
                     gen_desc.append(self.parc_dict['GyralWM']["description"])
                     
-                    wm_rh_name = cltmisc._correct_names(rh_ctx_name, replace=['ctx-rh-','wm-rh-'])
+                    wm_rh_name = cltmisc.correct_names(rh_ctx_name, replace=['ctx-rh-','wm-rh-'])
                     wm_rh_indexes = np.arange(1, len(wm_rh_name)+1) + wm_index_offset
                     wm_rh_indexes = wm_rh_indexes.tolist()
                     
-                    wm_lh_name = cltmisc._correct_names(lh_ctx_name, replace=['ctx-lh-','wm-lh-'])
+                    wm_lh_name = cltmisc.correct_names(lh_ctx_name, replace=['ctx-lh-','wm-lh-'])
                     wm_lh_indexes = np.arange(1, len(wm_lh_name)+1) + len(rh_ctx_name) + len(rh_noctx_names) + wm_index_offset
                     wm_lh_indexes = wm_lh_indexes.tolist()
                     
@@ -667,7 +671,7 @@ class Chimera:
         # Add the tab_list as an attribute of the class
         self.regtable = {"parc_id": parc_id_list, "desc": desc_list, "table": tab_list}
         
-    def _export_table(self, out_basename:str = None, format:Union[list, str] = 'tsv'):
+    def export_table(self, out_basename:str = None, format:Union[list, str] = 'tsv'):
         """
         This method exports the table of the regions to a TSV or a LUT file.
         
@@ -723,7 +727,7 @@ class Chimera:
                     colors = tab_df['color'].tolist()
                     cltparc.Parcellation.write_luttable(codes=codes, names=names, colors=colors, out_file=out_file_lut, headerlines=parc_desc, force=True)
     
-    def _build_lut_header(self):
+    def build_lut_header(self):
         """
         This method builds the header of the LUT file.
         
@@ -765,7 +769,7 @@ class Chimera:
         
         return headerlines
         
-    def _build_parcellation(self, t1:str, bids_dir:str, 
+    def build_parcellation(self, t1:str, bids_dir:str, 
                             deriv_dir:str = None,
                             fssubj_dir:str = None,
                             growwm:Union[str, int] = None, 
@@ -803,11 +807,11 @@ class Chimera:
         # Getting the entities from the name 
         anat_dir = os.path.dirname(t1)
         t1_name = os.path.basename(t1)
-        ent_dict = cltbids._str2entity(t1_name)
+        ent_dict = cltbids.str2entity(t1_name)
         
         temp_entities = t1_name.split('_')[:-1]
         fullid = "_".join(temp_entities)
-        ent_dict_fullid = cltbids._str2entity(fullid)
+        ent_dict_fullid = cltbids.str2entity(fullid)
         
         if 'ses' in ent_dict.keys():
             path_cad       = "sub-" + ent_dict["sub"] + os.path.sep + "ses-" + ent_dict["ses"]
@@ -854,13 +858,13 @@ class Chimera:
                             out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
                         else:
                             
-                            ent_dict = cltbids._str2entity(at_name)
+                            ent_dict = cltbids.str2entity(at_name)
                             if 'desc' in ent_dict.keys():
                                 if bool_mixwm:
                                     ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm+mixwm'
                                 else:
                                     ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
-                                tmp_str = cltbids._entity2str(ent_dict)
+                                tmp_str = cltbids.entity2str(ent_dict)
                                 out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
                             else:
                                 if bool_mixwm:
@@ -869,10 +873,10 @@ class Chimera:
                                     out_vol_name = fullid + '_' + at_name + '_desc-grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
 
                         
-                        chim_parc_name = cltbids._replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+                        chim_parc_name = cltbids.replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
                         chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
-                        chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
-                        chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+                        chim_parc_lut  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}))
+                        chim_parc_tsv  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}))
                         
                         if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv)  or force:
                             bool_chim_exist = False
@@ -880,10 +884,10 @@ class Chimera:
             else:
                 out_vol_name = fullid + '_dseg.nii.gz'
 
-                chim_parc_name = cltbids._insert_entity(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+                chim_parc_name = cltbids.insert_entity(out_vol_name, {"atlas": "chimera" + chim_code} ) 
                 chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
-                chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
-                chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+                chim_parc_lut  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}))
+                chim_parc_tsv  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}))
                 
                 if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv) or force:
                     bool_chim_exist = False
@@ -899,12 +903,12 @@ class Chimera:
                 cont_image = pipe_dict["packages"]["freesurfer"]["container"]
                 
                 cmd_bashargs = ['echo', '$FREESURFER_HOME']
-                cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+                cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
                 out_cmd = subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True)
                 fslut_file_cont = os.path.join(out_cmd.stdout.split('\n')[0], 'FreeSurferColorLUT.txt')
                 tmp_name = str(uuid.uuid4())
                 cmd_bashargs = ['cp', 'replace_cad', '/tmp/' + tmp_name]
-                cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image)
+                cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image)
                 
                 # Replace the element of the list equal to replace_cad by the path of the lut file
                 cmd_cont = [w.replace('replace_cad', fslut_file_cont) for w in cmd_cont]
@@ -941,7 +945,7 @@ class Chimera:
             cont_image_fsl        = pipe_dict["packages"]["fsl"]["container"]
             
             # Running FreeSurfer if it was not previously computed is mandatory
-            sub2proc._launch_freesurfer(force=force, 
+            sub2proc.launch_freesurfer(force=force, 
                                         t1w_img=t1,
                                             cont_tech=cont_tech_freesurfer, 
                                             cont_image=cont_image_freesurfer)
@@ -951,7 +955,7 @@ class Chimera:
             mgz_image = os.path.join(sub2proc.subjs_dir, sub2proc.subj_id, 'mri', 'aparc+aseg.mgz')
                     
             if not os.path.isfile(nii_image):
-                sub2proc._conform2native(mgz_conform=mgz_image,
+                sub2proc.conform2native(mgz_conform=mgz_image,
                                         nii_native=nii_image,
                                         cont_image=cont_image_freesurfer,
                                         cont_tech=cont_tech_freesurfer,
@@ -962,7 +966,7 @@ class Chimera:
                 aseg_parc.index = st_codes
                 aseg_parc.name = st_names
                 aseg_parc.color = st_colors
-                aseg_parc._adjust_values()
+                aseg_parc.adjust_values()
                 
             # Creating the parcellation for the extra regions
             extra_parc = _create_extra_regions_parc(aparc=nii_image)
@@ -971,7 +975,7 @@ class Chimera:
             os.remove(nii_image)
             
             # Building the main header information for the LUT file
-            glob_header_info = self._build_lut_header()
+            glob_header_info = self.build_lut_header()
 
             # Processing that will be perfomed for multiple supra-regions
             gm_sub_names = list(self.parc_dict.keys())
@@ -1029,7 +1033,7 @@ class Chimera:
                 if proc_dict["method"] == 'comform2native':
                     
                     if proc_dict["labels"] == 'freesurferextra':
-                        sub2proc._launch_freesurfer(force=force, 
+                        sub2proc.launch_freesurfer(force=force, 
                                                     extra_proc=supra.lower(),
                                                     cont_tech=cont_tech_freesurfer, 
                                                     cont_image=cont_image_freesurfer)
@@ -1051,7 +1055,7 @@ class Chimera:
                                 dir_name.mkdir(parents=True, exist_ok=True)
                                     
                                 if atlas_ref == 'conform':
-                                    sub2proc._conform2native(mgz_conform=lh_mgz_image,
+                                    sub2proc.conform2native(mgz_conform=lh_mgz_image,
                                                             nii_native=lh_nii_image,
                                                             cont_image=cont_image_freesurfer,
                                                             cont_tech=cont_tech_freesurfer,
@@ -1065,7 +1069,7 @@ class Chimera:
                                 dir_name.mkdir(parents=True, exist_ok=True)
                                 
                                 if atlas_ref == 'conform':
-                                    sub2proc._conform2native(mgz_conform=rh_mgz_image,
+                                    sub2proc.conform2native(mgz_conform=rh_mgz_image,
                                                             nii_native=rh_nii_image,
                                                             cont_image=cont_image_freesurfer,
                                                             cont_tech=cont_tech_freesurfer,
@@ -1077,17 +1081,17 @@ class Chimera:
                             lh_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["lh"]["index"]
                             lh_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["lh"]["name"]
                             lh_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["lh"]["color"]
-                            lh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
-                            lh_supra_parc._export_colortable(out_file=lh_nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
-                            lh_supra_parc._export_colortable(out_file=lh_nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
+                            lh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
+                            lh_supra_parc.export_colortable(out_file=lh_nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
+                            lh_supra_parc.export_colortable(out_file=lh_nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
                                     
                             rh_supra_parc = cltparc.Parcellation(parc_file=rh_nii_image)
                             rh_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["rh"]["index"]
                             rh_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["rh"]["name"]
                             rh_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["rh"]["color"]
-                            rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
-                            rh_supra_parc._export_colortable(out_file=rh_nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
-                            rh_supra_parc._export_colortable(out_file=rh_nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
+                            rh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
+                            rh_supra_parc.export_colortable(out_file=rh_nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
+                            rh_supra_parc.export_colortable(out_file=rh_nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
                                     
                             
                         elif len(fsextra_files) ==  1:
@@ -1099,7 +1103,7 @@ class Chimera:
                                 dir_name.mkdir(parents=True, exist_ok=True)
                                 
                                 if atlas_ref == 'conform':
-                                    sub2proc._conform2native(mgz_conform=mgz_image,
+                                    sub2proc.conform2native(mgz_conform=mgz_image,
                                                             nii_native=nii_image,
                                                             cont_image=cont_image_freesurfer,
                                                             cont_tech=cont_tech_freesurfer,
@@ -1113,23 +1117,23 @@ class Chimera:
                             tmp_parc.name = name
                             tmp_parc.color = color
                             
-                            tmp_parc._export_colortable(out_file=nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
-                            tmp_parc._export_colortable(out_file=nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
+                            tmp_parc.export_colortable(out_file=nii_image.replace('.nii.gz', '.lut'), lut_type="lut")
+                            tmp_parc.export_colortable(out_file=nii_image.replace('.nii.gz', '.tsv'), lut_type="tsv")
                             
                             # Left Hemisphere
                             if 'lh' in self.supra_dict[supra][supra][atlas_code].keys():
                                 lh_supra_parc  = copy.deepcopy(tmp_parc)
-                                lh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
+                                lh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
                                         
                             # Right Hemisphere
                             if 'rh' in self.supra_dict[supra][supra][atlas_code].keys():
                                 rh_supra_parc  = copy.deepcopy(tmp_parc)
-                                rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
+                                rh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                             
                             # Non-hemispheric structures
                             if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                                 mid_supra_parc = copy.deepcopy(tmp_parc)
-                                mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
+                                mid_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
 
                     else:
                     
@@ -1139,7 +1143,7 @@ class Chimera:
                         
                         if 'aseg_parc' not in locals():
                             if not os.path.isfile(nii_image):
-                                sub2proc._conform2native(mgz_conform=mgz_image,
+                                sub2proc.conform2native(mgz_conform=mgz_image,
                                                             nii_native=nii_image,
                                                             cont_image=cont_image_freesurfer,
                                                             cont_tech=cont_tech_freesurfer,
@@ -1157,7 +1161,7 @@ class Chimera:
                             lh_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["lh"]["index"]
                             lh_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["lh"]["name"]
                             lh_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["lh"]["color"]
-                            lh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
+                            lh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
                             
                         # Right Hemisphere
                         if 'rh' in self.supra_dict[supra][supra][atlas_code].keys():
@@ -1165,7 +1169,7 @@ class Chimera:
                             rh_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["rh"]["index"]
                             rh_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["rh"]["name"]
                             rh_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["rh"]["color"]
-                            rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
+                            rh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
 
                         # Non-hemispheric structures
                         if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
@@ -1173,7 +1177,7 @@ class Chimera:
                             mid_supra_parc.index  = self.supra_dict[supra][supra][atlas_code]["mid"]["index"]
                             mid_supra_parc.name   = self.supra_dict[supra][supra][atlas_code]["mid"]["name"]
                             mid_supra_parc.color  = self.supra_dict[supra][supra][atlas_code]["mid"]["color"]
-                            mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
+                            mid_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
                         
 
                 elif proc_dict["method"] == None:
@@ -1201,22 +1205,22 @@ class Chimera:
                         tmp_parc.name = name
                         tmp_parc.color = color
                         
-                        tmp_parc._export_colortable(out_file=first_nii.replace('.nii.gz', '.lut'), lut_type="lut")
-                        tmp_parc._export_colortable(out_file=first_nii.replace('.nii.gz', '.tsv'), lut_type="tsv")
+                        tmp_parc.export_colortable(out_file=first_nii.replace('.nii.gz', '.lut'), lut_type="lut")
+                        tmp_parc.export_colortable(out_file=first_nii.replace('.nii.gz', '.tsv'), lut_type="tsv")
                     # Left Hemisphere
                     if 'lh' in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc  = copy.deepcopy(tmp_parc)
-                        lh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
+                        lh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
                             
                     # Right Hemisphere
                     if 'rh' in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc  = copy.deepcopy(tmp_parc)
-                        rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
+                        rh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                     
                     # Non-hemispheric structures
                     if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
-                        mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
+                        mid_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
                     
                 elif proc_dict["method"] == 'atlasbased':
                     t1_temp = proc_dict["reference"]
@@ -1224,17 +1228,22 @@ class Chimera:
                     atlas_type = proc_dict["type"]
                     
                     # Basename for transformations
+                    
                     spat_tf_ent = ent_dict_fullid.copy()
-                    spat_tf_ent = cltbids._delete_entity(spat_tf_ent, ["space", "desc", "suffix", "extension"])
+                    spat_tf_ent = cltbids.delete_entity(spat_tf_ent, ["space", "desc", "suffix", "extension"])
                     spat_tf_ent["from"] = "T1w"
                     spat_tf_ent["to"] = atlas_ref
                     spat_tf_ent["mode"] = "image"
                     spat_tf_ent["suffix"] = "xfm"
                     spat_tf_ent["extension"] = "mat"
-                    xfm_base = os.path.join(deriv_dir, pipe_dict["outputs"]["transforms"], path_cad, 'anat', cltbids._entity2str(spat_tf_ent))
-                    work_dir = os.path.join(deriv_dir, deriv_fold, path_cad, 'anat') 
-                    out_parc_spam = os.path.join(work_dir, fullid + '_atlas-' + atlas_str + '_probseg.nii.gz')
-                    out_parc_maxp = os.path.join(work_dir, fullid + '_atlas-' + atlas_str + '_dseg.nii.gz')
+                    xfm_base = os.path.join(deriv_dir, pipe_dict["outputs"]["transforms"], path_cad, 'anat', cltbids.entity2str(spat_tf_ent))
+                    work_dir = os.path.join(deriv_dir, deriv_fold, path_cad, 'anat')
+
+                    # Create the working directory if it does not exist using the pathlib library
+                    work_dir = Path(work_dir)
+
+                    out_parc_spam = os.path.join(str(work_dir), fullid + '_atlas-' + atlas_str + '_probseg.nii.gz')
+                    out_parc_maxp = os.path.join(str(work_dir), fullid + '_atlas-' + atlas_str + '_dseg.nii.gz')
 
                     if not os.path.isfile(out_parc_maxp) or force:
                         work_dir.mkdir(parents=True, exist_ok=True) 
@@ -1256,7 +1265,7 @@ class Chimera:
                                                                 [7, 8, 16, 46, 47, 15, 16])
                             
                         if atlas_type == 'spam':
-                            cltseg._abased_parcellation(t1, 
+                            cltseg.abased_parcellation(tmp_t1, 
                                                     t1_temp, 
                                                     atlas, 
                                                     out_parc_spam, 
@@ -1264,19 +1273,24 @@ class Chimera:
                                                     cont_tech=cont_tech_ants,
                                                     cont_image=cont_image_ants)
                             
-                            # Detecting the side
-                            sides_id = list(self.supra_dict[supra][supra][atlas_code].keys())
                             
-                            for side_cont, side in enumerate(sides_id):
+                            if supra == 'Cerebellum':
+                                if self.parc_dict[supra]['name'] == 'SUIT':
+                                    os.remove(tmp_t1)
+                                    cltimg.cropped_to_native(out_parc_spam, 
+                                                                t1,
+                                                                out_parc_spam)
+                                                        
+                            for side_cont, side in enumerate(sides_ids):
                                 vol_indexes = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])-1
-                                tmp_par_file = os.path.join(work_dir, fullid + '_hemi-' + side + '_atlas-' + atlas_str + '_dseg.nii.gz')
+                                tmp_par_file = os.path.join(str(work_dir), fullid + '_hemi-' + side + '_atlas-' + atlas_str + '_dseg.nii.gz')
                                 files2del.append(tmp_par_file)
                                 
-                                tmp_parc_file = cltseg._spams2maxprob(out_parc_spam, 
-                                                            prob_thresh=0.05, 
+                                tmp_parc_file = cltseg.spams2maxprob(out_parc_spam, 
+                                                            prob_thresh=spam_thresh, 
                                                             vol_indexes=vol_indexes,
                                                             maxp_name=tmp_par_file)
-                                
+
                                 tmp_parc = cltparc.Parcellation(parc_file=tmp_parc_file)
                                 tmp_parc.index = vol_indexes + 1
                                 tmp_parc.name  = self.supra_dict[supra][supra][atlas_code][side]['name']
@@ -1284,22 +1298,37 @@ class Chimera:
                                 
                                 if side in self.supra_dict[supra][supra]['F'].keys():
                                     aseg_code    = self.supra_dict[supra][supra]['F'][side]['index']
-                                    tmp_parc._apply_mask(image_mask=aseg_parc, codes2mask=aseg_code)
+                                    tmp_parc.apply_mask(image_mask=aseg_parc, codes2mask=aseg_code, fill=True)
+                                    
+                                else:
+                                    # Selecting all the region in case there is no definition of left and right hemispheres
+                                    all_reg_codes = []
+                                    for side_f in self.supra_dict[supra][supra]['F'].keys():
+                                        aseg_code    = self.supra_dict[supra][supra]['F'][side_f]['index']
+                                        all_reg_codes = all_reg_codes + aseg_code
+                                    
+                                    glob_mask_parc = copy.deepcopy(aseg_parc)
+                                    glob_mask_parc.group_by_code(codes2group=all_reg_codes, new_codes=1)
+                                    tmp_parc.apply_mask(image_mask=glob_mask_parc, codes2mask=1)
+                                
+                                # Adjusting the values to the ones existing on the 3D image
+                                tmp_parc.adjust_values()
                                 
                                 if side_cont == 0:  
                                     def_parc = copy.deepcopy(tmp_parc)
                                 else:
-                                    def_parc._add_parcellation(tmp_parc)
+                                    def_parc.add_parcellation(tmp_parc)
                                     
                                 # Removing the temporal side images
                                 if os.path.isfile(tmp_parc_file):
                                     os.remove(tmp_parc_file)
-                                
-                            def_parc._save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
+                            
+                            
+                            def_parc.save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
                             
                         elif atlas_type == 'maxprob':
                             
-                            cltseg._abased_parcellation(t1, 
+                            cltseg.abased_parcellation(t1, 
                                                     t1_temp, 
                                                     atlas, 
                                                     out_parc_maxp, 
@@ -1307,7 +1336,7 @@ class Chimera:
                                                     atlas_type='maxprob',
                                                     cont_tech=cont_tech_ants,
                                                     cont_image=cont_image_ants)
-
+                            
                             for side_cont, side in enumerate(sides_ids):
                                 vol_indexes = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])-1
                                 tmp_par_file = os.path.join(work_dir, fullid + '_hemi-' + side + '_atlas-' + atlas_str + '_dseg.nii.gz')
@@ -1320,7 +1349,7 @@ class Chimera:
                                 
                                 if side in self.supra_dict[supra][supra]['F'].keys():
                                     aseg_code    = self.supra_dict[supra][supra]['F'][side]['index']
-                                    tmp_parc._apply_mask(image_mask=aseg_parc, codes2mask=aseg_code, fill=True)
+                                    tmp_parc.apply_mask(image_mask=aseg_parc, codes2mask=aseg_code, fill=True)
                                     
                                 else:
                                     # Selecting all the region in case there is no definition of left and right hemispheres
@@ -1330,55 +1359,55 @@ class Chimera:
                                         all_reg_codes = all_reg_codes + aseg_code
                                     
                                     glob_mask_parc = copy.deepcopy(aseg_parc)
-                                    glob_mask_parc._group_by_code(codes2group=all_reg_codes, new_codes=1)
-                                    tmp_parc._apply_mask(image_mask=glob_mask_parc, codes2mask=1)
+                                    glob_mask_parc.group_by_code(codes2group=all_reg_codes, new_codes=1)
+                                    tmp_parc.apply_mask(image_mask=glob_mask_parc, codes2mask=1)
                                     
                                 # Adjusting the values to the ones existing on the 3D image
-                                tmp_parc._adjust_values()
+                                tmp_parc.adjust_values()
                                 if side_cont == 0:  
                                     def_parc = copy.deepcopy(tmp_parc)
                                 else:
-                                    def_parc._add_parcellation(tmp_parc)
+                                    def_parc.add_parcellation(tmp_parc)
                                     
                                 # Removing the temporal side images
                                 if os.path.isfile(tmp_parc_file):
                                     os.remove(tmp_parc_file)
                                 
-                            def_parc._save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
-                    
+                            def_parc.save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
+
                     tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
                     index, name, color = _mix_side_prop(self.supra_dict[supra][supra][atlas_code])
                     tmp_parc.index = index
                     tmp_parc.name = name
                     tmp_parc.color = color
-                    tmp_parc._adjust_values()
+                    tmp_parc.adjust_values()
                     
-                    tmp_parc._export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.lut'), lut_type="lut")
-                    tmp_parc._export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.tsv'), lut_type="tsv")
+                    tmp_parc.export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.lut'), lut_type="lut")
+                    tmp_parc.export_colortable(out_file=out_parc_maxp.replace('.nii.gz', '.tsv'), lut_type="tsv")
                     # Left Hemisphere
                     if 'lh' in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc  = copy.deepcopy(tmp_parc)
-                        lh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
+                        lh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['lh']['index'])
                             
                     # Right Hemisphere
                     if 'rh' in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc  = copy.deepcopy(tmp_parc)
-                        rh_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
+                        rh_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['rh']['index'])
                     
                     # Non-hemispheric structures
                     if 'mid' in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
-                        mid_supra_parc._keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
+                        mid_supra_parc.keep_by_code(codes2look=self.supra_dict[supra][supra][atlas_code]['mid']['index'])    
 
                 
                 # Appending the parcellations
                 if "lh_supra_parc" in locals():
-                    lh_supra_parc._rearange_parc()
+                    lh_supra_parc.rearange_parc()
                     
                     if 'F' in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         lh2refill_parc          = copy.deepcopy(aseg_parc)
-                        lh2refill_parc._keep_by_code(codes2look=self.supra_dict[supra][supra]['F']['lh']['index'])
+                        lh2refill_parc.keep_by_code(codes2look=self.supra_dict[supra][supra]['F']['lh']['index'])
                         
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
                         ind = np.where((lh_supra_parc.data == 0) & (lh2refill_parc.data != 0))
@@ -1386,18 +1415,18 @@ class Chimera:
                         del lh2refill_parc
                     
                     # Add the parcellation to the global left subcortical parcellation                
-                    lh_parc._add_parcellation(lh_supra_parc, append=True)
+                    lh_parc.add_parcellation(lh_supra_parc, append=True)
                     nlh_subc = len(lh_parc.index)
                     del lh_supra_parc
-                    # lh_parc._save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
+                    # lh_parc.save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
                     
                 if "rh_supra_parc" in locals():
-                    rh_supra_parc._rearange_parc()
+                    rh_supra_parc.rearange_parc()
                     
                     if 'F' in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         rh2refill_parc          = copy.deepcopy(aseg_parc)
-                        rh2refill_parc._keep_by_code(codes2look=self.supra_dict[supra][supra]['F']['rh']['index'])
+                        rh2refill_parc.keep_by_code(codes2look=self.supra_dict[supra][supra]['F']['rh']['index'])
                         
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
                         ind = np.where((rh_supra_parc.data == 0) & (rh2refill_parc.data != 0))
@@ -1405,16 +1434,16 @@ class Chimera:
                         del rh2refill_parc
                     
                     # Add the parcellation to the global right subcortical parcellation
-                    rh_parc._add_parcellation(rh_supra_parc, append=True)
+                    rh_parc.add_parcellation(rh_supra_parc, append=True)
                     nrh_subc = len(rh_parc.index)
                     del rh_supra_parc
-                    # rh_parc._save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
+                    # rh_parc.save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
                     
                 if 'mid_supra_parc' in locals():
-                    mid_supra_parc._rearange_parc()
-                    mid_parc._add_parcellation(mid_supra_parc, append=True)
+                    mid_supra_parc.rearange_parc()
+                    mid_parc.add_parcellation(mid_supra_parc, append=True)
                     del mid_supra_parc
-                    # mid_parc._save_parcellation(out_file= '/home/yaleman/mid_test.nii.gz', save_lut=True)
+                    # mid_parc.save_parcellation(out_file= '/home/yaleman/mid_test.nii.gz', save_lut=True)
 
             # Detecting the number of regions 
             if "lh_parc" in locals():
@@ -1465,7 +1494,7 @@ class Chimera:
                     
                     if ctx_meth == 'annot2indiv':
                         # Moving to individual space
-                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
+                        sub2proc.annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
                                         hemi='lh', 
                                         fs_annot=lh_in_parc, 
                                         ind_annot=lh_out_annot, 
@@ -1473,7 +1502,7 @@ class Chimera:
                                         cont_image=cont_image_freesurfer, 
                                         force=force)
                         
-                        sub2proc._annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
+                        sub2proc.annot2ind(ref_id=self.parc_dict["Cortical"]["processing"]["reference"], 
                                         hemi='rh', 
                                         fs_annot=rh_in_parc, 
                                         ind_annot=rh_out_annot,
@@ -1483,14 +1512,14 @@ class Chimera:
                         
                     if ctx_meth == 'gcs2indiv':
                         # Moving to individual space
-                        sub2proc._gcs2ind(fs_gcs=lh_in_parc, 
+                        sub2proc.gcs2ind(fs_gcs=lh_in_parc, 
                                         hemi='lh', 
                                         ind_annot=lh_out_annot, 
                                         cont_tech=cont_tech_freesurfer,
                                         cont_image=cont_image_freesurfer,
                                         force=force)
                         
-                        sub2proc._gcs2ind(fs_gcs=rh_in_parc, 
+                        sub2proc.gcs2ind(fs_gcs=rh_in_parc, 
                                         hemi='rh', 
                                         ind_annot=rh_out_annot, 
                                         cont_tech=cont_tech_freesurfer,
@@ -1510,7 +1539,7 @@ class Chimera:
                     if growwm is None:
                         growwm = ['0']
                     
-                    ent_dict = cltbids._str2entity(at_name)
+                    ent_dict = cltbids.str2entity(at_name)
                     if "scale" in ent_dict.keys():
                             scale_cad = 'Scale: {}'.format(ent_dict["scale"])
                     else:
@@ -1539,13 +1568,13 @@ class Chimera:
                             out_vol_name = fullid + '_' + at_name + '_dseg.nii.gz'
                         else:
                             
-                            ent_dict = cltbids._str2entity(at_name)
+                            ent_dict = cltbids.str2entity(at_name)
                             if 'desc' in ent_dict.keys():
                                 if bool_mixwm:
                                     ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm+mixwm'
                                 else:
                                     ent_dict["desc"] = ent_dict["desc"] + 'grow' + str(growwm[ngrow]) + 'mm'
-                                tmp_str = cltbids._entity2str(ent_dict)
+                                tmp_str = cltbids.entity2str(ent_dict)
                                 out_vol_name = fullid + '_' + tmp_str + '_dseg.nii.gz'
                             else:
                                 if bool_mixwm:
@@ -1553,7 +1582,7 @@ class Chimera:
                                 else:
                                     out_vol_name = fullid + '_' + at_name + '_desc-grow' + str(growwm[ngrow]) + 'mm_dseg.nii.gz'
 
-                        sub2proc._surf2vol(atlas=at_name, 
+                        sub2proc.surf2vol(atlas=at_name, 
                                             out_vol=os.path.join(out_vol_dir, out_vol_name), 
                                             gm_grow=growwm[ngrow], 
                                             bool_mixwm = bool_mixwm,
@@ -1563,10 +1592,10 @@ class Chimera:
                                             cont_tech=cont_tech_freesurfer,
                                             cont_image=cont_image_freesurfer)
                         
-                        chim_parc_name = cltbids._replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+                        chim_parc_name = cltbids.replace_entity_value(out_vol_name, {"atlas": "chimera" + chim_code} ) 
                         chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
-                        chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
-                        chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+                        chim_parc_lut  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}))
+                        chim_parc_tsv  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}))
                         
                         # Creating the first part of the headers
                         part_header = ['# $Id: {} {} \n'.format(chim_parc_lut, date_time)]
@@ -1583,74 +1612,74 @@ class Chimera:
                             chim_parc  = cltparc.Parcellation(parc_file=ref_image, affine=affine)
                             
                             ctx_parc = cltparc.Parcellation(parc_file=os.path.join(out_vol_dir, out_vol_name))
-                            ctx_parc._remove_by_name(names2remove=['unknown', 'medialwall', 'corpuscallosum'])
+                            ctx_parc.remove_by_name(names2remove=['unknown', 'medialwall', 'corpuscallosum'])
                             
                             lh_ctx_parc = copy.deepcopy(ctx_parc)    
                             rh_ctx_parc = copy.deepcopy(ctx_parc)
                             
-                            lh_ctx_parc._keep_by_name(names2look='ctx-lh-')
+                            lh_ctx_parc.keep_by_name(names2look='ctx-lh-')
                             nlh_ctx = len(lh_ctx_parc.index)
-                            rh_ctx_parc._keep_by_name(names2look='ctx-rh-')
+                            rh_ctx_parc.keep_by_name(names2look='ctx-rh-')
                             nrh_ctx = len(rh_ctx_parc.index)
                             
                             # Detect the global White Matter
                             brain_wm_parc = copy.deepcopy(ctx_parc)
-                            brain_wm_parc._keep_by_code(codes2look=[2, 41, 5001, 5002, 7, 46])
+                            brain_wm_parc.keep_by_code(codes2look=[2, 41, 5001, 5002, 7, 46])
                             ind = np.where(brain_wm_parc.data != 0)
                             brain_wm_parc.data[ind] = 1
                             brain_wm_parc.index = [1]
                             brain_wm_parc.name = ['wm-brain-whitematter']
                             brain_wm_parc.color = ['#ffffff']
-                            brain_wm_parc._rearange_parc(offset=2999)
+                            brain_wm_parc.rearange_parc(offset=2999)
                             brain_wm_parc.data[np.where(lh2refill)] = 3000
                             brain_wm_parc.data[np.where(rh2refill)] = 3000
                             
                             # White Matter for the Right Hemisphere
-                            tmp_rh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-rh-')
+                            tmp_rh = cltmisc.filter_by_substring(ctx_parc.name, 'wm-rh-')
                             if tmp_rh:
                                 rh_wm_parc = copy.deepcopy(ctx_parc)
-                                rh_wm_parc._keep_by_name(names2look=tmp_rh)
-                                rh_wm_parc._rearange_parc(offset=3000)
+                                rh_wm_parc.keep_by_name(names2look=tmp_rh)
+                                rh_wm_parc.rearange_parc(offset=3000)
                             
                             # White Matter for the Left Hemisphere
-                            tmp_lh = cltmisc._filter_by_substring(ctx_parc.name, 'wm-lh-')
+                            tmp_lh = cltmisc.filter_by_substring(ctx_parc.name, 'wm-lh-')
                             if tmp_lh:
                                 lh_wm_parc = copy.deepcopy(ctx_parc)
-                                lh_wm_parc._keep_by_name(names2look=tmp_lh)
-                                lh_wm_parc._rearange_parc(offset=3000 + nrh_ctx + nrh_subc)
+                                lh_wm_parc.keep_by_name(names2look=tmp_lh)
+                                lh_wm_parc.rearange_parc(offset=3000 + nrh_ctx + nrh_subc)
                             
                             # Adding the right cortical parcellation to the final image
-                            rh_ctx_parc._rearange_parc()
-                            chim_parc._add_parcellation(rh_ctx_parc, append=True)
+                            rh_ctx_parc.rearange_parc()
+                            chim_parc.add_parcellation(rh_ctx_parc, append=True)
                             del rh_ctx_parc
                             
                             # Adding the right non-cortical parcellation to the final image
                             if "rh_parc" in locals():
-                                chim_parc._add_parcellation(rh_parc, append=True)
+                                chim_parc.add_parcellation(rh_parc, append=True)
                             
                             # Adding the left cortical parcellation to the final image
-                            lh_ctx_parc._rearange_parc()
-                            chim_parc._add_parcellation(lh_ctx_parc, append=True)
+                            lh_ctx_parc.rearange_parc()
+                            chim_parc.add_parcellation(lh_ctx_parc, append=True)
                             del lh_ctx_parc
                             
                             # Adding the left non-cortical parcellation to the final image
                             if "lh_parc" in locals():
-                                chim_parc._add_parcellation(lh_parc, append=True)
+                                chim_parc.add_parcellation(lh_parc, append=True)
                             
                             # Adding the regions that do not belong to any hemisphere to the final image
                             if "mid_parc" in locals():
-                                chim_parc._add_parcellation(mid_parc, append=True)
+                                chim_parc.add_parcellation(mid_parc, append=True)
                             
                             # Adding the white matter to the final image
-                            chim_parc._add_parcellation(brain_wm_parc, append=False)
+                            chim_parc.add_parcellation(brain_wm_parc, append=False)
                             del brain_wm_parc
                                 
                             if "rh_wm_parc" in locals():
-                                chim_parc._add_parcellation(rh_wm_parc, append=False)
+                                chim_parc.add_parcellation(rh_wm_parc, append=False)
                                 del rh_wm_parc
                                 
                             if "lh_wm_parc" in locals():
-                                chim_parc._add_parcellation(lh_wm_parc, append=False)
+                                chim_parc.add_parcellation(lh_wm_parc, append=False)
                                 del lh_wm_parc
                             
                             # Adding the extra regions
@@ -1660,20 +1689,20 @@ class Chimera:
                                 mask = np.logical_and(tmp_extra.data  != 0, chim_parc.data != 0)
                                 indexes = np.where(mask)
                                 tmp_extra.data[indexes] = 0
-                                tmp_extra._adjust_values()
-                                chim_parc._add_parcellation(tmp_extra, append=False)
+                                tmp_extra.adjust_values()
+                                chim_parc.add_parcellation(tmp_extra, append=False)
                                 del tmp_extra
                                 
                             # Saving the FINAL parcellation
-                            chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
+                            chim_parc.save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
                             del chim_parc
             else:
                 out_vol_name = fullid + '_dseg.nii.gz'
 
-                chim_parc_name = cltbids._insert_entity(out_vol_name, {"atlas": "chimera" + chim_code} ) 
+                chim_parc_name = cltbids.insert_entity(out_vol_name, {"atlas": "chimera" + chim_code} ) 
                 chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
-                chim_parc_lut  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "lut"}))
-                chim_parc_tsv  = os.path.join(str(chim_dir), cltbids._replace_entity_value(chim_parc_name, {"extension": "tsv"}))
+                chim_parc_lut  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}))
+                chim_parc_tsv  = os.path.join(str(chim_dir), cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}))
                 
                 if not os.path.isfile(chim_parc_file) or not os.path.isfile(chim_parc_lut) or not os.path.isfile(chim_parc_tsv) or force:
                     part_header = ['# $Id: {} {} \n'.format(chim_parc_lut, date_time)]
@@ -1689,25 +1718,25 @@ class Chimera:
                 
                     # Adding the right non-cortical parcellation to the final image
                     if "rh_parc" in locals():
-                        rh_parc._rearange_parc()
-                        chim_parc._add_parcellation(rh_parc, append=True)
+                        rh_parc.rearange_parc()
+                        chim_parc.add_parcellation(rh_parc, append=True)
                     
                     # Adding the left non-cortical parcellation to the final image
                     if "lh_parc" in locals():
-                        lh_parc._rearange_parc()
-                        chim_parc._add_parcellation(lh_parc, append=True)
+                        lh_parc.rearange_parc()
+                        chim_parc.add_parcellation(lh_parc, append=True)
                     
                     # Adding the regions that do not belong to any hemisphere to the final image
                     if "mid_parc" in locals():
-                        mid_parc._rearange_parc()
-                        chim_parc._add_parcellation(mid_parc, append=True)
+                        mid_parc.rearange_parc()
+                        chim_parc.add_parcellation(mid_parc, append=True)
             
                     # Saving the FINAL parcellation
-                    chim_parc._save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
+                    chim_parc.save_parcellation(out_file=chim_parc_file, affine=affine, headerlines=lut_header, save_lut=True, save_tsv=True)
                     del chim_parc
 
 # Loading the JSON file containing the available parcellations
-def _pipeline_info(pipe_json:str=None):
+def pipeline_info(pipe_json:str=None):
     """
     Load the JSON file containing the pipeline configuration.
     
@@ -1737,7 +1766,7 @@ def _pipeline_info(pipe_json:str=None):
     
     return pipe_dict
 
-def _set_templateflow_home(tflow_home: str='local'):
+def set_templateflow_home(tflow_home: str='local'):
     """
     Setting up the templateflow home directory.
     
@@ -1776,7 +1805,7 @@ def _set_templateflow_home(tflow_home: str='local'):
             
     return updated_tflow_home    
 
-def _mix_side_prop(st_dict: dict, boolsort: bool = True):
+def mix_side_prop(st_dict: dict, boolsort: bool = True):
     """
     Method to mix all the properties for a specific supra-region and a specific method.
     
@@ -1811,7 +1840,7 @@ def _mix_side_prop(st_dict: dict, boolsort: bool = True):
 
 
 # Loading the JSON file containing the available parcellations
-def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
+def load_parcellations_info(parc_json:str=None, supra_folder:str=None):
     """
     Load the JSON file containing the available parcellations
     
@@ -1918,7 +1947,7 @@ def _load_parcellations_info(parc_json:str=None, supra_folder:str=None):
     return parc_dict, supra_dict  
 
 
-def _create_extra_regions_parc(aparc:str, offset:int=5000):
+def create_extra_regions_parc(aparc:str, offset:int=5000):
     """
     Create a parcellation object containing the extra regions. These parcellations 
     are included in the Aparc+aseg image and include the regions stored in the Axiliary*.tsv files.
@@ -1978,40 +2007,40 @@ def _create_extra_regions_parc(aparc:str, offset:int=5000):
     
     # Create the parcellation for the left hemisphere
     lh_tmp_parc = copy.deepcopy(aparc_parc)
-    lh_tmp_parc._keep_by_code(codes2look=lh_df["index"].tolist())
+    lh_tmp_parc.keep_by_code(codes2look=lh_df["index"].tolist())
     lh_tmp_parc.index = lh_df["index"].tolist()
     lh_tmp_parc.name  = lh_df["name"].tolist()
     lh_tmp_parc.color = lh_df["color"].tolist()
-    lh_tmp_parc._adjust_values()
-    lh_tmp_parc._rearange_parc()
+    lh_tmp_parc.adjust_values()
+    lh_tmp_parc.rearange_parc()
         
     # Create the parcellation for the right hemisphere
     rh_tmp_parc = copy.deepcopy(aparc_parc)
-    rh_tmp_parc._keep_by_code(codes2look=rh_df["index"].tolist())
+    rh_tmp_parc.keep_by_code(codes2look=rh_df["index"].tolist())
     rh_tmp_parc.index = rh_df["index"].tolist()
     rh_tmp_parc.name  = rh_df["name"].tolist()
     rh_tmp_parc.color = rh_df["color"].tolist()
-    rh_tmp_parc._adjust_values()
-    rh_tmp_parc._rearange_parc()
+    rh_tmp_parc.adjust_values()
+    rh_tmp_parc.rearange_parc()
     
     # Create the parcellation for the structures without hemispheres
     mid_tmp_parc = copy.deepcopy(aparc_parc)
-    mid_tmp_parc._keep_by_code(codes2look=mid_df["index"].tolist())
+    mid_tmp_parc.keep_by_code(codes2look=mid_df["index"].tolist())
     mid_tmp_parc.index = mid_df["index"].tolist()
     mid_tmp_parc.name  = mid_df["name"].tolist()
     mid_tmp_parc.color = mid_df["color"].tolist()
-    mid_tmp_parc._adjust_values()
-    mid_tmp_parc._rearange_parc()
+    mid_tmp_parc.adjust_values()
+    mid_tmp_parc.rearange_parc()
     
     # Unify the parcellations
-    rh_tmp_parc._add_parcellation(lh_tmp_parc, append=True)
-    rh_tmp_parc._add_parcellation(mid_tmp_parc, append=True)
-    rh_tmp_parc._rearange_parc(offset=offset)
+    rh_tmp_parc.add_parcellation(lh_tmp_parc, append=True)
+    rh_tmp_parc.add_parcellation(mid_tmp_parc, append=True)
+    rh_tmp_parc.rearange_parc(offset=offset)
     
     return rh_tmp_parc
 
     
-def _build_args_parser():
+def build_args_parser():
 
     formatter = lambda prog: argparse.HelpFormatter(prog, max_help_position=52)
 
@@ -2249,7 +2278,7 @@ def _build_args_parser():
     
     return p
 
-def _launch_fsl_first(t1:str, 
+def launch_fsl_first(t1:str, 
                         first_parc:str,
                         cont_tech:str = 'local', 
                         cont_image:str = None, 
@@ -2285,18 +2314,18 @@ def _launch_fsl_first(t1:str,
         fsl_outdir.mkdir(parents=True, exist_ok=True)
 
         cmd_bashargs = ['run_first_all', '-i', t1, '-o', str(fsl_outdir) + os.path.sep + 'temp']
-        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
         subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
         
         cmd_bashargs = ['mv', os.path.join(str(fsl_outdir),'temp_all_fast_firstseg.nii.gz'), first_parc]
-        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
         subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
         
         cmd_bashargs = ['rm', '-rf', 'temp*']
-        cmd_cont = cltmisc._generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
+        cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
         subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
     
-def _print_availab_parcels(reg_name=None):
+def print_availab_parcels(reg_name=None):
     """
     Print the available parcellations for each supra-region.
     
@@ -2396,7 +2425,7 @@ def chimera_parcellation(bids_dir:str,
     """
 
     # Declaring global variables
-    global pipe_json, pipe_dict, layout, pb, pb1, n_subj, n_comp, lock, chim_code
+    global pipe_json, pipe_dict, pb, pb1, n_subj, n_comp, lock, chim_code
     
     ######## -- Reading the configuration dictionary  ------------ #
     pipe_dict = _pipeline_info(pipe_json=pipe_json)
@@ -2410,13 +2439,18 @@ def chimera_parcellation(bids_dir:str,
             with open(t1s2run_file) as file:
                 t1s2run = [line.rstrip() for line in file]
         else:
-            t1s2run = t1s2run_file.split(',')
+            
+            # If the string contains a file separator, we assume that the string is a list of files
+            if os.path.sep not in t1s2run_file:
+                t1s2run = t1s2run_file.split(',')
+            else:
+                raise ValueError("Please, provide a valid file containing the list of T1w images to be processed.")
         
         t1s = []
         for id in t1s2run:
             
             if not os.path.isfile(id):
-                id_ent = cltbids._str2entity(id)
+                id_ent = cltbids.str2entity(id)
                 if 'ses' in id_ent.keys():
                     path_cad = os.path.join(bids_dir, 'sub-' + id_ent['sub'], 'ses-' + id_ent['ses'], 'anat')
                 else:
@@ -2428,7 +2462,7 @@ def chimera_parcellation(bids_dir:str,
                 if 'extension' not in id_ent.keys():
                     id_ent['extension'] = 'nii.gz'
                 
-                t1_temp = os.path.join(path_cad, cltbids._entity2str(id_ent))
+                t1_temp = os.path.join(path_cad, cltbids.entity2str(id_ent))
                 if os.path.isfile(t1_temp):
                     t1s.append(t1_temp)         
 
@@ -2449,10 +2483,10 @@ def chimera_parcellation(bids_dir:str,
                                 seg = code_dict["seg"])
             
             # Creating the color table
-            chim_obj._create_table()
+            chim_obj.create_table()
             
             # Configuring and downloading the templates
-            chim_obj._prepare_templates(fssubj_dir=fssubj_dir)
+            chim_obj.prepare_templates(fssubj_dir=fssubj_dir)
             
                         
             # create a lock for the counter
@@ -2476,7 +2510,7 @@ def chimera_parcellation(bids_dir:str,
                     full_id = '_'.join(temp[:-1])
                     pb.update(task_id=pb1, description= f'[red]{chim_code}: {full_id} ({i+1}/{n_subj})', completed=i+1) 
 
-                    chim_obj._build_parcellation(t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm)
+                    chim_obj.build_parcellation(t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm)
                 
             else:
                 start_time = time.perf_counter()
@@ -2494,7 +2528,7 @@ def chimera_parcellation(bids_dir:str,
                     # futures = [executor.submit(_build_parcellation, t1s[i],
                     # bids_dir, deriv_dir, parccode, growwm, mixwm) for i in range(n_subj)]
                     
-                    futures = [executor.submit(chim_obj._build_parcellation, t1s[i], bids_dir, deriv_dir, fssubj_dir, growwm, mixwm) for i in range(n_subj)]
+                    futures = [executor.submit(chim_obj.build_parcellation, t1s[i], bids_dir, deriv_dir, fssubj_dir, growwm, mixwm) for i in range(n_subj)]
                     
                     # register the progress indicator callback
                     for future in futures:
