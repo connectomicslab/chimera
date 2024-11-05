@@ -812,7 +812,7 @@ class Chimera:
         if 'ses' in ent_dict.keys():
             path_cad       = "sub-" + ent_dict["sub"] + os.path.sep + "ses-" + ent_dict["ses"]
         else:
-            path_cad       = "sub-" + ent_dict["subject"]
+            path_cad       = "sub-" + ent_dict["sub"]
             
         # Creating Chimera directories
         if deriv_dir is None:
