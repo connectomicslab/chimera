@@ -1308,6 +1308,43 @@ class Chimera:
                                                     cont_tech=cont_tech_ants,
                                                     cont_image=cont_image_ants)
 
+                            for side_cont, side in enumerate(sides_ids):
+                                vol_indexes = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])-1
+                                tmp_par_file = os.path.join(work_dir, fullid + '_hemi-' + side + '_atlas-' + atlas_str + '_dseg.nii.gz')
+                                files2del.append(tmp_par_file)
+                                
+                                tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
+                                tmp_parc.index = vol_indexes + 1
+                                tmp_parc.name  = self.supra_dict[supra][supra][atlas_code][side]['name']
+                                tmp_parc.color = self.supra_dict[supra][supra][atlas_code][side]['color']
+                                
+                                if side in self.supra_dict[supra][supra]['F'].keys():
+                                    aseg_code    = self.supra_dict[supra][supra]['F'][side]['index']
+                                    tmp_parc._apply_mask(image_mask=aseg_parc, codes2mask=aseg_code, fill=True)
+                                    
+                                else:
+                                    # Selecting all the region in case there is no definition of left and right hemispheres
+                                    all_reg_codes = []
+                                    for side_f in self.supra_dict[supra][supra]['F'].keys():
+                                        aseg_code    = self.supra_dict[supra][supra]['F'][side_f]['index']
+                                        all_reg_codes = all_reg_codes + aseg_code
+                                    
+                                    glob_mask_parc = copy.deepcopy(aseg_parc)
+                                    glob_mask_parc._group_by_code(codes2group=all_reg_codes, new_codes=1)
+                                    tmp_parc._apply_mask(image_mask=glob_mask_parc, codes2mask=1)
+                                    
+                                # Adjusting the values to the ones existing on the 3D image
+                                tmp_parc._adjust_values()
+                                if side_cont == 0:  
+                                    def_parc = copy.deepcopy(tmp_parc)
+                                else:
+                                    def_parc._add_parcellation(tmp_parc)
+                                    
+                                # Removing the temporal side images
+                                if os.path.isfile(tmp_parc_file):
+                                    os.remove(tmp_parc_file)
+                                
+                            def_parc._save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
                     
                     tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
                     index, name, color = _mix_side_prop(self.supra_dict[supra][supra][atlas_code])
