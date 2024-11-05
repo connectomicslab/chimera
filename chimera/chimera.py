@@ -1015,6 +1015,13 @@ class Chimera:
                 atlas_parcs   = self.parc_dict[supra]["parcels"]
                 atlas_mask    = self.parc_dict[supra]["mask"]
                 atlas_type    = self.parc_dict[supra]["type"]
+                if atlas_type == 'spam':
+                    # Verifying the existence of the threshold
+                    if "probthresh" not in self.parc_dict[supra].keys():
+                        spam_thresh = 0.05
+                    else:
+                        spam_thresh = self.parc_dict[supra]["probthresh"]
+                
                 deriv_fold    = self.parc_dict[supra]["deriv_volfold"]
                 proc_dict     = self.parc_dict[supra]["processing"]
                 
