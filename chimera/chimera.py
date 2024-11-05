@@ -810,7 +810,7 @@ class Chimera:
         ent_dict_fullid = cltbids._str2entity(fullid)
         
         if 'ses' in ent_dict.keys():
-            path_cad       = "sub-" + ent_dict["subject"] + os.path.sep + "ses-" + ent_dict["ses"]
+            path_cad       = "sub-" + ent_dict["sub"] + os.path.sep + "ses-" + ent_dict["ses"]
         else:
             path_cad       = "sub-" + ent_dict["subject"]
             
