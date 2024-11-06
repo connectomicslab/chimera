@@ -221,7 +221,8 @@
                   "reference":"MNI152NLin2009cAsym",
                   "parcels": "custom",
                   "mask":"aparc+aseg",
-                  "type":"spam",
+                  "type":"maxprob",
+                  "probthresh":0.05,
                   "deriv_volfold":"mialabased-thalamicparc"},
 
             "R": {"atlas":"FIRST",
@@ -364,7 +365,7 @@
                   "type":"custom",
                   "deriv_volfold":"freesurfer"},
 
-            "S": {"atlas":"SUIT2009",
+            "S": {"atlas":"Diedrichsen2009",
                   "name":"SUIT",
                   "description":"# 7. Cerebellum parcellation (S): Cerebellum parcellation using the cerebellum atlas inlcluded in FSL (Diedrichsen, J. et al, 2009).",
                   "citation":"(Diedrichsen, J. et al, 2009)",
@@ -373,6 +374,7 @@
                   "parcels":"custom",
                   "mask":"aparc+aseg",
                   "type":"spam",
+                  "probthresh":0.05,
                   "deriv_volfold":"abased-suitcerebellum"}
       },
 
