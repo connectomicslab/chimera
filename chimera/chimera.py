@@ -133,7 +133,7 @@ class Chimera:
         else:
             self.suprafolder = os.path.join(chim_dir, 'config', 'supraregions')
         
-        self.parc_dict, self.supra_dict = _load_parcellations_info(parc_json=parc_dict_file, supra_folder=supra_folder)
+        self.parc_dict, self.supra_dict = load_parcellations_info(parc_json=parc_dict_file, supra_folder=supra_folder)
         
         ####  Filtering the parcellation dictionary according to the parcellation code ####
         supra_names = list(self.parc_dict.keys())
@@ -969,7 +969,7 @@ class Chimera:
                 aseg_parc.adjust_values()
                 
             # Creating the parcellation for the extra regions
-            extra_parc = _create_extra_regions_parc(aparc=nii_image)
+            extra_parc = create_extra_regions_parc(aparc=nii_image)
                 
             # Remove the nifti file
             os.remove(nii_image)
@@ -1736,7 +1736,7 @@ class Chimera:
                     del chim_parc
 
 # Loading the JSON file containing the available parcellations
-def pipeline_info(pipe_json:str=None):
+def _pipeline_info(pipe_json:str=None):
     """
     Load the JSON file containing the pipeline configuration.
     
@@ -1766,7 +1766,7 @@ def pipeline_info(pipe_json:str=None):
     
     return pipe_dict
 
-def set_templateflow_home(tflow_home: str='local'):
+def _set_templateflow_home(tflow_home: str='local'):
     """
     Setting up the templateflow home directory.
     
@@ -1805,7 +1805,7 @@ def set_templateflow_home(tflow_home: str='local'):
             
     return updated_tflow_home    
 
-def mix_side_prop(st_dict: dict, boolsort: bool = True):
+def _mix_side_prop(st_dict: dict, boolsort: bool = True):
     """
     Method to mix all the properties for a specific supra-region and a specific method.
     
@@ -2040,7 +2040,7 @@ def create_extra_regions_parc(aparc:str, offset:int=5000):
     return rh_tmp_parc
 
     
-def build_args_parser():
+def _build_args_parser():
 
     formatter = lambda prog: argparse.HelpFormatter(prog, max_help_position=52)
 
@@ -2253,7 +2253,7 @@ def build_args_parser():
 
     
     parcodes     = args.parcodes[0].split(sep=',')
-    parc_dict, supra_dict = _load_parcellations_info()
+    parc_dict, supra_dict = load_parcellations_info()
     supra_reg_names = list(parc_dict.keys())
     n_supra = len(supra_reg_names)
     
@@ -2339,7 +2339,7 @@ def print_availab_parcels(reg_name=None):
     
     """
 
-    data, supra_dict = _load_parcellations_info()
+    data, supra_dict = load_parcellations_info()
 
     if reg_name is None:
         supra_keys = data.keys()
