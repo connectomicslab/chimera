@@ -2144,7 +2144,7 @@ def _build_args_parser():
             print(' ')
             mess = "Available parcellations for each supra-region"
             print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC))  
-            _print_availab_parcels()
+            print_availab_parcels()
             sys.exit()
         
         elif args.bidsdir is None or args.parcodes is None:
@@ -2325,7 +2325,7 @@ def launch_fsl_first(t1:str,
         cmd_cont = cltmisc.generate_container_command(cmd_bashargs, cont_tech, cont_image) # Generating container command
         subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True) # Running container command
     
-def print_availab_parcels(reg_name=None):
+def _print_availab_parcels(reg_name=None):
     """
     Print the available parcellations for each supra-region.
     
