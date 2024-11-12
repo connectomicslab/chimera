@@ -166,8 +166,10 @@ class Chimera:
                         elif isinstance(scale , str):
                             if '_scale-' not in scale :
                                 scale_tmp = '_scale-' + scale 
-
-                        parcel_names = cltmisc.filter_by_substring(parcel_names, scale_tmp, boolcase=False)
+                        
+                        # Detect if the word scale is on any of the strings in parcel_names
+                        if [s for s in parcel_names if 'scale' in s]:
+                            parcel_names = cltmisc.filter_by_substring(parcel_names, scale_tmp, boolcase=False)
 
                     # Filtering the parcellation names by the segmentation
                     if seg is not None:
@@ -1192,7 +1194,7 @@ class Chimera:
                             fsl_outdir.mkdir(parents=True, exist_ok=True)
                         
                             # Running the FIRST
-                            _launch_fsl_first(t1,
+                            launch_fsl_first(t1,
                                                 first_parc = first_nii,
                                                 cont_tech = cont_tech_fsl, 
                                                 cont_image = cont_image_fsl, 
@@ -1443,6 +1445,17 @@ class Chimera:
                     mid_supra_parc.rearange_parc()
                     mid_parc.add_parcellation(mid_supra_parc, append=True)
                     del mid_supra_parc
+                    
+                    if "rh2refill" in locals():
+                        #  Remove the voxels that are in the mid_parc and are in the rh2refill
+                        ind = np.where((mid_parc.data != 0) & (rh2refill != 0))
+                        rh2refill[ind] = 0
+                    
+                    if "lh2refill" in locals():
+                        #  Remove the voxels that are in the mid_parc and are in the lh2refill
+                        ind = np.where((mid_parc.data != 0) & (lh2refill != 0))
+                        lh2refill[ind] = 0
+
                     # mid_parc.save_parcellation(out_file= '/home/yaleman/mid_test.nii.gz', save_lut=True)
 
             # Detecting the number of regions 
