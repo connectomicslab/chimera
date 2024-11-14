@@ -1217,8 +1217,10 @@ class Chimera:
 
                     out_parc_spam = os.path.join(str(work_dir), fullid + '_atlas-' + atlas_str + '_probseg.nii.gz')
                     out_parc_maxp = os.path.join(str(work_dir), fullid + '_atlas-' + atlas_str + '_dseg.nii.gz')
+                    out_parc_lut = out_parc_maxp.replace('.nii.gz', '.lut')
+                    out_parc_tsv = out_parc_maxp.replace('.nii.gz', '.tsv')
 
-                    if not os.path.isfile(out_parc_maxp) or force:
+                    if not os.path.isfile(out_parc_maxp) or not os.path.isfile(out_parc_lut)  or not os.path.isfile(out_parc_tsv) or force:
                         work_dir.mkdir(parents=True, exist_ok=True) 
                         
                         # Detecting the side
@@ -1318,12 +1320,12 @@ class Chimera:
                                                                 out_parc_maxp)
                             
                             for side_cont, side in enumerate(sides_ids):
-                                vol_indexes = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])-1
                                 tmp_par_file = os.path.join(work_dir, fullid + '_hemi-' + side + '_atlas-' + atlas_str + '_dseg.nii.gz')
                                 files2del.append(tmp_par_file)
                                 
                                 tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
-                                tmp_parc.index = vol_indexes + 1
+                                tmp_parc.data = np.round(tmp_parc.data)
+                                tmp_parc.index = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])
                                 tmp_parc.name  = self.supra_dict[supra][supra][atlas_code][side]['name']
                                 tmp_parc.color = self.supra_dict[supra][supra][atlas_code][side]['color']
                                 
