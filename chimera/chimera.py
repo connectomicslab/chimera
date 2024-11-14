@@ -32,42 +32,13 @@ from templateflow import api as tflow
 
 
 import clabtoolkit.misctools as cltmisc
+from clabtoolkit.misctools import bcolors as bcolors
 import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.parcellationtools as cltparc
 import clabtoolkit.bidstools as cltbids
 import clabtoolkit.segmentationtools as cltseg
 import clabtoolkit.imagetools as cltimg
 from rich.progress import Progress
-
-class bcolors:
-    """
-    Class to define the colors for the terminal output.
-    
-    
-    """
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    OKYELLOW = '\033[93m'
-    OKRED = '\033[91m'
-    OKMAGENTA = '\033[95m'
-    PURPLE = '\033[35m'
-    OKCYAN = '\033[96m'
-    DARKCYAN = "\033[36m"
-    ORANGE = "\033[48:5:208m%s\033[m"
-    OKWHITE = '\033[97m'
-    DARKWHITE = '\033[37m'
-    OKBLACK = '\033[30m'
-    OKGRAY = '\033[90m'
-    OKPURPLE = '\033[35m'
-    
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    ITALIC = '\033[3m'
-    UNDERLINE = '\033[4m'
 
 # Define the Chimera class. This class will be used to create and work with Chimera objects
 class Chimera:
@@ -1330,7 +1301,7 @@ class Chimera:
                             
                         elif atlas_type == 'maxprob':
                             
-                            cltseg.abased_parcellation(t1, 
+                            cltseg.abased_parcellation(tmp_t1, 
                                                     t1_temp, 
                                                     atlas, 
                                                     out_parc_maxp, 
@@ -1338,6 +1309,13 @@ class Chimera:
                                                     atlas_type='maxprob',
                                                     cont_tech=cont_tech_ants,
                                                     cont_image=cont_image_ants)
+                            
+                            if supra == 'Cerebellum':
+                                if self.parc_dict[supra]['name'] == 'SUIT':
+                                    os.remove(tmp_t1)
+                                    cltimg.cropped_to_native(out_parc_maxp, 
+                                                                t1,
+                                                                out_parc_maxp)
                             
                             for side_cont, side in enumerate(sides_ids):
                                 vol_indexes = np.array(self.supra_dict[supra][supra][atlas_code][side]['index'])-1
@@ -1370,11 +1348,7 @@ class Chimera:
                                     def_parc = copy.deepcopy(tmp_parc)
                                 else:
                                     def_parc.add_parcellation(tmp_parc)
-                                    
-                                # Removing the temporal side images
-                                if os.path.isfile(tmp_parc_file):
-                                    os.remove(tmp_parc_file)
-                                
+
                             def_parc.save_parcellation(out_file= out_parc_maxp, affine=def_parc.affine, save_lut=True, save_tsv=True)
 
                     tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
@@ -2112,7 +2086,7 @@ def _build_args_parser():
                                     " parcellation contains two different versions for the same scale: 7n and kong7n ) \n"
                                     "\n", default=None)
     requiredNamed.add_argument('--nthreads', '-n', action='store', required=False, metavar='NTHREADS', type=str, nargs=1,
-                                help="R| Number of processes to run in parallel (default= Number of cores - 4). \n", default=['auto'])
+                                help="R| Number of processes to run in parallel (default= 1). \n", default=['1'])
 
     requiredNamed.add_argument('--growwm', '-g', action='store', required=False, metavar='GROWWM', type=str, nargs=1,
                                 help="R| Grow of GM labels inside the white matter in mm. \n", default=None)
@@ -2154,7 +2128,7 @@ def _build_args_parser():
     
     if args.regions is True: 
         if args.bidsdir is None and args.parcodes is None:
-            print(' ')
+            print("\n")
             mess = "Available parcellations for each supra-region"
             print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC))  
             print_availab_parcels()
@@ -2170,34 +2144,34 @@ def _build_args_parser():
     
     for bids_dir in bids_dirs:
         if not os.path.isdir(bids_dir):
-            print("\n")
             print("Please, supply a valid BIDs directory.")
-            print("The supplied BIDs directory does not exist: {}".format(bids_dir))
+            print('The supplied BIDs directory does not exist: {}{}{}{}{}: is not supplied. '.format(bcolors.BOLD, bcolors.OKRED, bids_dir, bcolors.ENDC, bcolors.ENDC)) 
             p.print_help()
             sys.exit()
             
     if args.derivdir is None:
-        print('--derivdir is not supplied. ')
+        print('{}{}{}{}{}: is not supplied. '.format(bcolors.BOLD, bcolors.OKMAGENTA, '--derivdir', bcolors.ENDC, bcolors.ENDC)) 
         print('The derivatives directory will be created in the corresponding BIDs directory.')
         deriv_dirs = []
         for bids_dir in bids_dirs:
-            print('derivatives_dir: {}'.format(os.path.join(bids_dir, 'derivatives')))
+            # print('derivatives_dir: {}'.format(os.path.join(bids_dir, 'derivatives')))
+            print('{}{}{}{}{}: {}{}{} '.format(bcolors.BOLD, bcolors.DARKCYAN, 'derivatives_dir', bcolors.ENDC, bcolors.ENDC,  bcolors.UNDERLINE, os.path.join(bids_dir, 'derivatives'), bcolors.ENDC)) 
             
             deriv_dir = Path(os.path.join(bids_dir, 'derivatives'))
             deriv_dir.mkdir(parents=True, exist_ok=True)
             
             deriv_dirs.append(str(deriv_dir))
-
+            
     else:
         deriv_dirs = args.derivdir[0].split(sep=',')
         # Remove possible empty elements
         deriv_dirs = [x for x in deriv_dirs if x]
         
         if len(deriv_dirs) != len(bids_dirs):
-            print("\n")
             print("The number of derivatives directories should be the same as the number of BIDs directories.")
             print('The first derivatives directory will be the same for all BIDs directories:')
-            print('derivatives_dir: {}'.format(deriv_dirs[0]))
+            # print('derivatives_dir: {}'.format(deriv_dirs[0]))
+            print('{}{}{}{}{}: {}{}{} '.format(bcolors.BOLD, bcolors.DARKCYAN, 'derivatives_dir', bcolors.ENDC, bcolors.ENDC,  bcolors.UNDERLINE, deriv_dirs[0], bcolors.ENDC)) 
             
             deriv_dir = Path(deriv_dirs[0])
             
@@ -2212,14 +2186,16 @@ def _build_args_parser():
                 
                 # Create the folder if it does not exist
                 deriv_dir.mkdir(parents=True, exist_ok=True)
-                
+    print("\n")
     if args.freesurferdir is None:
-        print('--freesurferdir is not supplied. ')
+        
+        print('{}{}{}{}{}: is not supplied. '.format(bcolors.BOLD, bcolors.OKMAGENTA, '--freesurferdir', bcolors.ENDC, bcolors.ENDC)) 
         
         if 'SUBJECTS_DIR' in os.environ:
             print('The FreeSurfer subjects directory will be the same for all derivatives directories.')
             print('We will use the enviroment variable SUBJECTS_DIR.')
-            print('freesurfer_dir: {}'.format(os.environ["SUBJECTS_DIR"]))
+            print('{}{}{}{}{}: {}{}{} '.format(bcolors.BOLD, bcolors.DARKCYAN, 'freesurfer_dir', bcolors.ENDC, bcolors.ENDC,  bcolors.UNDERLINE, os.environ["SUBJECTS_DIR"], bcolors.ENDC)) 
+
             
             fssubj_dir = Path(os.environ["SUBJECTS_DIR"])
             fssubj_dir.mkdir(parents=True, exist_ok=True)
@@ -2228,28 +2204,24 @@ def _build_args_parser():
             
         else:
             print('The FreeSurfer subjects directory will be created in the following derivatives directory:')
-            print('freesurfer_dir: {}'.format(os.path.join(deriv_dirs[0], 'freesurfer')))
-            
             fssubj_dirs = []
             for deriv_dir in deriv_dirs:
-                print('derivatives_dir: {}'.format(os.path.join(deriv_dir, 'freesurfer')))
-                
+                print('freesurfer_dir: {}'.format(os.path.join(deriv_dir, 'freesurfer')))
+                print('{}{}{}{}{}: {}{}{} '.format(bcolors.BOLD, bcolors.DARKCYAN, 'freesurfer_dir', bcolors.ENDC, bcolors.ENDC,  bcolors.UNDERLINE, os.path.join(deriv_dir, 'freesurfer'), bcolors.ENDC)) 
                 fssubj_dir = Path(os.path.join(deriv_dir, 'freesurfer'))
                 fssubj_dir.mkdir(parents=True, exist_ok=True)
                 
                 fssubj_dirs.append(str(fssubj_dir))
-
     else:
         fssubj_dirs = args.freesurferdir[0].split(sep=',')
         # Remove possible empty elements
         fssubj_dirs = [x for x in fssubj_dirs if x]
         
         if len(fssubj_dirs) != len(deriv_dirs):
-            print("\n")
             print("The number of freesurfer directories should be the same as the number of derivatives directories.")
             print('The FreeSurfer subjects directory  will be the same for all derivatives directories')
-            print('freesurfer_dir: {}'.format(fssubj_dirs[0]))
-            
+            print('{}{}{}{}{}: {}{}{} '.format(bcolors.BOLD, bcolors.DARKCYAN, 'freesurfer_dir', bcolors.ENDC, bcolors.ENDC,  bcolors.UNDERLINE, fssubj_dirs[0], bcolors.ENDC)) 
+
             fssubj_dir = Path(fssubj_dirs[0])
             
             # Create the folder if it does not exist
@@ -2263,7 +2235,6 @@ def _build_args_parser():
                 
                 # Create the folder if it does not exist
                 fssubj_dir.mkdir(parents=True, exist_ok=True)
-
     
     parcodes     = args.parcodes[0].split(sep=',')
     parc_dict, supra_dict = load_parcellations_info()
@@ -2372,7 +2343,7 @@ def _print_availab_parcels(reg_name=None):
             print('')
     else:
         parc_opts = data[reg_name]
-        print(' ')
+        print("\n")
         print('{}{}{}{}{}: '.format(bcolors.BOLD, bcolors.DARKCYAN, reg_name, bcolors.ENDC, bcolors.ENDC))  
         
         for opts in parc_opts:
@@ -2605,15 +2576,13 @@ def main():
         
     # Detecting the number of cores to be used
     ncores = os.cpu_count()
-    nthreads = args.nthreads[0]
-    if nthreads == 'auto':
-        nthreads = ncores
-        if nthreads > 4:
-            nthreads = nthreads - 4
+    nthreads = int(args.nthreads[0])
+    
+    if nthreads > ncores:
+        if ncores > 3:
+            nthreads = ncores-2
         else:
-            nthreads = 1
-    else:
-        nthreads     = int(args.nthreads[0])
+            nthreads = 2
         
     for i, bids_dir in enumerate(bids_dirs):
         
