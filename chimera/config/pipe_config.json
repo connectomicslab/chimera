@@ -50,7 +50,7 @@
         },
     "outputs":
         {
-            "transforms": "ants-transf2mni",
+            "transforms": "ants-spattransf",
             "freesurfer": "freesurfer"
         }
 }
