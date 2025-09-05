@@ -50,8 +50,10 @@ class Chimera:
     ----------
     parc_code : str
         Parcellation code.
+        
     parc_dict_file : str
         Parcellation dictionary file.
+        
     supra_folder : str
         Folder containing the supraregions TSV files.
 
@@ -151,7 +153,11 @@ class Chimera:
                         # Detect if the word scale is on any of the strings in parcel_names
                         if [s for s in parcel_names if "scale" in s]:
                             parcel_names = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                                 parcel_names, scale_tmp, boolcase=False
+=======
+                                parcel_names, scale_tmp, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                             )
 
                     # Filtering the parcellation names by the segmentation
@@ -169,7 +175,11 @@ class Chimera:
                                 seg_tmp = "_seg-" + seg
 
                         parcel_names = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                             parcel_names, seg_tmp, boolcase=False
+=======
+                            parcel_names, seg_tmp, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                     # Saving the new parcels names
@@ -275,10 +285,17 @@ class Chimera:
 
                     # Select the files that contain the atlas names
                     ctx_parc_lh = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                         ctx_parc_lh, atlas_names, boolcase=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, boolcase=False
+=======
+                        ctx_parc_lh, atlas_names, bool_case=False
+                    )
+                    ctx_parc_rh = cltmisc.filter_by_substring(
+                        ctx_parc_rh, atlas_names, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
@@ -368,10 +385,17 @@ class Chimera:
 
                     # Filtering for selecting the correct cortical parcellation
                     ctx_parc_lh = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                         ctx_parc_lh, atlas_names, boolcase=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, boolcase=False
+=======
+                        ctx_parc_lh, atlas_names, bool_case=False
+                    )
+                    ctx_parc_rh = cltmisc.filter_by_substring(
+                        ctx_parc_rh, atlas_names, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
@@ -585,10 +609,17 @@ class Chimera:
 
                     # Select the files that contain the atlas names
                     ctx_parc_lh = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                         ctx_parc_lh, atlas_names, boolcase=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, boolcase=False
+=======
+                        ctx_parc_lh, or_filter=atlas_names, bool_case=False
+                    )
+                    ctx_parc_rh = cltmisc.filter_by_substring(
+                        ctx_parc_rh, or_filter=atlas_names, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
 
                 elif atlas_src == "local":
@@ -606,10 +637,17 @@ class Chimera:
 
                     # Filtering for selecting the correct cortical parcellation
                     ctx_parc_lh = cltmisc.filter_by_substring(
+<<<<<<< HEAD
                         ctx_parc_lh, atlas_names, boolcase=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, boolcase=False
+=======
+                        ctx_parc_lh, or_filter=atlas_names, bool_case=False
+                    )
+                    ctx_parc_rh = cltmisc.filter_by_substring(
+                        ctx_parc_rh, or_filter=atlas_names, bool_case=False
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
 
             else:
@@ -1132,7 +1170,13 @@ class Chimera:
                             or not os.path.isfile(chim_parc_tsv)
                             or force
                         ):
+<<<<<<< HEAD
                             bool_chim_exist = False
+=======
+                            bool_chim_exist = bool_chim_exist & False
+                        else:
+                            bool_chim_exist = bool_chim_exist & True
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
 
             else:
                 out_vol_name = fullid + "_dseg.nii.gz"
@@ -1156,7 +1200,13 @@ class Chimera:
                     or not os.path.isfile(chim_parc_tsv)
                     or force
                 ):
+<<<<<<< HEAD
                     bool_chim_exist = False
+=======
+                    bool_chim_exist = bool_chim_exist & False
+                else:
+                    bool_chim_exist = bool_chim_exist & True
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
 
         # ------- End of veryfing the existence of the parcellations, otherwise, compute them  --------- #
 
@@ -1168,6 +1218,10 @@ class Chimera:
                 cont_tech = pipe_dict["packages"]["freesurfer"]["cont_tech"]
                 cont_image = pipe_dict["packages"]["freesurfer"]["container"]
 
+<<<<<<< HEAD
+=======
+                # Detecting the FreeSurfer home directory using the container
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                 cmd_bashargs = ["echo", "$FREESURFER_HOME"]
                 cmd_cont = cltmisc.generate_container_command(
                     cmd_bashargs, cont_tech, cont_image
@@ -1178,6 +1232,10 @@ class Chimera:
                 fslut_file_cont = os.path.join(
                     out_cmd.stdout.split("\n")[0], "FreeSurferColorLUT.txt"
                 )
+<<<<<<< HEAD
+=======
+
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                 tmp_name = str(uuid.uuid4())
                 cmd_bashargs = ["cp", "replace_cad", "/tmp/" + tmp_name]
                 cmd_cont = cltmisc.generate_container_command(
@@ -1214,6 +1272,10 @@ class Chimera:
 
             cont_tech_freesurfer = pipe_dict["packages"]["freesurfer"]["cont_tech"]
             cont_image_freesurfer = pipe_dict["packages"]["freesurfer"]["container"]
+<<<<<<< HEAD
+=======
+            freesurfer_license_file = pipe_dict["packages"]["freesurfer"]["license"]
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
             cont_tech_ants = pipe_dict["packages"]["ants"]["cont_tech"]
             cont_image_ants = pipe_dict["packages"]["ants"]["container"]
             cont_tech_fsl = pipe_dict["packages"]["fsl"]["cont_tech"]
@@ -1225,6 +1287,10 @@ class Chimera:
                 t1w_img=t1,
                 cont_tech=cont_tech_freesurfer,
                 cont_image=cont_image_freesurfer,
+<<<<<<< HEAD
+=======
+                fs_license=freesurfer_license_file,
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
             )
 
             nii_image = os.path.join(
@@ -1411,7 +1477,11 @@ class Chimera:
                                 atlas_code
                             ]["lh"]["color"]
                             lh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=self.supra_dict[supra][supra][atlas_code][
+=======
+                                codes2keep=self.supra_dict[supra][supra][atlas_code][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "lh"
                                 ]["index"]
                             )
@@ -1435,7 +1505,11 @@ class Chimera:
                                 atlas_code
                             ]["rh"]["color"]
                             rh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=self.supra_dict[supra][supra][atlas_code][
+=======
+                                codes2keep=self.supra_dict[supra][supra][atlas_code][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "rh"
                                 ]["index"]
                             )
@@ -1494,7 +1568,11 @@ class Chimera:
                             if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                                 lh_supra_parc = copy.deepcopy(tmp_parc)
                                 lh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                     codes2look=self.supra_dict[supra][supra][
+=======
+                                    codes2keep=self.supra_dict[supra][supra][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["lh"]["index"]
                                 )
@@ -1503,7 +1581,11 @@ class Chimera:
                             if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                                 rh_supra_parc = copy.deepcopy(tmp_parc)
                                 rh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                     codes2look=self.supra_dict[supra][supra][
+=======
+                                    codes2keep=self.supra_dict[supra][supra][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["rh"]["index"]
                                 )
@@ -1515,7 +1597,11 @@ class Chimera:
                             ):
                                 mid_supra_parc = copy.deepcopy(tmp_parc)
                                 mid_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                     codes2look=self.supra_dict[supra][supra][
+=======
+                                    codes2keep=self.supra_dict[supra][supra][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["mid"]["index"]
                                 )
@@ -1565,7 +1651,11 @@ class Chimera:
                                 atlas_code
                             ]["lh"]["color"]
                             lh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=self.supra_dict[supra][supra][atlas_code][
+=======
+                                codes2keep=self.supra_dict[supra][supra][atlas_code][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "lh"
                                 ]["index"]
                             )
@@ -1583,7 +1673,11 @@ class Chimera:
                                 atlas_code
                             ]["rh"]["color"]
                             rh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=self.supra_dict[supra][supra][atlas_code][
+=======
+                                codes2keep=self.supra_dict[supra][supra][atlas_code][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "rh"
                                 ]["index"]
                             )
@@ -1601,7 +1695,11 @@ class Chimera:
                                 atlas_code
                             ]["mid"]["color"]
                             mid_supra_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=self.supra_dict[supra][supra][atlas_code][
+=======
+                                codes2keep=self.supra_dict[supra][supra][atlas_code][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "mid"
                                 ]["index"]
                             )
@@ -1652,7 +1750,11 @@ class Chimera:
                     if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc = copy.deepcopy(tmp_parc)
                         lh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["lh"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["lh"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1661,7 +1763,11 @@ class Chimera:
                     if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc = copy.deepcopy(tmp_parc)
                         rh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["rh"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["rh"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1670,7 +1776,11 @@ class Chimera:
                     if "mid" in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
                         mid_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["mid"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["mid"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1783,7 +1893,11 @@ class Chimera:
                                 )
                                 files2del.append(tmp_par_file)
 
+<<<<<<< HEAD
                                 tmp_parc_file = cltseg.spams2maxprob(
+=======
+                                tmp_parc_file = cltimg.spams2maxprob(
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     out_parc_spam,
                                     prob_thresh=spam_thresh,
                                     vol_indexes=vol_indexes,
@@ -1957,7 +2071,11 @@ class Chimera:
                     if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc = copy.deepcopy(tmp_parc)
                         lh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["lh"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["lh"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1966,7 +2084,11 @@ class Chimera:
                     if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc = copy.deepcopy(tmp_parc)
                         rh_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["rh"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["rh"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1975,20 +2097,32 @@ class Chimera:
                     if "mid" in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
                         mid_supra_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra][atlas_code]["mid"][
+=======
+                            codes2keep=self.supra_dict[supra][supra][atlas_code]["mid"][
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
 
                 # Appending the parcellations
                 if "lh_supra_parc" in locals():
+<<<<<<< HEAD
                     lh_supra_parc.rearange_parc()
+=======
+                    lh_supra_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         lh2refill_parc = copy.deepcopy(aseg_parc)
                         lh2refill_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra]["F"]["lh"]["index"]
+=======
+                            codes2keep=self.supra_dict[supra][supra]["F"]["lh"]["index"]
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
@@ -2005,13 +2139,21 @@ class Chimera:
                     # lh_parc.save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
 
                 if "rh_supra_parc" in locals():
+<<<<<<< HEAD
                     rh_supra_parc.rearange_parc()
+=======
+                    rh_supra_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         rh2refill_parc = copy.deepcopy(aseg_parc)
                         rh2refill_parc.keep_by_code(
+<<<<<<< HEAD
                             codes2look=self.supra_dict[supra][supra]["F"]["rh"]["index"]
+=======
+                            codes2keep=self.supra_dict[supra][supra]["F"]["rh"]["index"]
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
@@ -2028,7 +2170,11 @@ class Chimera:
                     # rh_parc.save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
 
                 if "mid_supra_parc" in locals():
+<<<<<<< HEAD
                     mid_supra_parc.rearange_parc()
+=======
+                    mid_supra_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                     mid_parc.add_parcellation(mid_supra_parc, append=True)
                     del mid_supra_parc
 
@@ -2321,14 +2467,22 @@ class Chimera:
                             # Detect the global White Matter
                             brain_wm_parc = copy.deepcopy(ctx_parc)
                             brain_wm_parc.keep_by_code(
+<<<<<<< HEAD
                                 codes2look=[2, 41, 5001, 5002, 7, 46]
+=======
+                                codes2keep=[2, 41, 5001, 5002, 7, 46]
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                             )
                             ind = np.where(brain_wm_parc.data != 0)
                             brain_wm_parc.data[ind] = 1
                             brain_wm_parc.index = [1]
                             brain_wm_parc.name = ["wm-brain-whitematter"]
                             brain_wm_parc.color = ["#ffffff"]
+<<<<<<< HEAD
                             brain_wm_parc.rearange_parc(offset=2999)
+=======
+                            brain_wm_parc.rearrange_parc(offset=2999)
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                             brain_wm_parc.data[np.where(lh2refill)] = 3000
                             brain_wm_parc.data[np.where(rh2refill)] = 3000
 
@@ -2339,7 +2493,11 @@ class Chimera:
                             if tmp_rh:
                                 rh_wm_parc = copy.deepcopy(ctx_parc)
                                 rh_wm_parc.keep_by_name(names2look=tmp_rh)
+<<<<<<< HEAD
                                 rh_wm_parc.rearange_parc(offset=3000)
+=======
+                                rh_wm_parc.rearrange_parc(offset=3000)
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                             # White Matter for the Left Hemisphere
                             tmp_lh = cltmisc.filter_by_substring(
@@ -2348,12 +2506,20 @@ class Chimera:
                             if tmp_lh:
                                 lh_wm_parc = copy.deepcopy(ctx_parc)
                                 lh_wm_parc.keep_by_name(names2look=tmp_lh)
+<<<<<<< HEAD
                                 lh_wm_parc.rearange_parc(
+=======
+                                lh_wm_parc.rearrange_parc(
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     offset=3000 + nrh_ctx + nrh_subc
                                 )
 
                             # Adding the right cortical parcellation to the final image
+<<<<<<< HEAD
                             rh_ctx_parc.rearange_parc()
+=======
+                            rh_ctx_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                             chim_parc.add_parcellation(rh_ctx_parc, append=True)
                             del rh_ctx_parc
 
@@ -2362,7 +2528,11 @@ class Chimera:
                                 chim_parc.add_parcellation(rh_parc, append=True)
 
                             # Adding the left cortical parcellation to the final image
+<<<<<<< HEAD
                             lh_ctx_parc.rearange_parc()
+=======
+                            lh_ctx_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                             chim_parc.add_parcellation(lh_ctx_parc, append=True)
                             del lh_ctx_parc
 
@@ -2449,17 +2619,29 @@ class Chimera:
 
                     # Adding the right non-cortical parcellation to the final image
                     if "rh_parc" in locals():
+<<<<<<< HEAD
                         rh_parc.rearange_parc()
+=======
+                        rh_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(rh_parc, append=True)
 
                     # Adding the left non-cortical parcellation to the final image
                     if "lh_parc" in locals():
+<<<<<<< HEAD
                         lh_parc.rearange_parc()
+=======
+                        lh_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(lh_parc, append=True)
 
                     # Adding the regions that do not belong to any hemisphere to the final image
                     if "mid_parc" in locals():
+<<<<<<< HEAD
                         mid_parc.rearange_parc()
+=======
+                        mid_parc.rearrange_parc()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(mid_parc, append=True)
 
                     # Saving the FINAL parcellation
@@ -2996,7 +3178,11 @@ def _build_args_parser():
                     bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC
                 )
             )
+<<<<<<< HEAD
             print_availab_parcels()
+=======
+            _print_availab_parcels()
+>>>>>>> 84a88a1 (Reformatting and some minor changes)
             sys.exit()
 
         elif args.bidsdir is None or args.parcodes is None:
