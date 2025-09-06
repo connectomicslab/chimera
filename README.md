@@ -7,8 +7,8 @@ This repository contains the source code and atlases needed by <b>Chimera</b>.
 
 ### Parcellations fusion
 <p align="justify">
-Chimera defines nine different supra-regions (cortex, basal ganglia, thalamus, amygdala, hippocampus, hypothalamus, cerebellum, brainstem and white-matter). Basal ganglia includes only the regions that are not labeled as supra-regions. Subdivisions in each supra-region will be populated with the parcellation information of a single source. The available parcellation sources per supra-region, as well as one corresponding parcellation name, and a one-character unique identifier are configured in a JSON (JavaScript Object Notation) file. <br>
-<b>Chimera code</b>: A sequence of nine one-character identifiers (one per each supra-region) unambiguosly denotes a single instance of combined parcellation (Figure. 1B). Given the sequence of nine identifier characters, Chimera selects the atlas and/or applies the corresponding methodology to obtain the parcellation for each supra-region. These supra-region-specific parcellations are finally integrated to obtain the combined volumetric parcellation for each input subject, as well as its corresponding tab-separated values table of labels, region names, and rendering colors for visualization.
+Chimera defines ten different supra-regions (cortex, basal ganglia, thalamus, amygdala, hippocampus, hypothalamus, cerebellum, brainstem, gyral white matter, and white-matter). Basal ganglia includes only the regions that are not labeled as supra-regions. Subdivisions in each supra-region will be populated with the parcellation information of a single source. The available parcellation sources per supra-region, as well as one corresponding parcellation name, and a one-character unique identifier are configured in a JSON (JavaScript Object Notation) file. <br>
+<b>Chimera code</b>: A sequence of ten one-character identifiers (one per each supra-region) unambiguosly denotes a single instance of combined parcellation (Figure. 1B). Given the sequence of ten identifier characters, Chimera selects the atlas and/or applies the corresponding methodology to obtain the parcellation for each supra-region. These supra-region-specific parcellations are finally integrated to obtain the combined volumetric parcellation for each input subject, as well as its corresponding tab-separated values table of labels, region names, and rendering colors for visualization.
 Chimera uses FreeSurfer to map cortical templates from fsaverage to individual space. It also applies different methods to obtain the hippocampal subfields and brainstem parcellations as well as the thalamic, amygdala and hypothalamic nuclei segmentations. FIRST and ANTs are also used for segmenting subcortical structures and thalamic nuclei respectively.
 </p>
 
@@ -29,8 +29,8 @@ Brief description of input options:
 | ---------- | ------ |
 | `--regions`, `-r` | List available parcellations for each supra-region.|
 | `--bidsdir`, `-b` | BIDs dataset folder. Different BIDs directories could be entered separating them by a comma.|
-| `--parcodes`, `-p` | Sequence of nine one-character identifiers (one per each supra-region). |
 | `--derivdir`, `-d` | Derivatives folder. Different directories could be entered separating them by a comma.|
+| `--parcodes`, `-p` | Sequence of ten one-character identifiers (one per each supra-region). |
 | `--freesurferdir`, `-fr` | FreeSurfer subjects dir. If the folder does not exist it will be created.|
 | `--scale`, `-s` | Scale identification. This option should be supplied for multi-resolution cortical parcellations (e.g. Lausanne or Schaeffer). |
 | `--seg`, `-e` | Segmentation identifier. |
