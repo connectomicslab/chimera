@@ -40,6 +40,20 @@ import clabtoolkit.segmentationtools as cltseg
 import clabtoolkit.imagetools as cltimg
 from rich.progress import Progress
 
+from .config_manager import (
+    load_parcellations_info,
+    _set_templateflow_home,
+    _pipeline_info,
+)
+
+from .processing import launch_fsl_first
+
+from .parcellation import (
+    create_extra_regions_parc,
+    _mix_side_prop,
+    _print_availab_parcels,
+)
+
 
 # Define the Chimera class. This class will be used to create and work with Chimera objects
 class Chimera:
@@ -50,10 +64,10 @@ class Chimera:
     ----------
     parc_code : str
         Parcellation code.
-        
+
     parc_dict_file : str
         Parcellation dictionary file.
-        
+
     supra_folder : str
         Folder containing the supraregions TSV files.
 
@@ -66,7 +80,7 @@ class Chimera:
 
     def __init__(
         self,
-        parc_code,
+        parc_code: str,
         scale: Union[str, list] = None,
         seg: Union[str, list] = None,
         parc_dict_file: str = None,
@@ -79,6 +93,7 @@ class Chimera:
         ----------
         parc_code : str
             Parcellation code.
+
         parc_dict_file : str
             Parcellation dictionary file.
         supra_folder : str
@@ -88,8 +103,14 @@ class Chimera:
         -------
         Chimera object
 
+        Notes
+        -----
+        The parcellation code should be a string with the following format:
+        "SFMIHISIFN", where each letter corresponds to a supra-region:
+
         """
 
+        # Detecting the base directory
         chim_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Rise an error if the parcellation code is not provided
@@ -153,11 +174,7 @@ class Chimera:
                         # Detect if the word scale is on any of the strings in parcel_names
                         if [s for s in parcel_names if "scale" in s]:
                             parcel_names = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                                parcel_names, scale_tmp, boolcase=False
-=======
                                 parcel_names, scale_tmp, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                             )
 
                     # Filtering the parcellation names by the segmentation
@@ -175,11 +192,7 @@ class Chimera:
                                 seg_tmp = "_seg-" + seg
 
                         parcel_names = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                            parcel_names, seg_tmp, boolcase=False
-=======
                             parcel_names, seg_tmp, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                     # Saving the new parcels names
@@ -208,11 +221,29 @@ class Chimera:
         This method prepares the templates for the Chimera parcellation.
         Based on the code of the parcellation, it will download the necessary templates
         from the TemplateFlow repository or set up the templates directory for each supra region.
+        It will also create the necessary symlinks to the FreeSurfer directory if the cortical
+        parcellation is selected.
 
         Parameters
         ----------
         fssubj_dir : str
             FreeSurfer directory.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The FreeSurfer directory should be set up before running this method.
+        The FreeSurfer directory should contain the subject used as reference for the cortical parcellation.
+
+
+        Examples
+        --------
+        >>> chim = Chimera(parc_code="SFMIHISIFN", scale="100", seg="7n")
+        >>> chim.prepare_templates(fssubj_dir="/path/to/freesurfer/subjects/fsaverage")
+
 
         """
 
@@ -285,17 +316,10 @@ class Chimera:
 
                     # Select the files that contain the atlas names
                     ctx_parc_lh = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                        ctx_parc_lh, atlas_names, boolcase=False
-                    )
-                    ctx_parc_rh = cltmisc.filter_by_substring(
-                        ctx_parc_rh, atlas_names, boolcase=False
-=======
                         ctx_parc_lh, atlas_names, bool_case=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
@@ -385,17 +409,10 @@ class Chimera:
 
                     # Filtering for selecting the correct cortical parcellation
                     ctx_parc_lh = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                        ctx_parc_lh, atlas_names, boolcase=False
-                    )
-                    ctx_parc_rh = cltmisc.filter_by_substring(
-                        ctx_parc_rh, atlas_names, boolcase=False
-=======
                         ctx_parc_lh, atlas_names, bool_case=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, atlas_names, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
                     ctx_parc_lh.sort()
                     ctx_parc_rh.sort()
@@ -609,17 +626,10 @@ class Chimera:
 
                     # Select the files that contain the atlas names
                     ctx_parc_lh = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                        ctx_parc_lh, atlas_names, boolcase=False
-                    )
-                    ctx_parc_rh = cltmisc.filter_by_substring(
-                        ctx_parc_rh, atlas_names, boolcase=False
-=======
                         ctx_parc_lh, or_filter=atlas_names, bool_case=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, or_filter=atlas_names, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
 
                 elif atlas_src == "local":
@@ -637,17 +647,10 @@ class Chimera:
 
                     # Filtering for selecting the correct cortical parcellation
                     ctx_parc_lh = cltmisc.filter_by_substring(
-<<<<<<< HEAD
-                        ctx_parc_lh, atlas_names, boolcase=False
-                    )
-                    ctx_parc_rh = cltmisc.filter_by_substring(
-                        ctx_parc_rh, atlas_names, boolcase=False
-=======
                         ctx_parc_lh, or_filter=atlas_names, bool_case=False
                     )
                     ctx_parc_rh = cltmisc.filter_by_substring(
                         ctx_parc_rh, or_filter=atlas_names, bool_case=False
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                     )
 
             else:
@@ -1029,16 +1032,29 @@ class Chimera:
 
         Parameters
         ----------
+        t1 : str
+            T1-weighted image in the BIDs format.
+
         bids_dir : str
             BIDs dataset directory.
 
         deriv_dir : str
             BIDs derivative directory.
 
-            fssub
+        fssubj_dir : str
+            FreeSurfer subjects directory. If not provided, the environment variable FREESURFER_HOME
+            will be used.
 
         growwm : str or int
             Grow of GM labels inside the white matter in mm.
+            If None, no growing will be applied.
+            If "0", no growing will be applied.
+            If int, the value of growing in mm.
+            If a list of int, the values of growing in mm.
+
+        bool_mixwm : bool
+            If True, the growing will be applied to the voxels that are in contact with the white matter
+            and they will mix with the cortical labels.
 
         force : bool
             Overwrite the results.
@@ -1170,13 +1186,9 @@ class Chimera:
                             or not os.path.isfile(chim_parc_tsv)
                             or force
                         ):
-<<<<<<< HEAD
-                            bool_chim_exist = False
-=======
                             bool_chim_exist = bool_chim_exist & False
                         else:
                             bool_chim_exist = bool_chim_exist & True
->>>>>>> 84a88a1 (Reformatting and some minor changes)
 
             else:
                 out_vol_name = fullid + "_dseg.nii.gz"
@@ -1200,13 +1212,9 @@ class Chimera:
                     or not os.path.isfile(chim_parc_tsv)
                     or force
                 ):
-<<<<<<< HEAD
-                    bool_chim_exist = False
-=======
                     bool_chim_exist = bool_chim_exist & False
                 else:
                     bool_chim_exist = bool_chim_exist & True
->>>>>>> 84a88a1 (Reformatting and some minor changes)
 
         # ------- End of veryfing the existence of the parcellations, otherwise, compute them  --------- #
 
@@ -1218,10 +1226,7 @@ class Chimera:
                 cont_tech = pipe_dict["packages"]["freesurfer"]["cont_tech"]
                 cont_image = pipe_dict["packages"]["freesurfer"]["container"]
 
-<<<<<<< HEAD
-=======
                 # Detecting the FreeSurfer home directory using the container
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                 cmd_bashargs = ["echo", "$FREESURFER_HOME"]
                 cmd_cont = cltmisc.generate_container_command(
                     cmd_bashargs, cont_tech, cont_image
@@ -1232,10 +1237,7 @@ class Chimera:
                 fslut_file_cont = os.path.join(
                     out_cmd.stdout.split("\n")[0], "FreeSurferColorLUT.txt"
                 )
-<<<<<<< HEAD
-=======
 
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                 tmp_name = str(uuid.uuid4())
                 cmd_bashargs = ["cp", "replace_cad", "/tmp/" + tmp_name]
                 cmd_cont = cltmisc.generate_container_command(
@@ -1272,10 +1274,7 @@ class Chimera:
 
             cont_tech_freesurfer = pipe_dict["packages"]["freesurfer"]["cont_tech"]
             cont_image_freesurfer = pipe_dict["packages"]["freesurfer"]["container"]
-<<<<<<< HEAD
-=======
             freesurfer_license_file = pipe_dict["packages"]["freesurfer"]["license"]
->>>>>>> 84a88a1 (Reformatting and some minor changes)
             cont_tech_ants = pipe_dict["packages"]["ants"]["cont_tech"]
             cont_image_ants = pipe_dict["packages"]["ants"]["container"]
             cont_tech_fsl = pipe_dict["packages"]["fsl"]["cont_tech"]
@@ -1287,10 +1286,7 @@ class Chimera:
                 t1w_img=t1,
                 cont_tech=cont_tech_freesurfer,
                 cont_image=cont_image_freesurfer,
-<<<<<<< HEAD
-=======
                 fs_license=freesurfer_license_file,
->>>>>>> 84a88a1 (Reformatting and some minor changes)
             )
 
             nii_image = os.path.join(
@@ -1477,11 +1473,7 @@ class Chimera:
                                 atlas_code
                             ]["lh"]["color"]
                             lh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=self.supra_dict[supra][supra][atlas_code][
-=======
                                 codes2keep=self.supra_dict[supra][supra][atlas_code][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "lh"
                                 ]["index"]
                             )
@@ -1505,11 +1497,7 @@ class Chimera:
                                 atlas_code
                             ]["rh"]["color"]
                             rh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=self.supra_dict[supra][supra][atlas_code][
-=======
                                 codes2keep=self.supra_dict[supra][supra][atlas_code][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "rh"
                                 ]["index"]
                             )
@@ -1568,11 +1556,7 @@ class Chimera:
                             if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                                 lh_supra_parc = copy.deepcopy(tmp_parc)
                                 lh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                    codes2look=self.supra_dict[supra][supra][
-=======
                                     codes2keep=self.supra_dict[supra][supra][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["lh"]["index"]
                                 )
@@ -1581,11 +1565,7 @@ class Chimera:
                             if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                                 rh_supra_parc = copy.deepcopy(tmp_parc)
                                 rh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                    codes2look=self.supra_dict[supra][supra][
-=======
                                     codes2keep=self.supra_dict[supra][supra][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["rh"]["index"]
                                 )
@@ -1597,11 +1577,7 @@ class Chimera:
                             ):
                                 mid_supra_parc = copy.deepcopy(tmp_parc)
                                 mid_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                    codes2look=self.supra_dict[supra][supra][
-=======
                                     codes2keep=self.supra_dict[supra][supra][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                         atlas_code
                                     ]["mid"]["index"]
                                 )
@@ -1651,11 +1627,7 @@ class Chimera:
                                 atlas_code
                             ]["lh"]["color"]
                             lh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=self.supra_dict[supra][supra][atlas_code][
-=======
                                 codes2keep=self.supra_dict[supra][supra][atlas_code][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "lh"
                                 ]["index"]
                             )
@@ -1673,11 +1645,7 @@ class Chimera:
                                 atlas_code
                             ]["rh"]["color"]
                             rh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=self.supra_dict[supra][supra][atlas_code][
-=======
                                 codes2keep=self.supra_dict[supra][supra][atlas_code][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "rh"
                                 ]["index"]
                             )
@@ -1695,11 +1663,7 @@ class Chimera:
                                 atlas_code
                             ]["mid"]["color"]
                             mid_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=self.supra_dict[supra][supra][atlas_code][
-=======
                                 codes2keep=self.supra_dict[supra][supra][atlas_code][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     "mid"
                                 ]["index"]
                             )
@@ -1750,11 +1714,7 @@ class Chimera:
                     if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc = copy.deepcopy(tmp_parc)
                         lh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["lh"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["lh"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1763,11 +1723,7 @@ class Chimera:
                     if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc = copy.deepcopy(tmp_parc)
                         rh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["rh"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["rh"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1776,11 +1732,7 @@ class Chimera:
                     if "mid" in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
                         mid_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["mid"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["mid"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -1893,11 +1845,7 @@ class Chimera:
                                 )
                                 files2del.append(tmp_par_file)
 
-<<<<<<< HEAD
-                                tmp_parc_file = cltseg.spams2maxprob(
-=======
                                 tmp_parc_file = cltimg.spams2maxprob(
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     out_parc_spam,
                                     prob_thresh=spam_thresh,
                                     vol_indexes=vol_indexes,
@@ -2071,11 +2019,7 @@ class Chimera:
                     if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                         lh_supra_parc = copy.deepcopy(tmp_parc)
                         lh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["lh"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["lh"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -2084,11 +2028,7 @@ class Chimera:
                     if "rh" in self.supra_dict[supra][supra][atlas_code].keys():
                         rh_supra_parc = copy.deepcopy(tmp_parc)
                         rh_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["rh"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["rh"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
@@ -2097,32 +2037,20 @@ class Chimera:
                     if "mid" in self.supra_dict[supra][supra][atlas_code].keys():
                         mid_supra_parc = copy.deepcopy(tmp_parc)
                         mid_supra_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra][atlas_code]["mid"][
-=======
                             codes2keep=self.supra_dict[supra][supra][atlas_code]["mid"][
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                 "index"
                             ]
                         )
 
                 # Appending the parcellations
                 if "lh_supra_parc" in locals():
-<<<<<<< HEAD
-                    lh_supra_parc.rearange_parc()
-=======
                     lh_supra_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         lh2refill_parc = copy.deepcopy(aseg_parc)
                         lh2refill_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra]["F"]["lh"]["index"]
-=======
                             codes2keep=self.supra_dict[supra][supra]["F"]["lh"]["index"]
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
@@ -2139,21 +2067,13 @@ class Chimera:
                     # lh_parc.save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
 
                 if "rh_supra_parc" in locals():
-<<<<<<< HEAD
-                    rh_supra_parc.rearange_parc()
-=======
                     rh_supra_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
                         rh2refill_parc = copy.deepcopy(aseg_parc)
                         rh2refill_parc.keep_by_code(
-<<<<<<< HEAD
-                            codes2look=self.supra_dict[supra][supra]["F"]["rh"]["index"]
-=======
                             codes2keep=self.supra_dict[supra][supra]["F"]["rh"]["index"]
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         )
 
                         # Find the voxels that are not in the lh_supra_parc and are in the lh2refill
@@ -2170,11 +2090,7 @@ class Chimera:
                     # rh_parc.save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
 
                 if "mid_supra_parc" in locals():
-<<<<<<< HEAD
-                    mid_supra_parc.rearange_parc()
-=======
                     mid_supra_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                     mid_parc.add_parcellation(mid_supra_parc, append=True)
                     del mid_supra_parc
 
@@ -2467,22 +2383,14 @@ class Chimera:
                             # Detect the global White Matter
                             brain_wm_parc = copy.deepcopy(ctx_parc)
                             brain_wm_parc.keep_by_code(
-<<<<<<< HEAD
-                                codes2look=[2, 41, 5001, 5002, 7, 46]
-=======
                                 codes2keep=[2, 41, 5001, 5002, 7, 46]
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                             )
                             ind = np.where(brain_wm_parc.data != 0)
                             brain_wm_parc.data[ind] = 1
                             brain_wm_parc.index = [1]
                             brain_wm_parc.name = ["wm-brain-whitematter"]
                             brain_wm_parc.color = ["#ffffff"]
-<<<<<<< HEAD
-                            brain_wm_parc.rearange_parc(offset=2999)
-=======
                             brain_wm_parc.rearrange_parc(offset=2999)
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                             brain_wm_parc.data[np.where(lh2refill)] = 3000
                             brain_wm_parc.data[np.where(rh2refill)] = 3000
 
@@ -2493,11 +2401,7 @@ class Chimera:
                             if tmp_rh:
                                 rh_wm_parc = copy.deepcopy(ctx_parc)
                                 rh_wm_parc.keep_by_name(names2look=tmp_rh)
-<<<<<<< HEAD
-                                rh_wm_parc.rearange_parc(offset=3000)
-=======
                                 rh_wm_parc.rearrange_parc(offset=3000)
->>>>>>> 84a88a1 (Reformatting and some minor changes)
 
                             # White Matter for the Left Hemisphere
                             tmp_lh = cltmisc.filter_by_substring(
@@ -2506,20 +2410,12 @@ class Chimera:
                             if tmp_lh:
                                 lh_wm_parc = copy.deepcopy(ctx_parc)
                                 lh_wm_parc.keep_by_name(names2look=tmp_lh)
-<<<<<<< HEAD
-                                lh_wm_parc.rearange_parc(
-=======
                                 lh_wm_parc.rearrange_parc(
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                                     offset=3000 + nrh_ctx + nrh_subc
                                 )
 
                             # Adding the right cortical parcellation to the final image
-<<<<<<< HEAD
-                            rh_ctx_parc.rearange_parc()
-=======
                             rh_ctx_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                             chim_parc.add_parcellation(rh_ctx_parc, append=True)
                             del rh_ctx_parc
 
@@ -2528,11 +2424,7 @@ class Chimera:
                                 chim_parc.add_parcellation(rh_parc, append=True)
 
                             # Adding the left cortical parcellation to the final image
-<<<<<<< HEAD
-                            lh_ctx_parc.rearange_parc()
-=======
                             lh_ctx_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                             chim_parc.add_parcellation(lh_ctx_parc, append=True)
                             del lh_ctx_parc
 
@@ -2619,29 +2511,17 @@ class Chimera:
 
                     # Adding the right non-cortical parcellation to the final image
                     if "rh_parc" in locals():
-<<<<<<< HEAD
-                        rh_parc.rearange_parc()
-=======
                         rh_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(rh_parc, append=True)
 
                     # Adding the left non-cortical parcellation to the final image
                     if "lh_parc" in locals():
-<<<<<<< HEAD
-                        lh_parc.rearange_parc()
-=======
                         lh_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(lh_parc, append=True)
 
                     # Adding the regions that do not belong to any hemisphere to the final image
                     if "mid_parc" in locals():
-<<<<<<< HEAD
-                        mid_parc.rearange_parc()
-=======
                         mid_parc.rearrange_parc()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
                         chim_parc.add_parcellation(mid_parc, append=True)
 
                     # Saving the FINAL parcellation
@@ -2655,348 +2535,84 @@ class Chimera:
                     del chim_parc
 
 
-# Loading the JSON file containing the available parcellations
-def _pipeline_info(pipe_json: str = None):
-    """
-    Load the JSON file containing the pipeline configuration.
-
-    Parameters:
-    ----------
-    pipe_json : str
-        JSON file containing the pipeline configuration dictionary.
-
-    Returns:
-    --------
-    pipe_dict : dict
-        Dictionary containing the pipeline information
-
-    """
-    cwd = os.path.dirname(os.path.abspath(__file__))
-
-    # Get the absolute of this file
-    if pipe_json is None:
-
-        pipe_json = os.path.join(cwd, "config", "pipe_config.json")
-    else:
-        if not os.path.isfile(pipe_json):
-            raise ValueError(
-                "Please, provide a valid JSON file containing the pipeline configuration dictionary."
-            )
-
-    with open(pipe_json) as f:
-        pipe_dict = json.load(f)
-
-    return pipe_dict
-
-
-def _set_templateflow_home(tflow_home: str = "local"):
-    """
-    Setting up the templateflow home directory.
-
-    Parameters:
-    ----------
-    tflow_home : str or Path
-        Templatefow home directory.
-
-    Returns:
-    --------
-    updated_tflow_home : str
-        Updated templateflow home directory.
-
-    """
-
-    orig_tflow_home = os.getenv("TEMPLATEFLOW_HOME")
-    if tflow_home != "local":
-        tflow_home = Path(tflow_home)
-        tflow_home.mkdir(parents=True, exist_ok=True)
-
-        if orig_tflow_home is None:
-            if tflow_home.is_dir():
-                updated_tflow_home = str(tflow_home)
-                os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
-                tflow.update()
-        else:
-            if not os.path.samefile(orig_tflow_home, tflow_home):
-                if tflow_home.is_dir():
-                    updated_tflow_home = str(tflow_home)
-                    os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
-                    tflow.update()
-                else:
-                    updated_tflow_home = orig_tflow_home
-    else:
-        updated_tflow_home = orig_tflow_home
-
-    return updated_tflow_home
-
-
-def _mix_side_prop(st_dict: dict, boolsort: bool = True):
-    """
-    Method to mix all the properties for a specific supra-region and a specific method.
-
-    Parameters:
-    ----------
-    st_dict : dict
-        Dictionary containing the properties separated by sides.
-
-    Returns:
-    --------
-    pipe_dict : dict
-        Dictionary containing the pipeline information
-
-    """
-
-    all_index = []
-    all_name = []
-    all_color = []
-    for side in st_dict.keys():
-        all_index = all_index + st_dict[side]["index"]
-        all_name = all_name + st_dict[side]["name"]
-        all_color = all_color + st_dict[side]["color"]
-
-    if boolsort:
-        # Sort the all_index and apply the order to all_name and all_color
-        sort_index = np.argsort(all_index)
-        all_index = [all_index[i] for i in sort_index]
-        all_name = [all_name[i] for i in sort_index]
-        all_color = [all_color[i] for i in sort_index]
-
-    return all_index, all_name, all_color
-
-
-# Loading the JSON file containing the available parcellations
-def load_parcellations_info(parc_json: str = None, supra_folder: str = None):
-    """
-    Load the JSON file containing the available parcellations
-
-    Parameters:
-    ----------
-    parc_json : str
-        JSON file containing the parcellation dictionary.
-
-    supra_folder : str
-        Folder containing the supraregions TSV files.
-
-    Returns:
-    --------
-    parc_dict : dict
-        Dictionary containing the parcellation information
-
-    supra_dict : dict
-        Dictionary containing the supraregions information
-
-    """
-    chim_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Get the absolute of this file
-    if parc_json is None:
-        parc_json = os.path.join(chim_dir, "config", "supraregions_dictionary.json")
-    else:
-        if not os.path.isfile(parc_json):
-            raise ValueError(
-                "Please, provide a valid JSON file containing the parcellation dictionary."
-            )
-
-    with open(parc_json) as f:
-        parc_dict = json.load(f)
-
-    # Read all the tsv files
-    if supra_folder is None:
-        spr_files = glob(os.path.join(chim_dir, "config", "supraregions", "*.tsv"))
-    else:
-        if os.path.isdir(supra_folder):
-            spr_files = glob(os.path.join(supra_folder, "*.tsv"))
-        else:
-            raise ValueError(
-                "Please, provide a valid folder containing the supraregions TSV files."
-            )
-
-    supra_dict = {}
-    for spr in spr_files:
-        spr_name = os.path.basename(spr).split(".")[0]
-        temp_df = pd.read_csv(spr, sep="\t")
-        sp_ids = temp_df["supraregion"].unique().tolist()
-
-        # Create a dictionary for each supraregion
-        supra_dict[spr_name] = {}
-
-        sint_dict = {}  # Create a dictionary for each supraregion
-        for sid in sp_ids:
-
-            # Create a sub dataframe for each supraregion
-            sub_df = temp_df.loc[temp_df["supraregion"] == sid]
-
-            # For each supraregion id get the methods used to parcellate it
-            st_methods = temp_df.loc[temp_df["supraregion"] == sid, "method"].tolist()
-            st_methods = np.unique(st_methods).tolist()
-
-            method_dict = {}  # Create a dictionary for each method
-            for mid in st_methods:
-
-                # Create a sub dataframe for each method
-                sub_df2 = sub_df.loc[sub_df["method"] == mid]
-
-                # Get the hemispheres
-                st_hemi = sub_df2["hemi"].tolist()
-
-                # Get the unique hemispheres
-                st_hemi = np.unique(st_hemi).tolist()
-
-                hemi_dict = {}  # Create a dictionary for each hemisphere
-                for hemi in st_hemi:
-
-                    # Create a sub dataframe for each hemisphere
-                    sub_df3 = sub_df2.loc[sub_df2["hemi"] == hemi]
-
-                    # Get the indexes of the regions
-                    indexes = sub_df3["index"].tolist()
-
-                    # Get the names of the regions
-                    names = sub_df3["name"].tolist()
-
-                    # Get the colors of the regions
-                    colors = sub_df3["color"].tolist()
-
-                    # Create a dictionary for each hemisphere
-                    temp_dict = {"index": indexes, "name": names, "color": colors}
-
-                    # Add the dictionary to the hemi_dict
-                    hemi_dict[hemi] = temp_dict
-
-                # Add the dictionary to the method_dict
-                method_dict[mid] = hemi_dict
-
-            # Add the dictionary to the supra_dict
-            sint_dict[sid] = method_dict
-
-        # Add the dictionary to the supra_dict
-        supra_dict[spr_name] = sint_dict
-
-    return parc_dict, supra_dict
-
-
-def create_extra_regions_parc(aparc: str, offset: int = 5000):
-    """
-    Create a parcellation object containing the extra regions. These parcellations
-    are included in the Aparc+aseg image and include the regions stored in the Axiliary*.tsv files.
-    These files are stored in the config/supraregions folder.
-
-
-    Parameters:
-    ----------
-    aparc : str
-        Aparc+aseg image obrained by FreeSurfer.
-
-    Returns:
-    --------
-    extra_parc : Parcellation object
-        Parcellation object containing the extra regions.
-
-    """
-    chim_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Reading the auxiliary tsv file
-    extra_tsv = glob(os.path.join(chim_dir, "config", "supraregions", "Auxiliary*.tsv"))
-
-    # Reading the tsv file
-    if extra_tsv:
-
-        # Do a loop and read and concatenate all the files
-        for ind, et in enumerate(extra_tsv):
-            temp_df = pd.read_csv(et, sep="\t")
-            # Append pandas dataframes
-            if ind == 0:
-                extra_df = temp_df
-            else:
-                extra_df = extra_df.append(temp_df, ignore_index=True)
-
-    else:
-        raise ValueError("Please, provide a valid auxiliary TSV file.")
-
-    # Reading the Aparc+aseg image
-    aparc_parc = cltparc.Parcellation(parc_file=aparc)
-
-    # Create a dataframe for the left hemisphere
-    lh_df = extra_df.loc[extra_df["hemi"] == "lh"]
-
-    # Sort the dataframe according to the name
-    lh_df = lh_df.sort_values(by="name")
-
-    # Create a dataframe for the right hemisphere
-    rh_df = extra_df.loc[extra_df["hemi"] == "rh"]
-
-    # Sort the dataframe according to the name
-    rh_df = rh_df.sort_values(by="name")
-
-    # Create a dictionary for the structures without hemispheres
-    mid_df = extra_df.loc[extra_df["hemi"] == "mid"]
-
-    # Sort the dataframe according to the name
-    mid_df = mid_df.sort_values(by="name")
-
-    # Create the parcellation for the left hemisphere
-    lh_tmp_parc = copy.deepcopy(aparc_parc)
-    lh_tmp_parc.keep_by_code(codes2keep=lh_df["index"].tolist())
-    lh_tmp_parc.index = lh_df["index"].tolist()
-    lh_tmp_parc.name = lh_df["name"].tolist()
-    lh_tmp_parc.color = lh_df["color"].tolist()
-    lh_tmp_parc.adjust_values()
-    lh_tmp_parc.rearrange_parc()
-
-    # Create the parcellation for the right hemisphere
-    rh_tmp_parc = copy.deepcopy(aparc_parc)
-    rh_tmp_parc.keep_by_code(codes2keep=rh_df["index"].tolist())
-    rh_tmp_parc.index = rh_df["index"].tolist()
-    rh_tmp_parc.name = rh_df["name"].tolist()
-    rh_tmp_parc.color = rh_df["color"].tolist()
-    rh_tmp_parc.adjust_values()
-    rh_tmp_parc.rearrange_parc()
-
-    # Create the parcellation for the structures without hemispheres
-    mid_tmp_parc = copy.deepcopy(aparc_parc)
-    mid_tmp_parc.keep_by_code(codes2keep=mid_df["index"].tolist())
-    mid_tmp_parc.index = mid_df["index"].tolist()
-    mid_tmp_parc.name = mid_df["name"].tolist()
-    mid_tmp_parc.color = mid_df["color"].tolist()
-    mid_tmp_parc.adjust_values()
-    mid_tmp_parc.rearrange_parc()
-
-    # Unify the parcellations
-    rh_tmp_parc.add_parcellation(lh_tmp_parc, append=True)
-    rh_tmp_parc.add_parcellation(mid_tmp_parc, append=True)
-    rh_tmp_parc.rearrange_parc(offset=offset)
-
-    return rh_tmp_parc
-
-
 def _build_args_parser():
 
-    formatter = lambda prog: argparse.HelpFormatter(prog, max_help_position=52)
-
+    class ColoredHelpFormatter(argparse.HelpFormatter):
+        def __init__(self, prog):
+            super().__init__(prog, max_help_position=52, width=100)
+        
+        def _format_action_invocation(self, action):
+            # This method formats the option strings part (e.g. "--bidsdir PATH, -b PATH")
+            if not action.option_strings:
+                return super()._format_action_invocation(action)
+            
+            parts = []
+            for option_string in action.option_strings:
+                if option_string.startswith('--'):
+                    colored_option = f"{bcolors.BOLD}{bcolors.OKBLUE}{option_string}{bcolors.ENDC}"
+                elif option_string.startswith('-'):
+                    colored_option = f"{bcolors.OKYELLOW}{option_string}{bcolors.ENDC}"
+                else:
+                    colored_option = option_string
+                
+                # Add metavar if present
+                if action.metavar:
+                    colored_option += f" {action.metavar}"
+                parts.append(colored_option)
+            
+            return ', '.join(parts)
+        
+        def start_section(self, heading):
+            if heading:
+                if "Required" in heading:
+                    heading = f"{bcolors.BOLD}{bcolors.OKGREEN}═══ {heading.upper()} ═══{bcolors.ENDC}"
+                elif "Optional" in heading:
+                    heading = f"{bcolors.BOLD}{bcolors.DARKCYAN}═══ {heading.upper()} ═══{bcolors.ENDC}"
+                else:
+                    heading = f"{bcolors.BOLD}{heading}{bcolors.ENDC}"
+            super().start_section(heading)
+    
     from argparse import ArgumentParser
+    
+    description = f"""
+{bcolors.BOLD}{bcolors.HEADER}╔══════════════════════════════════════════════════════════════╗{bcolors.ENDC}
+{bcolors.BOLD}{bcolors.HEADER}║                      CHIMERA TOOL                           ║{bcolors.ENDC}
+{bcolors.BOLD}{bcolors.HEADER}║         Brain Parcellation Fusion Framework                 ║{bcolors.ENDC}
+{bcolors.BOLD}{bcolors.HEADER}╚══════════════════════════════════════════════════════════════╝{bcolors.ENDC}
+
+{bcolors.ITALIC}{bcolors.DARKWHITE}Generate custom brain parcellations by combining multiple atlases for different brain regions.{bcolors.ENDC}
+"""
+
+    epilog = f"""
+{bcolors.BOLD}Examples:{bcolors.ENDC}
+  chimera --regions                           # List available parcellations
+  chimera -b /data -p HFMIIIFIFN -d /out -fr /fs  # Basic usage with 10-char code
+
+{bcolors.BOLD}For more information:{bcolors.ENDC}
+  Use --regions to see all available parcellation codes for each brain region.
+"""
 
     p = argparse.ArgumentParser(
-        formatter_class=cltmisc.SmartFormatter, description="\n Help \n"
+        formatter_class=ColoredHelpFormatter, 
+        description=description,
+        epilog=epilog
     )
-
-    requiredNamed = p.add_argument_group("Required arguments")
-    requiredNamed.add_argument(
-        "--regions",
-        "-r",
-        action="store_true",
-        required=False,
-        help="R| List of available parcellations for each supra-region. \n" "\n",
-    )
-
+    
+    # Required arguments group (only the 3 truly required ones)
+    requiredNamed = p.add_argument_group("Required Arguments")
+    
     requiredNamed.add_argument(
         "--bidsdir",
         "-b",
         action="store",
         required=False,
-        metavar="BIDSDIR",
+        metavar="PATH",
         type=str,
         nargs=1,
-        help="R| BIDs dataset folder. \n" "\n",
+        help=f"{bcolors.BOLD}BIDS dataset directory{bcolors.ENDC}\n"
+             f"Path to the Brain Imaging Data Structure (BIDS) dataset folder.\n",
     )
+    
     requiredNamed.add_argument(
         "--parcodes",
         "-p",
@@ -3005,52 +2621,70 @@ def _build_args_parser():
         metavar="CODE",
         type=str,
         nargs=1,
-        help="R| Sequence of nine one-character identifiers (one per each supra-region).\n"
-        " The defined supra-regions are: 1) Cortex, 2) Basal ganglia, 3) Thalamus, \n"
-        " 4) Amygdala, 5) Hippocampus, 6) Hypothalamus, 7) Cerebellum, 8) Brainstem. \n"
-        "\n"
-        "Example: \n"
-        "Parcellation code: HFMIIIFIF.\n"
-        "   1. Cortical parcellation (H): HCP-MMP1 cortical parcellation (Glasser et al, 2016).\n"
-        "   2. Basal ganglia parcellation (F): FreeSurfer subcortical parcellation (Fischl et al, 2002).\n"
-        "   3. Thalamic parcellation (M): Atlas-based thalamic parcellation (Najdenovska et al, 2018).\n"
-        "   4. Amygdala parcellation (I): Amygdala nuclei parcellation (Saygin et al, 2017).\n"
-        "   5. Hippocampus parcellation (I): Hippocampus subfield parcellation (Iglesias et al, 2015).\n"
-        "   6. Hypothalamus parcellation (I): Hypothalamus parcellation (Billot et al, 2020).\n"
-        "   7. Cerebellum parcellation (F): Default FreeSurfer cerebellum segmentation.\n"
-        "   8. Brainstem parcellation (I): Brainstem parcellation (Iglesias et al, 2015).\n"
-        "   9. Gyral White Matter parcellation (F): WM parcellation according to the selected cortical parcellation.\n"
-        "\n"
-        "Use the --regions or -r options to show all the available parcellations for eact supra-region.\n"
-        "\n",
+        help=f"{bcolors.BOLD}Parcellation code sequence{bcolors.ENDC}\n"
+             f"10-character string identifying parcellation for each brain region:\n"
+             f"  {bcolors.OKYELLOW}1) Cortex, 2) Basal ganglia, 3) Thalamus, 4) Amygdala, 5) Hippocampus{bcolors.ENDC}\n"
+             f"  {bcolors.OKYELLOW}6) Hypothalamus, 7) Cerebellum, 8) Brainstem, 9) Gyral WM, 10) WM{bcolors.ENDC}\n\n"
+             f"{bcolors.UNDERLINE}Example:{bcolors.ENDC} HFMIIIFIFN\n"
+             f"Use {bcolors.OKGREEN}--regions{bcolors.ENDC} to see all available codes.\n",
     )
-
+    
     requiredNamed.add_argument(
+        "--subjids",
+        "-ids",
+        action="store",
+        required=False,
+        metavar="IDS",
+        type=str,
+        nargs=1,
+        help=f"{bcolors.BOLD}Subject identifiers{bcolors.ENDC}\n"
+             f"Comma-separated subject IDs or path to text file with IDs.\n"
+             f"{bcolors.ITALIC}Example file format:{bcolors.ENDC}\n"
+             f"  sub-00001_ses-0001_run-2\n"
+             f"  sub-00001_ses-0003_run-1\n",
+        default=None,
+    )
+    
+    # Optional arguments group  
+    optionalNamed = p.add_argument_group("Optional Arguments")
+    
+    optionalNamed.add_argument(
+        "--regions",
+        "-r",
+        action="store_true",
+        required=False,
+        help=f"{bcolors.BOLD}List available parcellations{bcolors.ENDC}\n"
+             f"Display all parcellation options for each brain region.\n",
+    )
+    
+    optionalNamed.add_argument(
         "--derivdir",
         "-d",
         action="store",
         required=False,
-        metavar="DERIVDIR",
+        metavar="PATH",
         type=str,
         nargs=1,
-        help="R| Folder containing the derivatives. If the folder does not exist it will be created \n"
-        " If this option is not supplied the derivatives folder will be created inside the BIDs folder. \n"
-        "\n",
+        help=f"{bcolors.BOLD}Derivatives directory{bcolors.ENDC}\n"
+             f"Output folder for results. Created if it doesn't exist.\n"
+             f"If not specified, creates 'derivatives' inside BIDS directory.\n",
         default=None,
     )
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--freesurferdir",
         "-fr",
         action="store",
         required=False,
-        metavar="FREESURFERDIR",
+        metavar="PATH",
         type=str,
         nargs=1,
-        help="R| FreeSurfer subjects dir. If the folder does not exist it will be created. \n"
-        "\n",
+        help=f"{bcolors.BOLD}FreeSurfer subjects directory{bcolors.ENDC}\n"
+             f"Path to FreeSurfer SUBJECTS_DIR. Created if it doesn't exist.\n",
         default=None,
     )
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--scale",
         "-s",
         action="store",
@@ -3058,13 +2692,13 @@ def _build_args_parser():
         metavar="SCALE",
         type=str,
         nargs=1,
-        help="R| Scale identification.\n"
-        " This option should be supplied for multi-resolution cortical parcellations (e.g. Lausanne or Schaeffer). \n"
-        " If the scale is not specified. The parcellations will be generated for all the scales. \n"
-        "\n",
+        help=f"{bcolors.BOLD}Scale identifier{bcolors.ENDC}\n"
+             f"Required for multi-resolution parcellations (e.g., Lausanne, Schaefer).\n"
+             f"If not specified, generates all available scales.\n",
         default=None,
     )
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--seg",
         "-e",
         action="store",
@@ -3072,92 +2706,81 @@ def _build_args_parser():
         metavar="SEG",
         type=str,
         nargs=1,
-        help="R| Segmentation identifier.\n"
-        " This option should be supplied when a cortical parcellation have different versions (e.g. Shaeffer \n"
-        " parcellation contains two different versions for the same scale: 7n and kong7n ) \n"
-        "\n",
+        help=f"{bcolors.BOLD}Segmentation identifier{bcolors.ENDC}\n"
+             f"Required when parcellations have multiple versions\n"
+             f"(e.g., Schaefer: '7n' vs 'kong7n').\n",
         default=None,
     )
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--nthreads",
         "-n",
         action="store",
         required=False,
-        metavar="NTHREADS",
+        metavar="N",
         type=str,
         nargs=1,
-        help="R| Number of processes to run in parallel (default= 1). \n",
+        help=f"{bcolors.BOLD}Number of parallel processes{bcolors.ENDC}\n"
+             f"Number of subjects to process simultaneously (default: 1).\n",
         default=["1"],
     )
-
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--growwm",
         "-g",
         action="store",
         required=False,
-        metavar="GROWWM",
+        metavar="MM",
         type=str,
         nargs=1,
-        help="R| Grow of GM labels inside the white matter in mm. \n",
+        help=f"{bcolors.BOLD}White matter growth{bcolors.ENDC}\n"
+             f"Expand gray matter labels into white matter (in mm).\n"
+             f"Multiple values can be comma-separated.\n",
         default=None,
     )
-
-    requiredNamed.add_argument(
-        "--subjids",
-        "-ids",
+    
+    optionalNamed.add_argument(
+        "--config",
+        "-c",
         action="store",
         required=False,
         metavar="FILE",
         type=str,
         nargs=1,
-        help="R| Subject IDs. Multiple subject ids can be specified separating them by a comma. \n"
-        " The ID should be the basename of the T1-weighted image that will be ran. \n"
-        " A txt file containing the IDs can be also used. \n"
-        " Example of this file: \n"
-        "   sub-00001_ses-0001_run-2 \n"
-        "   sub-00001_ses-0003_run-1\n"
-        "   sub-00001_ses-post_acq-mprage\n"
-        " \n",
+        help=f"{bcolors.BOLD}Pipeline configuration file{bcolors.ENDC}\n"
+             f"Custom configuration file for advanced settings.\n",
         default=None,
     )
-
-    requiredNamed.add_argument(
-        "--config",
-        "-c",
-        action="store",
-        required=False,
-        metavar="PIPECONFIG",
-        type=str,
-        nargs=1,
-        help="R| Pipeline configuration file. \n" " \n",
-        default=None,
-    )
-
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--mergectx",
         "-mctx",
         action="store_true",
         required=False,
-        help="R| Join cortical white matter and cortical gray matter regions. \n" "\n",
+        help=f"{bcolors.BOLD}Merge cortical regions{bcolors.ENDC}\n"
+             f"Combine cortical gray matter and white matter regions.\n",
         default=False,
     )
-
-    requiredNamed.add_argument(
+    
+    optionalNamed.add_argument(
         "--force",
         "-f",
         action="store_true",
         required=False,
-        help="R| Overwrite the results. \n" "\n",
+        help=f"{bcolors.BOLD}Force overwrite{bcolors.ENDC}\n"
+             f"Overwrite existing results without prompting.\n",
     )
-
-    p.add_argument(
+    
+    optionalNamed.add_argument(
         "--verbose",
         "-v",
         action="store",
         required=False,
         type=int,
         nargs=1,
-        help="verbosity level: 1=low; 2=debug",
+        metavar="LEVEL",
+        help=f"{bcolors.BOLD}Verbosity level{bcolors.ENDC}\n"
+             f"0=quiet, 1=normal, 2=debug (default: 0).\n",
     )
 
     args = p.parse_args()
@@ -3178,11 +2801,7 @@ def _build_args_parser():
                     bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC
                 )
             )
-<<<<<<< HEAD
-            print_availab_parcels()
-=======
             _print_availab_parcels()
->>>>>>> 84a88a1 (Reformatting and some minor changes)
             sys.exit()
 
         elif args.bidsdir is None or args.parcodes is None:
@@ -3405,156 +3024,6 @@ def _build_args_parser():
                 print(" ")
 
     return p
-
-
-def launch_fsl_first(
-    t1: str,
-    first_parc: str,
-    cont_tech: str = "local",
-    cont_image: str = None,
-    force=False,
-):
-    """
-    This function executes the FIRST subcortical parcellation.
-
-    Parameters:
-    ----------
-    t1 : str
-        T1-weighted image filename.
-
-    first_parc : str
-        Ouput name for the resulting parcellation.
-
-    cont_tech : str
-        Container technology (e.g. singularity, docker or local).
-
-    cont_image : str
-        Container image.
-
-    force : bool
-        Overwrite the results.
-
-    Returns:
-    --------
-
-    """
-    fsl_outdir = os.path.dirname(first_parc)
-
-    if not os.path.isfile(first_parc) or force:
-        fsl_outdir = Path(fsl_outdir)
-        fsl_outdir.mkdir(parents=True, exist_ok=True)
-
-        cmd_bashargs = [
-            "run_first_all",
-            "-i",
-            t1,
-            "-o",
-            str(fsl_outdir) + os.path.sep + "temp",
-        ]
-        cmd_cont = cltmisc.generate_container_command(
-            cmd_bashargs, cont_tech, cont_image
-        )  # Generating container command
-        subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
-        )  # Running container command
-
-        cmd_bashargs = [
-            "mv",
-            os.path.join(str(fsl_outdir), "temp_all_fast_firstseg.nii.gz"),
-            first_parc,
-        ]
-        cmd_cont = cltmisc.generate_container_command(
-            cmd_bashargs, cont_tech, cont_image
-        )  # Generating container command
-        subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
-        )  # Running container command
-
-        cmd_bashargs = ["rm", "-rf", "temp*"]
-        cmd_cont = cltmisc.generate_container_command(
-            cmd_bashargs, cont_tech, cont_image
-        )  # Generating container command
-        subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
-        )  # Running container command
-
-
-def _print_availab_parcels(reg_name=None):
-    """
-    Print the available parcellations for each supra-region.
-
-    Parameters:
-    ----------
-    reg_name : str
-        Supra-region name. Default is None.
-
-    Returns:
-    --------
-
-    """
-
-    data, supra_dict = load_parcellations_info()
-
-    if reg_name is None:
-        supra_keys = data.keys()
-        parc_help = ""
-        for sup in supra_keys:
-            parc_opts = data[sup]
-            parc_help = '{} "{}:\n"'.format(parc_help, sup)
-            print(
-                "{}{}{}{}{}: ".format(
-                    bcolors.BOLD, bcolors.DARKCYAN, sup, bcolors.ENDC, bcolors.ENDC
-                )
-            )
-
-            for opts in parc_opts:
-                desc = data[sup][opts]["name"]
-                cita = data[sup][opts]["citation"]
-                parc_help = '{} "{}: {} {}\n"'.format(parc_help, opts, desc, cita)
-                print(
-                    "{}     {}{}: {}{}{}{}{} {}{}{}".format(
-                        bcolors.OKGREEN,
-                        opts,
-                        bcolors.ENDC,
-                        bcolors.ITALIC,
-                        bcolors.DARKWHITE,
-                        desc,
-                        bcolors.ENDC,
-                        bcolors.ENDC,
-                        bcolors.OKYELLOW,
-                        cita,
-                        bcolors.ENDC,
-                    )
-                )
-            print("")
-    else:
-        parc_opts = data[reg_name]
-        print("\n")
-        print(
-            "{}{}{}{}{}: ".format(
-                bcolors.BOLD, bcolors.DARKCYAN, reg_name, bcolors.ENDC, bcolors.ENDC
-            )
-        )
-
-        for opts in parc_opts:
-            desc = data[reg_name][opts]["name"]
-            cita = data[reg_name][opts]["citation"]
-            print(
-                "{}     {}{}: {}{}{}{}{} {}{}{}".format(
-                    bcolors.OKGREEN,
-                    opts,
-                    bcolors.ENDC,
-                    bcolors.ITALIC,
-                    bcolors.DARKWHITE,
-                    desc,
-                    bcolors.ENDC,
-                    bcolors.ENDC,
-                    bcolors.OKYELLOW,
-                    cita,
-                    bcolors.ENDC,
-                )
-            )
-        print("")
 
 
 # simple progress indicator callback function
