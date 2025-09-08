@@ -49,6 +49,7 @@ docs = [
     "sphinx>=4.0",
     "sphinx-rtd-theme>=1.0",
     "sphinx-autodoc-typehints>=1.12",
+    "m2r2>=0.3.0",
 ]
 
 [project.scripts]
@@ -132,3 +133,18 @@ addopts = "-ra -q --strict-markers --strict-config"
 testpaths = [
     "tests",
 ]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
+
+[[tool.bumpversion.files]]
+filename = "chimera/__init__.py"
+search = "__version__ = \"{current_version}\""
+replace = "__version__ = \"{new_version}\""
