@@ -1,5 +1,5 @@
 Welcome to CHIMERA: An open source framework for combining multiple parcellations's documentation!
-======================================
+======================================================================================================
 
 .. toctree::
    :maxdepth: 2
@@ -7,7 +7,10 @@ Welcome to CHIMERA: An open source framework for combining multiple parcellation
 
    readme
    installation
+   quickstart
    usage
+   tutorials
+   api
    modules
    contributing
    authors
