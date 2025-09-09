@@ -12,7 +12,7 @@ To install Chimera, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install chimera
+    $ pip install chimera-brainparcellation
 
 Alternatively, you can install directly from GitHub for the latest development version:
 

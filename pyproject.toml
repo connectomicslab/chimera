@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chimera"
+name = "chimera-brainparcellation"
 version = "0.2.1"
 description = "An open source framework for combining multiple parcellations of the human brain"
 readme = "README.md"

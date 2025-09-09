@@ -21,7 +21,7 @@ Install Chimera using pip:
 
 .. code-block:: bash
 
-   pip install chimera
+   pip install chimera-brainparcellation
 
 Or install from source:
 

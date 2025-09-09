@@ -56,7 +56,27 @@ Required Python Packages
 
 ## Installation
 
-To install all required external packages:
+### Install from PyPI (Recommended)
+
+The easiest way to install CHIMERA is using pip:
+
+```bash
+pip install chimera-brainparcellation
+```
+
+This will automatically install all required dependencies including:
+- pandas
+- pybids  
+- numpy
+- nibabel
+- rich
+- scipy
+- templateflow
+- clabtoolkit
+
+### Manual Installation
+
+Alternatively, you can install all required external packages manually:
 
 ```bash
 pip install pandas pybids numpy nibabel rich scipy templateflow clabtoolkit
