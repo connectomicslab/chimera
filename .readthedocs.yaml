@@ -10,10 +10,10 @@ build:
     python: "3.11"
     # You can also specify other tools here, like Node.js, Ruby, etc.
 
-# Build documentation in the root directory with Sphinx
+# Build documentation in the docs directory with Sphinx
 sphinx:
   builder: html
-  configuration: conf.py
+  configuration: docs/conf.py
   fail_on_warning: false
 
 # Optionally build your docs in additional formats such as PDF and ePub
