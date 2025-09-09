@@ -373,7 +373,7 @@
                   "reference":"SUIT",
                   "parcels":"custom",
                   "mask":"aparc+aseg",
-                  "type":"maxprob",
+                  "type":"spam",
                   "probthresh":0.05,
                   "deriv_volfold":"abased-suitcerebellum"}
       },
