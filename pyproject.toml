@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "An open source framework for combining multiple parcellations of the human brain"
 readme = "README.md"
 authors = [
-    {name = "Yasser Aleman Gomez", email = "yasseraleman@gmail.com"}
+    {name = "Yasser Aleman Gomez", email = "yasseraleman@protonmail.com"}
 ]
 license = {text = "Apache-2.0"}
 classifiers = [
