@@ -1,15 +1,10 @@
-# Documentation requirements - matching environment.yaml
 sphinx==8.2.3
 sphinx-rtd-theme==3.0.2
-
-# Package dependencies needed for documentation build
 numpy>=2.3.0
 pandas>=2.3.0
+scipy>=1.16.0
 nibabel>=5.3.0
 pybids>=0.19.0
-scipy>=1.16.0
 templateflow>=25.0.0
-rich>=14.0.0
-
-# Additional dependencies from environment.yaml
 clabtoolkit>=0.3.4
+rich>=14.0.0
