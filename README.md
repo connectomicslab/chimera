@@ -183,7 +183,7 @@ Example of **t1s.txt** file
 
 #### Parcellations and methodologies for each supra-region
 
-#### 1. Cortical parcellation
+#### 1. Cortical (Supra-region: Cortical)
 
 | Code | Name | Citation | Code | Name | Citation |
 | ---- | ---- | -------- | ---- | ---- | -------- |
@@ -196,21 +196,21 @@ Example of **t1s.txt** file
 | `V`  | vonEconomo | von Economo and Koskinas, 1925 | `X`  | Destrieux | Destrieux et al, 2009 |
 | `Y`  | Yeo | Yeo et al, 2011 | | | |
 
-#### 2. Subcortical parcellation
+#### 2. Subcortical (Supra-region: Subcortical)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
 | `F`  | Aseg | Fischl et al, 2002 |
 | `R`  | FIRST | Patenaude et al, 2011 |
 
-#### 3. Thalamus parcellation
+#### 3. Thalamus (Supra-region: Thalamus)
 
 | Code | Name | Citation | Code | Name | Citation |
 | ---- | ---- | -------- | ---- | ---- | -------- |
 | `F`  | Aseg | Fischl et al, 2002 | `I`  | FSThalParc | Iglesias et al, 2018 |
 | `M`  | MIALThalParc | Najdenovska and Aleman-Gomez et al, 2018 | `R`  | FIRST | Patenaude et al, 2011 |
 
-#### 4. Amygdala parcellation
+#### 4. Amygdala (Supra-region: Amygdala)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
@@ -218,21 +218,21 @@ Example of **t1s.txt** file
 | `I`  | FSAmygHippoParc | Saygin et al, 2017 |
 | `R`  | FIRST | Patenaude et al, 2011 |
 
-#### 5. Hippocampus parcellation
+#### 5. Hippocampus (Supra-region: Hippocampus)
 
 | Code | Name | Citation | Code | Name | Citation |
 | ---- | ---- | -------- | ---- | ---- | -------- |
 | `F`  | Aseg | Fischl et al, 2002 | `I`  | FSAmygHippoParc | Iglesias et al, 2015 |
 | `H`  | HBT | Iglesias et al, 2015 | `R`  | FIRST | Patenaude et al, 2011 |
 
-#### 6. Hypothalamus parcellation
+#### 6. Hypothalamus (Supra-region: Hypothalamus)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
 | `F`  | Aseg | Based on in-house protocol |
 | `I`  | FSHypoThalParc | Billot et al, 2020 |
 
-#### 7. Cerebellum parcellation
+#### 7. Cerebellum (Supra-region: Cerebellum)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
@@ -240,7 +240,7 @@ Example of **t1s.txt** file
 | `F`  | Aseg | Fischl et al, 2002 |
 | `S`  | SUIT | Diedrichsen, J. et al, 2009 |
 
-#### 8. Brainstem parcellation
+#### 8. Brainstem (Supra-region: Brainstem)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
@@ -248,13 +248,13 @@ Example of **t1s.txt** file
 | `I`  | FSBrainStemParc | Iglesias et al, 2015 |
 | `R`  | FIRST | Patenaude et al, 2011 |
 
-#### 9. Gyral white matter parcellation
+#### 9. Gyral White Matter (Supra-region: GyralWM)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
 | `F`  | Cortical | Depends on the cortical parcellation |
 
-#### 10. White matter parcellation
+#### 10. White Matter (Supra-region: WhiteMatter)
 
 | Code | Name | Citation |
 | ---- | ---- | -------- |
