@@ -13,7 +13,7 @@ build:
 # Build documentation with Sphinx
 sphinx:
   builder: html
-  configuration: conf.py
+  configuration: docs/conf.py
   fail_on_warning: false
 
 # Optionally build your docs in additional formats such as PDF and ePub
