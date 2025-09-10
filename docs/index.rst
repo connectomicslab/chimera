@@ -1,17 +1,27 @@
-Welcome to CHIMERA's documentation!
+Welcome to CHIMERA's Documentation!
 ====================================
 
-CHIMERA: An open source framework for combining multiple parcellations of the human brain.
+.. mdinclude:: ../README.md
+
+API Reference
+=============
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: API Documentation:
 
-   installation
-   quickstart
    api
 
-Indices and tables
+Installation Guide
+==================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Installation:
+
+   installation
+
+Indices and Tables
 ==================
 
 * :ref:`genindex`
