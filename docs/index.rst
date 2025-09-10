@@ -1,7 +1,7 @@
 Welcome to CHIMERA's Documentation!
 ====================================
 
-.. mdinclude:: ../README.md
+.. include:: readme.rst
 
 User Guide
 ==========

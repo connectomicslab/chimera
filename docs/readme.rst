@@ -85,6 +85,10 @@ The easiest way to install CHIMERA is using pip:
 
 .. code-block:: bash
 
+    # Create and activate a new conda environment
+    conda env create -f environment.yaml
+    conda activate chimera-env
+
     pip install chimera-brainparcellation
 
 This will automatically install all required dependencies including:

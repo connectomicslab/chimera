@@ -87,59 +87,15 @@ Work with multi-scale parcellations like Lausanne or Schaefer:
     # Lausanne multi-scale (L) with scale specification
     chimera_obj = Chimera(
         parc_code="LFMIIIFIF",  # L = Lausanne cortical parcellation
-        scale=["scale-3"]  # Use scale 3 (250 regions)
+        scale=["3"]  # Use scale 3 
     )
     
     # Schaefer multi-scale (S) with multiple scales
     chimera_obj = Chimera(
         parc_code="SFMIIIFIF",  # S = Schaefer cortical parcellation
-        scale=["Schaefer2018_seg-7n_scale-400"]  # 400 parcels, 7 networks
+        scale=["400"],
+        seg=["7n"]  # 400 parcels, 7 networks
     )
-
-Working with Results
---------------------
-
-Exporting Parcellation Tables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    from chimera import Chimera
-    
-    chimera_obj = Chimera(parc_code="DFMIIIFIF")
-    
-    # Create the parcellation lookup table
-    chimera_obj.create_table()
-    
-    # Export in multiple formats
-    chimera_obj.export_table(
-        out_basename="desikan_parcellation",
-        format=["tsv", "json", "csv"]
-    )
-    
-    # This creates:
-    # - desikan_parcellation.tsv
-    # - desikan_parcellation.json  
-    # - desikan_parcellation.csv
-
-Custom Output Locations
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    import os
-    from chimera import Chimera
-    
-    # Create output directory
-    output_dir = "/results/parcellations"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    chimera_obj = Chimera(parc_code="HFIIIIFIF")  # HCP-MMP1 cortical
-    chimera_obj.create_table()
-    
-    # Export to custom location
-    output_path = os.path.join(output_dir, "hcp_parcellation")
-    chimera_obj.export_table(out_basename=output_path, format="tsv")
 
 Command Line Examples
 ---------------------
