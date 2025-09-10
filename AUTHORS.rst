@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Yasser Aleman Gomez <yasseraleman@gmail.com>
+* Yasser Aleman Gomez <yasseraleman@protonmail.com>
 
 Contributors
 ------------

@@ -12,6 +12,7 @@ User Guide
 
    installation
    quickstart
+   parcellations
    examples
 
 API Documentation
