@@ -275,14 +275,14 @@ Example Parcellation Codes
 
 Here are some example codes and their meanings:
 
-**DFMIIIFIF** (Recommended default):
-  - D: Desikan-Killiany cortical parcellation
+**LFMIIIFIF** (Recommended default):
+  - L: Lausanne multiscale cortical parcellation
   - F: FreeSurfer subcortical structures
   - M: MIAL thalamic nuclei
   - I: FreeSurfer amygdala nuclei
   - I: FreeSurfer hippocampal subfields
   - I: FreeSurfer hypothalamic regions
-  - F: FreeSurfer cerebellum
+  - S: SUIT parcellation for the cerebellum
   - I: FreeSurfer brainstem regions
   - F: Cortical-based gyral white matter
   - F: FreeSurfer white matter
