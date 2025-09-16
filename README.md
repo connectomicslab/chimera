@@ -92,6 +92,12 @@ Alternatively, you can install all required external packages manually:
 ```bash
 pip install pandas pybids numpy nibabel rich scipy templateflow clabtoolkit
 ```
+Or the requirements file (in docs)
+```bash
+git clone https://github.com/connectomicslab/chimera.git
+cd docs
+pip install -r requirements.txt
+```
 
 Or using the yaml file:
 
