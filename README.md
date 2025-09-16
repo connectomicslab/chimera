@@ -83,6 +83,7 @@ This will automatically install all required dependencies including:
 - scipy
 - templateflow
 - clabtoolkit
+- NB: Clabtoolkit requires the dev version as of 20250916
 
 ### Manual Installation
 
@@ -92,10 +93,14 @@ Alternatively, you can install all required external packages manually:
 pip install pandas pybids numpy nibabel rich scipy templateflow clabtoolkit
 ```
 
-Or using a requirements.txt file:
+Or using the yaml file:
 
 ```bash
-pip install -r requirements.txt
+conda env create -f environment.yaml -n chimera --solver=libmamba
+```
+Or on Mac:
+```
+conda env create -f environment-mac.yaml -n chimera --solver=libmamba
 ```
 
 ### requirements.txt content:
