@@ -1,0 +1,34 @@
+name: chimera
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - ipykernel
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - scikit-image
+  - jupyterlab
+  - nibabel
+  - nilearn
+  - dipy
+  - h5py
+  - pillow
+  - seaborn
+  - vtk
+  - pyvista
+  - pingouin
+  - statsmodels
+  - fury           # conda-forge build, avoids vtk conflict
+  - pip:
+      - pybids
+      - templateflow
+      - streamlit
+      - fastapi
+      - uvicorn
+      - altair
+      - alabaster
