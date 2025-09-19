@@ -10,8 +10,9 @@ This repository contains the source code and atlases needed by <b>Chimera</b>.
 Full documentation is available at: **[https://chimera-brainparcellation.readthedocs.io](https://chimera-brainparcellation.readthedocs.io)**
 
 The documentation includes:
+
 - Complete API reference
-- Installation guide  
+- Installation guide
 - Usage examples
 - Parcellation methodology details
 
@@ -75,14 +76,15 @@ pip install chimera-brainparcellation
 ```
 
 This will automatically install all required dependencies including:
+
 - pandas
-- pybids  
+- pybids
 - numpy
 - nibabel
 - rich
 - scipy
 - templateflow
-- clabtoolkit
+- clabtoolkit (NB: Clabtoolkit requires the dev version as of 20250916)
 
 ### Manual Installation
 
@@ -109,6 +111,18 @@ rich
 scipy
 templateflow
 clabtoolkit
+```
+
+Or using the yaml file:
+
+```bash
+conda env create -f environment.yaml -n chimera --solver=libmamba
+```
+
+Or on Mac:
+
+```bash
+conda env create -f environment-mac.yaml -n chimera --solver=libmamba
 ```
 
 Required image processing packages:
@@ -185,81 +199,81 @@ Example of **t1s.txt** file
 
 #### 1. Cortical (Supra-region: Cortical)
 
-| Code | Name | Citation | Code | Name | Citation |
-| ---- | ---- | -------- | ---- | ---- | -------- |
-| `A`  | AALv2 | Rolls et al, 2015 | `B`  | Brainnetome | Fan et al, 2016 |
-| `C`  | Campbell | Campbell, 1905 | `D`  | Desikan-Killiany | Desikan et al, 2006 |
-| `F`  | Flechsig | Flechsig, 1920 | `H`  | HCP-MMP1 | Glasser et al, 2016 |
-| `K`  | Kleist | Kleist, 1934 | `L`  | Lausanne | Symmetric version of Cammoun et al, 2012 |
-| `M`  | Smith | Smith et al, 1907 | `R`  | Broadmann | Broadmann, 1909 |
-| `S`  | Schaefer | Schaefer et al, 2018 | `T`  | Desikan-Killiany-Tourville | Klein and Tourville, 2012 |
-| `V`  | vonEconomo | von Economo and Koskinas, 1925 | `X`  | Destrieux | Destrieux et al, 2009 |
-| `Y`  | Yeo | Yeo et al, 2011 | | | |
+| Code | Name       | Citation                       | Code | Name                       | Citation                                 |
+| ---- | ---------- | ------------------------------ | ---- | -------------------------- | ---------------------------------------- |
+| `A`  | AALv2      | Rolls et al, 2015              | `B`  | Brainnetome                | Fan et al, 2016                          |
+| `C`  | Campbell   | Campbell, 1905                 | `D`  | Desikan-Killiany           | Desikan et al, 2006                      |
+| `F`  | Flechsig   | Flechsig, 1920                 | `H`  | HCP-MMP1                   | Glasser et al, 2016                      |
+| `K`  | Kleist     | Kleist, 1934                   | `L`  | Lausanne                   | Symmetric version of Cammoun et al, 2012 |
+| `M`  | Smith      | Smith et al, 1907              | `R`  | Broadmann                  | Broadmann, 1909                          |
+| `S`  | Schaefer   | Schaefer et al, 2018           | `T`  | Desikan-Killiany-Tourville | Klein and Tourville, 2012                |
+| `V`  | vonEconomo | von Economo and Koskinas, 1925 | `X`  | Destrieux                  | Destrieux et al, 2009                    |
+| `Y`  | Yeo        | Yeo et al, 2011                |      |                            |                                          |
 
 #### 2. Subcortical (Supra-region: Subcortical)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
-| `F`  | Aseg | Fischl et al, 2002 |
+| Code | Name  | Citation              |
+| ---- | ----- | --------------------- |
+| `F`  | Aseg  | Fischl et al, 2002    |
 | `R`  | FIRST | Patenaude et al, 2011 |
 
 #### 3. Thalamus (Supra-region: Thalamus)
 
-| Code | Name | Citation | Code | Name | Citation |
-| ---- | ---- | -------- | ---- | ---- | -------- |
-| `F`  | Aseg | Fischl et al, 2002 | `I`  | FSThalParc | Iglesias et al, 2018 |
-| `M`  | MIALThalParc | Najdenovska and Aleman-Gomez et al, 2018 | `R`  | FIRST | Patenaude et al, 2011 |
+| Code | Name         | Citation                                 | Code | Name       | Citation              |
+| ---- | ------------ | ---------------------------------------- | ---- | ---------- | --------------------- |
+| `F`  | Aseg         | Fischl et al, 2002                       | `I`  | FSThalParc | Iglesias et al, 2018  |
+| `M`  | MIALThalParc | Najdenovska and Aleman-Gomez et al, 2018 | `R`  | FIRST      | Patenaude et al, 2011 |
 
 #### 4. Amygdala (Supra-region: Amygdala)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
-| `F`  | Aseg | Fischl et al, 2002 |
-| `I`  | FSAmygHippoParc | Saygin et al, 2017 |
-| `R`  | FIRST | Patenaude et al, 2011 |
+| Code | Name            | Citation              |
+| ---- | --------------- | --------------------- |
+| `F`  | Aseg            | Fischl et al, 2002    |
+| `I`  | FSAmygHippoParc | Saygin et al, 2017    |
+| `R`  | FIRST           | Patenaude et al, 2011 |
 
 #### 5. Hippocampus (Supra-region: Hippocampus)
 
-| Code | Name | Citation | Code | Name | Citation |
-| ---- | ---- | -------- | ---- | ---- | -------- |
-| `F`  | Aseg | Fischl et al, 2002 | `I`  | FSAmygHippoParc | Iglesias et al, 2015 |
-| `H`  | HBT | Iglesias et al, 2015 | `R`  | FIRST | Patenaude et al, 2011 |
+| Code | Name | Citation             | Code | Name            | Citation              |
+| ---- | ---- | -------------------- | ---- | --------------- | --------------------- |
+| `F`  | Aseg | Fischl et al, 2002   | `I`  | FSAmygHippoParc | Iglesias et al, 2015  |
+| `H`  | HBT  | Iglesias et al, 2015 | `R`  | FIRST           | Patenaude et al, 2011 |
 
 #### 6. Hypothalamus (Supra-region: Hypothalamus)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
-| `F`  | Aseg | Based on in-house protocol |
-| `I`  | FSHypoThalParc | Billot et al, 2020 |
+| Code | Name           | Citation                   |
+| ---- | -------------- | -------------------------- |
+| `F`  | Aseg           | Based on in-house protocol |
+| `I`  | FSHypoThalParc | Billot et al, 2020         |
 
 #### 7. Cerebellum (Supra-region: Cerebellum)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
-| `A`  | AALv2 | Rolls et al, 2015 |
-| `F`  | Aseg | Fischl et al, 2002 |
-| `S`  | SUIT | Diedrichsen, J. et al, 2009 |
+| Code | Name  | Citation                    |
+| ---- | ----- | --------------------------- |
+| `A`  | AALv2 | Rolls et al, 2015           |
+| `F`  | Aseg  | Fischl et al, 2002          |
+| `S`  | SUIT  | Diedrichsen, J. et al, 2009 |
 
 #### 8. Brainstem (Supra-region: Brainstem)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
-| `F`  | Aseg | Fischl et al, 2002 |
-| `I`  | FSBrainStemParc | Iglesias et al, 2015 |
-| `R`  | FIRST | Patenaude et al, 2011 |
+| Code | Name            | Citation              |
+| ---- | --------------- | --------------------- |
+| `F`  | Aseg            | Fischl et al, 2002    |
+| `I`  | FSBrainStemParc | Iglesias et al, 2015  |
+| `R`  | FIRST           | Patenaude et al, 2011 |
 
 #### 9. Gyral White Matter (Supra-region: GyralWM)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
+| Code | Name     | Citation                             |
+| ---- | -------- | ------------------------------------ |
 | `F`  | Cortical | Depends on the cortical parcellation |
 
 #### 10. White Matter (Supra-region: WhiteMatter)
 
-| Code | Name | Citation |
-| ---- | ---- | -------- |
+| Code | Name | Citation           |
+| ---- | ---- | ------------------ |
 | `F`  | Aseg | Fischl et al, 2002 |
-| `J`  | JHU | Hua et al, 2008 |
+| `J`  | JHU  | Hua et al, 2008    |
 
 ##### Results
 
