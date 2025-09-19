@@ -2540,28 +2540,30 @@ def _build_args_parser():
     class ColoredHelpFormatter(argparse.HelpFormatter):
         def __init__(self, prog):
             super().__init__(prog, max_help_position=52, width=100)
-        
+
         def _format_action_invocation(self, action):
             # This method formats the option strings part (e.g. "--bidsdir PATH, -b PATH")
             if not action.option_strings:
                 return super()._format_action_invocation(action)
-            
+
             parts = []
             for option_string in action.option_strings:
-                if option_string.startswith('--'):
-                    colored_option = f"{bcolors.BOLD}{bcolors.OKBLUE}{option_string}{bcolors.ENDC}"
-                elif option_string.startswith('-'):
+                if option_string.startswith("--"):
+                    colored_option = (
+                        f"{bcolors.BOLD}{bcolors.OKBLUE}{option_string}{bcolors.ENDC}"
+                    )
+                elif option_string.startswith("-"):
                     colored_option = f"{bcolors.OKYELLOW}{option_string}{bcolors.ENDC}"
                 else:
                     colored_option = option_string
-                
+
                 # Add metavar if present
                 if action.metavar:
                     colored_option += f" {action.metavar}"
                 parts.append(colored_option)
-            
-            return ', '.join(parts)
-        
+
+            return ", ".join(parts)
+
         def start_section(self, heading):
             if heading:
                 if "Required" in heading:
@@ -2571,9 +2573,9 @@ def _build_args_parser():
                 else:
                     heading = f"{bcolors.BOLD}{heading}{bcolors.ENDC}"
             super().start_section(heading)
-    
+
     from argparse import ArgumentParser
-    
+
     description = f"""
 {bcolors.BOLD}{bcolors.HEADER}╔══════════════════════════════════════════════════════════════╗{bcolors.ENDC}
 {bcolors.BOLD}{bcolors.HEADER}║                      CHIMERA TOOL                           ║{bcolors.ENDC}
@@ -2593,14 +2595,12 @@ def _build_args_parser():
 """
 
     p = argparse.ArgumentParser(
-        formatter_class=ColoredHelpFormatter, 
-        description=description,
-        epilog=epilog
+        formatter_class=ColoredHelpFormatter, description=description, epilog=epilog
     )
-    
+
     # Required arguments group (only the 3 truly required ones)
     requiredNamed = p.add_argument_group("Required Arguments")
-    
+
     requiredNamed.add_argument(
         "--bidsdir",
         "-b",
@@ -2610,9 +2610,9 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}BIDS dataset directory{bcolors.ENDC}\n"
-             f"Path to the Brain Imaging Data Structure (BIDS) dataset folder.\n",
+        f"Path to the Brain Imaging Data Structure (BIDS) dataset folder.\n",
     )
-    
+
     requiredNamed.add_argument(
         "--parcodes",
         "-p",
@@ -2622,13 +2622,13 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Parcellation code sequence{bcolors.ENDC}\n"
-             f"10-character string identifying parcellation for each brain region:\n"
-             f"  {bcolors.OKYELLOW}1) Cortex, 2) Basal ganglia, 3) Thalamus, 4) Amygdala, 5) Hippocampus{bcolors.ENDC}\n"
-             f"  {bcolors.OKYELLOW}6) Hypothalamus, 7) Cerebellum, 8) Brainstem, 9) Gyral WM, 10) WM{bcolors.ENDC}\n\n"
-             f"{bcolors.UNDERLINE}Example:{bcolors.ENDC} HFMIIIFIFN\n"
-             f"Use {bcolors.OKGREEN}--regions{bcolors.ENDC} to see all available codes.\n",
+        f"10-character string identifying parcellation for each brain region:\n"
+        f"  {bcolors.OKYELLOW}1) Cortex, 2) Basal ganglia, 3) Thalamus, 4) Amygdala, 5) Hippocampus{bcolors.ENDC}\n"
+        f"  {bcolors.OKYELLOW}6) Hypothalamus, 7) Cerebellum, 8) Brainstem, 9) Gyral WM, 10) WM{bcolors.ENDC}\n\n"
+        f"{bcolors.UNDERLINE}Example:{bcolors.ENDC} HFMIIIFIFN\n"
+        f"Use {bcolors.OKGREEN}--regions{bcolors.ENDC} to see all available codes.\n",
     )
-    
+
     requiredNamed.add_argument(
         "--subjids",
         "-ids",
@@ -2638,25 +2638,25 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Subject identifiers{bcolors.ENDC}\n"
-             f"Comma-separated subject IDs or path to text file with IDs.\n"
-             f"{bcolors.ITALIC}Example file format:{bcolors.ENDC}\n"
-             f"  sub-00001_ses-0001_run-2\n"
-             f"  sub-00001_ses-0003_run-1\n",
+        f"Comma-separated subject IDs or path to text file with IDs.\n"
+        f"{bcolors.ITALIC}Example file format:{bcolors.ENDC}\n"
+        f"  sub-00001_ses-0001_run-2\n"
+        f"  sub-00001_ses-0003_run-1\n",
         default=None,
     )
-    
-    # Optional arguments group  
+
+    # Optional arguments group
     optionalNamed = p.add_argument_group("Optional Arguments")
-    
+
     optionalNamed.add_argument(
         "--regions",
         "-r",
         action="store_true",
         required=False,
         help=f"{bcolors.BOLD}List available parcellations{bcolors.ENDC}\n"
-             f"Display all parcellation options for each brain region.\n",
+        f"Display all parcellation options for each brain region.\n",
     )
-    
+
     optionalNamed.add_argument(
         "--derivdir",
         "-d",
@@ -2666,11 +2666,11 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Derivatives directory{bcolors.ENDC}\n"
-             f"Output folder for results. Created if it doesn't exist.\n"
-             f"If not specified, creates 'derivatives' inside BIDS directory.\n",
+        f"Output folder for results. Created if it doesn't exist.\n"
+        f"If not specified, creates 'derivatives' inside BIDS directory.\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--freesurferdir",
         "-fr",
@@ -2680,10 +2680,10 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}FreeSurfer subjects directory{bcolors.ENDC}\n"
-             f"Path to FreeSurfer SUBJECTS_DIR. Created if it doesn't exist.\n",
+        f"Path to FreeSurfer SUBJECTS_DIR. Created if it doesn't exist.\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--scale",
         "-s",
@@ -2693,11 +2693,11 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Scale identifier{bcolors.ENDC}\n"
-             f"Required for multi-resolution parcellations (e.g., Lausanne, Schaefer).\n"
-             f"If not specified, generates all available scales.\n",
+        f"Required for multi-resolution parcellations (e.g., Lausanne, Schaefer).\n"
+        f"If not specified, generates all available scales.\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--seg",
         "-e",
@@ -2707,11 +2707,11 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Segmentation identifier{bcolors.ENDC}\n"
-             f"Required when parcellations have multiple versions\n"
-             f"(e.g., Schaefer: '7n' vs 'kong7n').\n",
+        f"Required when parcellations have multiple versions\n"
+        f"(e.g., Schaefer: '7n' vs 'kong7n').\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--nthreads",
         "-n",
@@ -2721,10 +2721,10 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Number of parallel processes{bcolors.ENDC}\n"
-             f"Number of subjects to process simultaneously (default: 1).\n",
+        f"Number of subjects to process simultaneously (default: 1).\n",
         default=["1"],
     )
-    
+
     optionalNamed.add_argument(
         "--growwm",
         "-g",
@@ -2734,11 +2734,11 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}White matter growth{bcolors.ENDC}\n"
-             f"Expand gray matter labels into white matter (in mm).\n"
-             f"Multiple values can be comma-separated.\n",
+        f"Expand gray matter labels into white matter (in mm).\n"
+        f"Multiple values can be comma-separated.\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--config",
         "-c",
@@ -2748,29 +2748,29 @@ def _build_args_parser():
         type=str,
         nargs=1,
         help=f"{bcolors.BOLD}Pipeline configuration file{bcolors.ENDC}\n"
-             f"Custom configuration file for advanced settings.\n",
+        f"Custom configuration file for advanced settings.\n",
         default=None,
     )
-    
+
     optionalNamed.add_argument(
         "--mergectx",
         "-mctx",
         action="store_true",
         required=False,
         help=f"{bcolors.BOLD}Merge cortical regions{bcolors.ENDC}\n"
-             f"Combine cortical gray matter and white matter regions.\n",
+        f"Combine cortical gray matter and white matter regions.\n",
         default=False,
     )
-    
+
     optionalNamed.add_argument(
         "--force",
         "-f",
         action="store_true",
         required=False,
         help=f"{bcolors.BOLD}Force overwrite{bcolors.ENDC}\n"
-             f"Overwrite existing results without prompting.\n",
+        f"Overwrite existing results without prompting.\n",
     )
-    
+
     optionalNamed.add_argument(
         "--verbose",
         "-v",
@@ -2780,7 +2780,7 @@ def _build_args_parser():
         nargs=1,
         metavar="LEVEL",
         help=f"{bcolors.BOLD}Verbosity level{bcolors.ENDC}\n"
-             f"0=quiet, 1=normal, 2=debug (default: 0).\n",
+        f"0=quiet, 1=normal, 2=debug (default: 0).\n",
     )
 
     args = p.parse_args()
