@@ -26,7 +26,6 @@ Thalamus	I	lh	8128	thal-lh-ventral-lateral-anterior	#55aa00
 Thalamus	I	lh	8129	thal-lh-ventral-lateral-posterior	#ffaa00
 Thalamus	I	lh	8130	thal-lh-ventromedial	#55ff00
 Thalamus	I	lh	8133	thal-lh-ventral-posterolateral	#ff00ff
-Thalamus	I	lh	8134	thal-lh-pav	#781286
 Thalamus	M	lh	1	thal-lh-pulvinar	#ff0000
 Thalamus	M	lh	2	thal-lh-ventral-anterior	#00ff00
 Thalamus	M	lh	3	thal-lh-mediodorsal	#ffff00
@@ -62,7 +61,6 @@ Thalamus	I	rh	8228	thal-rh-ventral-lateral-anterior	#55aa00
 Thalamus	I	rh	8229	thal-rh-ventral-lateral-posterior	#ffaa00
 Thalamus	I	rh	8230	thal-rh-ventromedial	#55ff00
 Thalamus	I	rh	8233	thal-rh-ventral-posterolateral	#ff00ff
-Thalamus	I	rh	8234	thal-rh-pav	#781286
 Thalamus	M	rh	8	thal-rh-pulvinar	#ff0000
 Thalamus	M	rh	9	thal-rh-ventral-anterior	#00ff00
 Thalamus	M	rh	10	thal-rh-mediodorsal	#ffff00
