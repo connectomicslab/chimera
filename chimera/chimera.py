@@ -3151,7 +3151,7 @@ def chimera_parcellation(
             )
 
             # Creating the color table
-            chim_obj.create_table()
+            # chim_obj.create_table()
 
             # Configuring and downloading the templates
             chim_obj.prepare_templates(fssubj_dir=fssubj_dir)
