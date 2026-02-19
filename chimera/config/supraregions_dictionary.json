@@ -117,7 +117,7 @@
                   "source": "templateflow",
                   "reference":"fsaverage",
                   "type":"annot",
-                  "parcels":["Schaefer2018_seg-7n_scale-100","Schaefer2018_seg-7n_scale-200","Schaefer2018_seg-7n_scale-300","Schaefer2018_seg-7n_scale-400","Schaefer2018_seg-7n_scale-500","Schaefer2018_seg-7n_scale-600","Schaefer2018_seg-7n_scale-700","Schaefer2018_seg-7n_scale-800","Schaefer2018_seg-7n_scale-900","Schaefer2018_seg-7n_scale-1000","Schaefer2018_seg-17n_scale-100","Schaefer2018_seg-17n_scale-200","Schaefer2018_seg-17n_scale-300","Schaefer2018_seg-17n_scale-400","Schaefer2018_seg-17n_scale-500","Schaefer2018_seg-17n_scale-600","Schaefer2018_seg-17n_scale-700","Schaefer2018_seg-17n_scale-800","Schaefer2018_seg-17n_scale-900","Schaefer2018_seg-17n_scale-1000", "Schaefer2018_seg-kong17n_scale-100","Schaefer2018_seg-kong17n_scale-200","Schaefer2018_seg-kong17n_scale-300","Schaefer2018_seg-kong17n_scale-400","Schaefer2018_seg-kong17n_scale-500","Schaefer2018_seg-kong17n_scale-600","Schaefer2018_seg-kong17n_scale-700","Schaefer2018_seg-kong17n_scale-800","Schaefer2018_seg-kong17n_scale-900","Schaefer2018_seg-kong17n_scale-1000"],
+                  "parcels":["atlas-Schaefer2018_seg-7n_scale-100","atlas-Schaefer2018_seg-7n_scale-200","atlas-Schaefer2018_seg-7n_scale-300","atlas-Schaefer2018_seg-7n_scale-400","atlas-Schaefer2018_seg-7n_scale-500","atlas-Schaefer2018_seg-7n_scale-600","atlas-Schaefer2018_seg-7n_scale-700","atlas-Schaefer2018_seg-7n_scale-800","atlas-Schaefer2018_seg-7n_scale-900","atlas-Schaefer2018_seg-7n_scale-1000","atlas-Schaefer2018_seg-17n_scale-100","atlas-Schaefer2018_seg-17n_scale-200","atlas-Schaefer2018_seg-17n_scale-300","atlas-Schaefer2018_seg-17n_scale-400","atlas-Schaefer2018_seg-17n_scale-500","atlas-Schaefer2018_seg-17n_scale-600","atlas-Schaefer2018_seg-17n_scale-700","atlas-Schaefer2018_seg-17n_scale-800","atlas-Schaefer2018_seg-17n_scale-900","atlas-Schaefer2018_seg-17n_scale-1000", "atlas-Schaefer2018_seg-kong17n_scale-100","atlas-Schaefer2018_seg-kong17n_scale-200","atlas-Schaefer2018_seg-kong17n_scale-300","atlas-Schaefer2018_seg-kong17n_scale-400","atlas-Schaefer2018_seg-kong17n_scale-500","atlas-Schaefer2018_seg-kong17n_scale-600","atlas-Schaefer2018_seg-kong17n_scale-700","atlas-Schaefer2018_seg-kong17n_scale-800","atlas-Schaefer2018_seg-kong17n_scale-900","atlas-Schaefer2018_seg-kong17n_scale-1000"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc"},
 
@@ -161,7 +161,7 @@
                   "source": "local",
                   "reference":"fsaverage",
                   "type":"annot",
-                  "parcels":["Yeo2011_seg-7n","Yeo2011_seg-17n"],
+                  "parcels":["atlas-Yeo2011_seg-7n","Yeo2011_seg-17n"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc"}
       },
