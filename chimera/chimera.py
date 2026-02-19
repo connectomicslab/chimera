@@ -1532,12 +1532,13 @@ class Chimera:
                                     nii_image = mgz_image
 
                             tmp_parc = cltparc.Parcellation(parc_file=nii_image)
-                            index, name, color = _mix_side_prop(
+                            index, name, color, opacity = _mix_side_prop(
                                 self.supra_dict[supra][supra][atlas_code]
                             )
                             tmp_parc.index = index
                             tmp_parc.name = name
                             tmp_parc.color = color
+                            tmp_parc.opacity = opacity
 
                             tmp_parc.export_colortable(
                                 out_file=nii_image.replace(".nii.gz", ".lut"),
