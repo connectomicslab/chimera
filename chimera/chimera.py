@@ -2518,7 +2518,7 @@ class Chimera:
 
                     # Adding the left non-cortical parcellation to the final image
                     if "lh_parc" in locals():
-                        lh_parc.rearrange_parc()
+                        lh_parc.rearrange()
                         chim_parc.add_parcellation(lh_parc, append=True)
 
                     # Adding the regions that do not belong to any hemisphere to the final image
