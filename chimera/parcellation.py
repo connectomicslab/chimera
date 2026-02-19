@@ -117,7 +117,7 @@ def create_extra_regions_parc(aparc: str, offset: int = 5000):
     lh_tmp_parc.name = lh_df["name"].tolist()
     lh_tmp_parc.color = lh_df["color"].tolist()
     lh_tmp_parc.adjust_values()
-    lh_tmp_parc.rearrange_parc()
+    lh_tmp_parc.rearrange()
 
     # Create the parcellation for the right hemisphere
     rh_tmp_parc = copy.deepcopy(aparc_parc)
@@ -126,7 +126,7 @@ def create_extra_regions_parc(aparc: str, offset: int = 5000):
     rh_tmp_parc.name = rh_df["name"].tolist()
     rh_tmp_parc.color = rh_df["color"].tolist()
     rh_tmp_parc.adjust_values()
-    rh_tmp_parc.rearrange_parc()
+    rh_tmp_parc.rearrange()
 
     # Create the parcellation for the structures without hemispheres
     mid_tmp_parc = copy.deepcopy(aparc_parc)
@@ -135,12 +135,12 @@ def create_extra_regions_parc(aparc: str, offset: int = 5000):
     mid_tmp_parc.name = mid_df["name"].tolist()
     mid_tmp_parc.color = mid_df["color"].tolist()
     mid_tmp_parc.adjust_values()
-    mid_tmp_parc.rearrange_parc()
+    mid_tmp_parc.rearrange()
 
     # Unify the parcellations
     rh_tmp_parc.add_parcellation(lh_tmp_parc, append=True)
     rh_tmp_parc.add_parcellation(mid_tmp_parc, append=True)
-    rh_tmp_parc.rearrange_parc(offset=offset)
+    rh_tmp_parc.rearrange(offset=offset)
 
     return rh_tmp_parc
 
