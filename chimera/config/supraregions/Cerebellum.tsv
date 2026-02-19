@@ -1,37 +1,37 @@
-supraregion	method	hemi	index	name	color
-Cerebellum	F	lh	8	cer-lh-cerebellum	#e69422
-Cerebellum	F	rh	47	cer-rh-cerebellum	#e69422
-Cerebellum	S	lh	1	cer-lh-i_iv	#049494
-Cerebellum	S	rh	2	cer-rh-i_iv	#049494
-Cerebellum	S	lh	3	cer-lh-v	#fabe77
-Cerebellum	S	rh	4	cer-rh-v	#fabe77
-Cerebellum	S	lh	5	cer-lh-vi	#a018ce
-Cerebellum	S	mid	6	cer-mid-vermis_vi	#ff5733
-Cerebellum	S	rh	7	cer-rh-vi	#a018ce
-Cerebellum	S	lh	8	cer-lh-crus_i	#34a853
-Cerebellum	S	mid	9	cer-mid-vermis_crus_i	#33ff57
-Cerebellum	S	rh	10	cer-rh-crus_i	#34a853
-Cerebellum	S	lh	11	cer-lh-crus_ii	#dfe6fc
-Cerebellum	S	mid	12	cer-mid-vermis_crus_ii	#5733ff
-Cerebellum	S	rh	13	cer-rh-crus_ii	#dfe6fc
-Cerebellum	S	lh	14	cer-lh-viib	#16394f
-Cerebellum	S	mid	15	cer-mid-vermis_viib	#a3e635
-Cerebellum	S	rh	16	cer-rh-viib	#16394f
-Cerebellum	S	lh	17	cer-lh-viiia	#c3f7e4
-Cerebellum	S	mid	18	cer-mid-vermis_viiia	#a1ff33
-Cerebellum	S	rh	19	cer-rh-viiia	#c3f7e4
-Cerebellum	S	lh	20	cer-lh-viiib	#ffd9b3
-Cerebellum	S	mid	21	cer-mid-vermis_viiib	#ffa533
-Cerebellum	S	rh	22	cer-rh-viiib	#ffd9b3
-Cerebellum	S	lh	23	cer-lh-ix	#ff33a1
-Cerebellum	S	mid	24	cer-mid-vermis_ix	#a3e635
-Cerebellum	S	rh	25	cer-rh-ix	#ff33a1
-Cerebellum	S	lh	26	cer-lh-x	#ffbe0b
-Cerebellum	S	mid	27	cer-mid-vermis_x	#9a031e
-Cerebellum	S	rh	28	cer-rh-x	#ffbe0b
-Cerebellum	S	lh	29	cer-lh-dentate	#4c4c4c
-Cerebellum	S	rh	30	cer-rh-dentate	#4c4c4c
-Cerebellum	S	lh	31	cer-lh-interposed	#7f7f7f
-Cerebellum	S	rh	32	cer-rh-interposed	#7f7f7f
-Cerebellum	S	lh	33	cer-lh-fastigial	#b2b2b2
-Cerebellum	S	rh	34	cer-rh-fastigial	#b2b2b2
+supraregion	method	hemi	index	name	color	opacity
+Cerebellum	F	lh	8	cer-lh-cerebellum	#e69422	1
+Cerebellum	F	rh	47	cer-rh-cerebellum	#e69422	1
+Cerebellum	S	lh	1	cer-lh-i+AF8-iv	#049494	1
+Cerebellum	S	rh	2	cer-rh-i+AF8-iv	#049494	1
+Cerebellum	S	lh	3	cer-lh-v	#fabe77	1
+Cerebellum	S	rh	4	cer-rh-v	#fabe77	1
+Cerebellum	S	lh	5	cer-lh-vi	#a018ce	1
+Cerebellum	S	mid	6	cer-mid-vermis+AF8-vi	#ff5733	1
+Cerebellum	S	rh	7	cer-rh-vi	#a018ce	1
+Cerebellum	S	lh	8	cer-lh-crus+AF8-i	#34a853	1
+Cerebellum	S	mid	9	cer-mid-vermis+AF8-crus+AF8-i	#33ff57	1
+Cerebellum	S	rh	10	cer-rh-crus+AF8-i	#34a853	1
+Cerebellum	S	lh	11	cer-lh-crus+AF8-ii	#dfe6fc	1
+Cerebellum	S	mid	12	cer-mid-vermis+AF8-crus+AF8-ii	#5733ff	1
+Cerebellum	S	rh	13	cer-rh-crus+AF8-ii	#dfe6fc	1
+Cerebellum	S	lh	14	cer-lh-viib	#16394f	1
+Cerebellum	S	mid	15	cer-mid-vermis+AF8-viib	#a3e635	1
+Cerebellum	S	rh	16	cer-rh-viib	#16394f	1
+Cerebellum	S	lh	17	cer-lh-viiia	#c3f7e4	1
+Cerebellum	S	mid	18	cer-mid-vermis+AF8-viiia	#a1ff33	1
+Cerebellum	S	rh	19	cer-rh-viiia	#c3f7e4	1
+Cerebellum	S	lh	20	cer-lh-viiib	#ffd9b3	1
+Cerebellum	S	mid	21	cer-mid-vermis+AF8-viiib	#ffa533	1
+Cerebellum	S	rh	22	cer-rh-viiib	#ffd9b3	1
+Cerebellum	S	lh	23	cer-lh-ix	#ff33a1	1
+Cerebellum	S	mid	24	cer-mid-vermis+AF8-ix	#a3e635	1
+Cerebellum	S	rh	25	cer-rh-ix	#ff33a1	1
+Cerebellum	S	lh	26	cer-lh-x	#ffbe0b	1
+Cerebellum	S	mid	27	cer-mid-vermis+AF8-x	#9a031e	1
+Cerebellum	S	rh	28	cer-rh-x	#ffbe0b	1
+Cerebellum	S	lh	29	cer-lh-dentate	#4c4c4c	1
+Cerebellum	S	rh	30	cer-rh-dentate	#4c4c4c	1
+Cerebellum	S	lh	31	cer-lh-interposed	#7f7f7f	1
+Cerebellum	S	rh	32	cer-rh-interposed	#7f7f7f	1
+Cerebellum	S	lh	33	cer-lh-fastigial	#b2b2b2	1
+Cerebellum	S	rh	34	cer-rh-fastigial	#b2b2b2	1
