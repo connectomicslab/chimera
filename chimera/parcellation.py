@@ -6,7 +6,7 @@ import pandas as pd
 
 from .config_manager import load_parcellations_info
 
-from clabtoolkit.misctools import bcolors
+from clabtoolkit.colorstools import bcolors
 import clabtoolkit.parcellationtools as cltparc
 
 
