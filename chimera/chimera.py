@@ -1864,7 +1864,7 @@ class Chimera:
                                     ]["index"]
                                     tmp_parc.apply_mask(
                                         image_mask=aseg_parc,
-                                        codes2mask=aseg_code,
+                                        mask_codes=aseg_code,
                                         fill=True,
                                     )
 
@@ -1890,7 +1890,7 @@ class Chimera:
                                     }
                                     glob_mask_parc.group_by_codes(group_dict)
                                     tmp_parc.apply_mask(
-                                        image_mask=glob_mask_parc, codes2mask=1
+                                        image_mask=glob_mask_parc, mask_codes=1
                                     )
 
                                 # Adjusting the values to the ones existing on the 3D image
@@ -1966,7 +1966,7 @@ class Chimera:
                                     ]["index"]
                                     tmp_parc.apply_mask(
                                         image_mask=aseg_parc,
-                                        codes2mask=aseg_code,
+                                        mask_codes=aseg_code,
                                         fill=True,
                                     )
 
@@ -1986,7 +1986,7 @@ class Chimera:
                                         codes2group=all_reg_codes, new_codes=1
                                     )
                                     tmp_parc.apply_mask(
-                                        image_mask=glob_mask_parc, codes2mask=1
+                                        image_mask=glob_mask_parc, mask_codes=1
                                     )
 
                                 # Adjusting the values to the ones existing on the 3D image
