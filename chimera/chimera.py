@@ -1908,8 +1908,7 @@ class Chimera:
                             def_parc.save_parcellation(
                                 out_file=out_parc_maxp,
                                 affine=def_parc.affine,
-                                save_lut=True,
-                                save_tsv=True,
+                                lut_type=["lut", "tsv"],
                             )
 
                         elif atlas_type == "maxprob":
@@ -2468,8 +2467,7 @@ class Chimera:
                                 out_file=chim_parc_file,
                                 affine=affine,
                                 headerlines=lut_header,
-                                save_lut=True,
-                                save_tsv=True,
+                                lut_type=["lut", "tsv"],
                             )
                             del chim_parc
             else:
