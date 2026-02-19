@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chimera-brainparcellation"
-version = "0.2.1"
+version = "0.3.0"
 description = "An open source framework for combining multiple parcellations of the human brain"
 readme = "README.md"
 authors = [
@@ -133,7 +133,7 @@ testpaths = [
 ]
 
 [tool.bumpversion]
-current_version = "0.2.1"
+current_version = "0.3.0"
 commit = true
 tag = true
 
