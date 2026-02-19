@@ -1880,9 +1880,15 @@ class Chimera:
                                         all_reg_codes = all_reg_codes + aseg_code
 
                                     glob_mask_parc = copy.deepcopy(aseg_parc)
-                                    glob_mask_parc.group_by_code(
-                                        codes2group=all_reg_codes, new_codes=1
-                                    )
+                                    group_dict = {
+                                        1: {
+                                            "index": all_reg_codes,
+                                            "name": "all_aseg",
+                                            "color": "#FFFFFF",
+                                            "opacity": 1,
+                                        }
+                                    }
+                                    glob_mask_parc.group_by_codes(group_dict)
                                     tmp_parc.apply_mask(
                                         image_mask=glob_mask_parc, codes2mask=1
                                     )
