@@ -1956,6 +1956,9 @@ class Chimera:
                                 tmp_parc.color = self.supra_dict[supra][supra][
                                     atlas_code
                                 ][side]["color"]
+                                tmp_parc.opacity = self.supra_dict[supra][supra][
+                                    atlas_code
+                                ][side]["opacity"]
 
                                 if side in self.supra_dict[supra][supra]["F"].keys():
                                     aseg_code = self.supra_dict[supra][supra]["F"][
