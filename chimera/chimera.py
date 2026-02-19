@@ -1999,8 +1999,7 @@ class Chimera:
                             def_parc.save_parcellation(
                                 out_file=out_parc_maxp,
                                 affine=def_parc.affine,
-                                save_lut=True,
-                                save_tsv=True,
+                                lut_type=["lut", "tsv"],
                             )
 
                     tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
