@@ -87,6 +87,11 @@ def create_extra_regions_parc(aparc: str, offset: int = 5000):
     # Reading the Aparc+aseg image
     aparc_parc = cltparc.Parcellation(parc_file=aparc)
 
+    reg_indexes = np.unique(aparc_parc.data[np.nonzero(aparc_parc.data)]).tolist()
+
+    # Keep only the regions present in the aparc+aseg image
+    extra_df = extra_df[extra_df["index"].isin(reg_indexes)]
+
     # Create a dataframe for the left hemisphere
     lh_df = extra_df.loc[extra_df["hemi"] == "lh"]
 
