@@ -29,10 +29,12 @@ def _mix_side_prop(st_dict: dict, boolsort: bool = True):
     all_index = []
     all_name = []
     all_color = []
+    all_opacity = []
     for side in st_dict.keys():
         all_index = all_index + st_dict[side]["index"]
         all_name = all_name + st_dict[side]["name"]
         all_color = all_color + st_dict[side]["color"]
+        all_opacity = all_opacity + st_dict[side]["opacity"]
 
     if boolsort:
         # Sort the all_index and apply the order to all_name and all_color
@@ -40,8 +42,9 @@ def _mix_side_prop(st_dict: dict, boolsort: bool = True):
         all_index = [all_index[i] for i in sort_index]
         all_name = [all_name[i] for i in sort_index]
         all_color = [all_color[i] for i in sort_index]
+        all_opacity = [all_opacity[i] for i in sort_index]
 
-    return all_index, all_name, all_color
+    return all_index, all_name, all_color, all_opacity
 
 
 def create_extra_regions_parc(aparc: str, offset: int = 5000):
