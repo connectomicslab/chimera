@@ -2044,7 +2044,7 @@ class Chimera:
 
                 # Appending the parcellations
                 if "lh_supra_parc" in locals():
-                    lh_supra_parc.rearrange_parc()
+                    lh_supra_parc.rearrange()
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
@@ -2067,7 +2067,7 @@ class Chimera:
                     # lh_parc.save_parcellation(out_file= '/home/yaleman/lh_test.nii.gz', save_lut=True)
 
                 if "rh_supra_parc" in locals():
-                    rh_supra_parc.rearrange_parc()
+                    rh_supra_parc.rearrange()
 
                     if "F" in self.supra_dict[supra][supra].keys():
                         # Use the FreeSurfer parcellation to detect the voxels that are not in the lh_supra_parc
@@ -2090,7 +2090,7 @@ class Chimera:
                     # rh_parc.save_parcellation(out_file= '/home/yaleman/rh_test.nii.gz', save_lut=True)
 
                 if "mid_supra_parc" in locals():
-                    mid_supra_parc.rearrange_parc()
+                    mid_supra_parc.rearrange()
                     mid_parc.add_parcellation(mid_supra_parc, append=True)
                     del mid_supra_parc
 
@@ -2390,7 +2390,8 @@ class Chimera:
                             brain_wm_parc.index = [1]
                             brain_wm_parc.name = ["wm-brain-whitematter"]
                             brain_wm_parc.color = ["#ffffff"]
-                            brain_wm_parc.rearrange_parc(offset=2999)
+                            brain_wm_parc.opacity = [1.0]
+                            brain_wm_parc.rearrange(offset=2999)
                             brain_wm_parc.data[np.where(lh2refill)] = 3000
                             brain_wm_parc.data[np.where(rh2refill)] = 3000
 
@@ -2400,8 +2401,8 @@ class Chimera:
                             )
                             if tmp_rh:
                                 rh_wm_parc = copy.deepcopy(ctx_parc)
-                                rh_wm_parc.keep_by_name(names2look=tmp_rh)
-                                rh_wm_parc.rearrange_parc(offset=3000)
+                                rh_wm_parc.keep_by_name(names2keep=tmp_rh)
+                                rh_wm_parc.rearrange(offset=3000)
 
                             # White Matter for the Left Hemisphere
                             tmp_lh = cltmisc.filter_by_substring(
@@ -2409,13 +2410,11 @@ class Chimera:
                             )
                             if tmp_lh:
                                 lh_wm_parc = copy.deepcopy(ctx_parc)
-                                lh_wm_parc.keep_by_name(names2look=tmp_lh)
-                                lh_wm_parc.rearrange_parc(
-                                    offset=3000 + nrh_ctx + nrh_subc
-                                )
+                                lh_wm_parc.keep_by_name(names2keep=tmp_lh)
+                                lh_wm_parc.rearrange(offset=3000 + nrh_ctx + nrh_subc)
 
                             # Adding the right cortical parcellation to the final image
-                            rh_ctx_parc.rearrange_parc()
+                            rh_ctx_parc.rearrange()
                             chim_parc.add_parcellation(rh_ctx_parc, append=True)
                             del rh_ctx_parc
 
@@ -2424,7 +2423,7 @@ class Chimera:
                                 chim_parc.add_parcellation(rh_parc, append=True)
 
                             # Adding the left cortical parcellation to the final image
-                            lh_ctx_parc.rearrange_parc()
+                            lh_ctx_parc.rearrange()
                             chim_parc.add_parcellation(lh_ctx_parc, append=True)
                             del lh_ctx_parc
 
@@ -2511,7 +2510,7 @@ class Chimera:
 
                     # Adding the right non-cortical parcellation to the final image
                     if "rh_parc" in locals():
-                        rh_parc.rearrange_parc()
+                        rh_parc.rearrange()
                         chim_parc.add_parcellation(rh_parc, append=True)
 
                     # Adding the left non-cortical parcellation to the final image
@@ -2521,7 +2520,7 @@ class Chimera:
 
                     # Adding the regions that do not belong to any hemisphere to the final image
                     if "mid_parc" in locals():
-                        mid_parc.rearrange_parc()
+                        mid_parc.rearrange()
                         chim_parc.add_parcellation(mid_parc, append=True)
 
                     # Saving the FINAL parcellation
@@ -2529,8 +2528,7 @@ class Chimera:
                         out_file=chim_parc_file,
                         affine=affine,
                         headerlines=lut_header,
-                        save_lut=True,
-                        save_tsv=True,
+                        lut_type=["lut", "tsv"],
                     )
                     del chim_parc
 
