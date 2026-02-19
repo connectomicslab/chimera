@@ -1300,10 +1300,12 @@ class Chimera:
                 )
 
             if "aseg_parc" not in locals():
-                aseg_parc = cltparc.Parcellation(parc_file=nii_image)
-                aseg_parc.index = st_codes
-                aseg_parc.name = st_names
-                aseg_parc.color = st_colors
+                aseg_parc = cltparc.Parcellation(
+                    parc_file=nii_image, color_table=lut_dict
+                )
+
+                # Adjusting the index, color and names to contain only the FreeSurfer
+                #  labels present values in the aparc+aseg parcellation
                 aseg_parc.adjust_values()
 
             # Creating the parcellation for the extra regions
