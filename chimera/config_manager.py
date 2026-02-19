@@ -105,7 +105,12 @@ def load_parcellations_info(parc_json: str = None, supra_folder: str = None):
                     opacity = sub_df3["opacity"].tolist()
 
                     # Create a dictionary for each hemisphere
-                    temp_dict = {"index": indexes, "name": names, "color": colors}
+                    temp_dict = {
+                        "index": indexes,
+                        "name": names,
+                        "color": colors,
+                        "opacity": opacity,
+                    }
 
                     # Add the dictionary to the hemi_dict
                     hemi_dict[hemi] = temp_dict
