@@ -32,7 +32,7 @@ from templateflow import api as tflow
 
 
 import clabtoolkit.misctools as cltmisc
-from clabtoolkit.misctools import bcolors as bcolors
+from clabtoolkit.colorstools import bcolors, ColorTableLoader
 import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.parcellationtools as cltparc
 import clabtoolkit.bidstools as cltbids
@@ -1252,8 +1252,7 @@ class Chimera:
                 fslut_file = os.path.join("/tmp", tmp_name)
 
                 ######## ------------- Reading FreeSurfer color lut table ------------ #
-                lut_dict = cltparc.Parcellation.read_luttable(fslut_file)
-
+                lut_dict = ColorTableLoader.read_luttable(fslut_file)
                 os.remove(fslut_file)
 
             else:
@@ -1262,12 +1261,7 @@ class Chimera:
                 fslut_file = os.path.join(fshome_dir, "FreeSurferColorLUT.txt")
 
                 ######## ------------- Reading FreeSurfer color lut table ------------ #
-                lut_dict = cltparc.Parcellation.read_luttable(fslut_file)
-
-            # Extracting the information from the lut dictionary
-            st_codes = lut_dict["index"]
-            st_names = lut_dict["name"]
-            st_colors = lut_dict["color"]
+                lut_dict = ColorTableLoader.read_luttable(fslut_file)
 
             ######## ----- Running FreeSurfer if it was not previously computed ------ #
             sub2proc = cltfree.FreeSurferSubject(fullid, subjs_dir=fssubj_dir)
