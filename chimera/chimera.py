@@ -2378,9 +2378,9 @@ class Chimera:
                             lh_ctx_parc = copy.deepcopy(ctx_parc)
                             rh_ctx_parc = copy.deepcopy(ctx_parc)
 
-                            lh_ctx_parc.keep_by_name(names2look="ctx-lh-")
+                            lh_ctx_parc.keep_by_name(names2keep="ctx-lh-")
                             nlh_ctx = len(lh_ctx_parc.index)
-                            rh_ctx_parc.keep_by_name(names2look="ctx-rh-")
+                            rh_ctx_parc.keep_by_name(names2keep="ctx-rh-")
                             nrh_ctx = len(rh_ctx_parc.index)
 
                             # Detect the global White Matter
