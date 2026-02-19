@@ -2003,12 +2003,13 @@ class Chimera:
                             )
 
                     tmp_parc = cltparc.Parcellation(parc_file=out_parc_maxp)
-                    index, name, color = _mix_side_prop(
+                    index, name, color, opacity = _mix_side_prop(
                         self.supra_dict[supra][supra][atlas_code]
                     )
                     tmp_parc.index = index
                     tmp_parc.name = name
                     tmp_parc.color = color
+                    tmp_parc.opacity = opacity
                     tmp_parc.adjust_values()
 
                     tmp_parc.export_colortable(
