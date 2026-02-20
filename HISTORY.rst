@@ -2,6 +2,12 @@
 History
 =======
 
+0.3.1 (2026-02-20)
+------------------
+
+* Corrected typos in the supraregions files.
+* Pinned ``clabtoolkit>=0.4.2``.
+
 0.3.0 (2026-02-19)
 ------------------
 
