@@ -11,7 +11,7 @@ Thalamus	I	lh	8111	thal-lh-limitants-suprageniculate	#aa557f	1
 Thalamus	I	lh	8112	thal-lh-mediodorsal-lateral-parvocellular 	#00aa7f	1
 Thalamus	I	lh	8113	thal-lh-mediodorsal-medial-magnocellular	#aaaa7f	1
 Thalamus	I	lh	8115	thal-lh-medial-geniculate	#aaff7f	1
-Thalamus	I	lh	8116	Thal-lh-reuniens-medial-ventral	#0000ff	1
+Thalamus	I	lh	8116	thal-lh-reuniens-medial-ventral	#0000ff	1
 Thalamus	I	lh	8117	thal-lh-paracentral	#aa00ff	1
 Thalamus	I	lh	8118	thal-lh-parafascicular	#0055ff	1
 Thalamus	I	lh	8119	thal-lh-paratenial	#aa55ff	1
@@ -46,7 +46,7 @@ Thalamus	I	rh	8211	thal-rh-limitants-suprageniculate	#aa557f	1
 Thalamus	I	rh	8212	thal-rh-mediodorsal-lateral-parvocellular	#00aa7f	1
 Thalamus	I	rh	8213	thal-rh-mediodorsal-medial-magnocellular	#aaaa7f	1
 Thalamus	I	rh	8215	thal-rh-medial-geniculate	#aaff7f	1
-Thalamus	I	rh	8216	Thal-rh-reuniens-medial-ventral	#0000ff	1
+Thalamus	I	rh	8216	thal-rh-reuniens-medial-ventral	#0000ff	1
 Thalamus	I	rh	8217	thal-rh-paracentral	#aa00ff	1
 Thalamus	I	rh	8218	thal-rh-parafascicular	#0055ff	1
 Thalamus	I	rh	8219	thal-rh-paratenial	#aa55ff	1
