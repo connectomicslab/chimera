@@ -1611,6 +1611,47 @@ class Chimera:
                         else:
                             tmp_parc = copy.deepcopy(aseg_parc)
 
+                        if supra == "Hypothalamus":
+                            hypo_parc = copy.deepcopy(tmp_parc)
+
+                            # Get the needed labels for the hypothalamus parcellation
+                            lh_vdc_index = self.supra_dict["AuxiliaryLUTTable"][supra][
+                                atlas_code
+                            ]["lh"]["index"][0]
+                            rh_vdc_index = self.supra_dict["AuxiliaryLUTTable"][supra][
+                                atlas_code
+                            ]["rh"]["index"][0]
+                            mid_third_vent = self.supra_dict["AuxiliaryLUTTable"][
+                                "Ventricle"
+                            ][atlas_code]["mid"]["index"][0]
+
+                            # Keep only the third ventricle
+                            hypo_parc.keep_by_code(codes2keep=[mid_third_vent])
+
+                            morph = cltimg.MorphologicalOperations()
+                            dilated = morph.dilate_mm(
+                                hypo_parc.data,
+                                hypo_parc.affine,
+                                shape="ball",
+                                dilation_mm=5,
+                            )
+
+                            # Creating the vdc parcellation
+                            hypo_parc = copy.deepcopy(tmp_parc)
+                            hypo_parc.keep_by_code(
+                                codes2keep=[lh_vdc_index, rh_vdc_index]
+                            )
+                            hypo_parc.data = dilated * hypo_parc.data
+                            tmp_parc_data = np.zeros_like(tmp_parc.data)
+
+                            tmp_parc_data[hypo_parc.data == lh_vdc_index] = 1
+                            tmp_parc_data[hypo_parc.data == rh_vdc_index] = 2
+
+                            tmp_parc = cltparc.Parcellation(
+                                parc_file=tmp_parc_data,
+                                affine=tmp_parc.affine,
+                            )
+
                         # Left Hemisphere
                         if "lh" in self.supra_dict[supra][supra][atlas_code].keys():
                             lh_supra_parc = copy.deepcopy(tmp_parc)

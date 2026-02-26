@@ -9,3 +9,5 @@ Hypothalamus	I	rh	807	hypo-rh-anterior-superior	#50c8ff	1
 Hypothalamus	I	rh	808	hypo-rh-posterior	#ffa000	1
 Hypothalamus	I	rh	809	hypo-rh-tubular-inferior	#ffa0c8	1
 Hypothalamus	I	rh	810	hypo-rh-tubular-superior	#14b482	1
+Hypothalamus	F	rh	1	hypo-lh-hypothalamus	#e600ffff	1
+Hypothalamus	F	rh	2	hypo-rh-hypothalamus	#e600ffff	1
