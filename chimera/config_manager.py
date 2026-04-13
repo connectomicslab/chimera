@@ -186,15 +186,15 @@ def _set_templateflow_home(tflow_home: str = "local"):
             if tflow_home.is_dir():
                 updated_tflow_home = str(tflow_home)
                 os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
-                tflow.update()
         else:
             if not os.path.samefile(orig_tflow_home, tflow_home):
                 if tflow_home.is_dir():
                     updated_tflow_home = str(tflow_home)
                     os.environ["TEMPLATEFLOW_HOME"] = updated_tflow_home
-                    tflow.update()
                 else:
                     updated_tflow_home = orig_tflow_home
+            else:
+                updated_tflow_home = orig_tflow_home
     else:
         updated_tflow_home = orig_tflow_home
 
