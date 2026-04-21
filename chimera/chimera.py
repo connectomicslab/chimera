@@ -40,6 +40,11 @@ import clabtoolkit.segmentationtools as cltseg
 import clabtoolkit.imagetools as cltimg
 from rich.progress import Progress
 
+if __name__ == "__main__" and not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = "chimera"
+
+
 from .config_manager import (
     load_parcellations_info,
     _set_templateflow_home,
