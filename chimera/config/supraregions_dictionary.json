@@ -9,7 +9,8 @@
                   "type":"annot",
                   "parcels":["atlas-AAL2"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false},
 
             "B": {"atlas":"brainnetome",
                   "name":"Brainnetome",
@@ -20,7 +21,8 @@
                   "type":"annot",
                   "parcels":["atlas-brainnetome"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false},
 
             "C": {"atlas":"Campbell1905",
                   "name":"Campbell",
@@ -31,7 +33,8 @@
                   "type":"gcs",
                   "parcels":["atlas-Campbell1905"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false},
 
             "D": {"atlas":"Desikan2006",
                   "name":"Desikan-Killiany",
@@ -42,7 +45,8 @@
                   "type":"annot",
                   "parcels":["atlas-Desikan2006_seg-aparc_desc-curated"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false},
 
             "F": {"atlas":"Flechsig1920",
                   "name":"Flechsig",
@@ -53,7 +57,8 @@
                   "type":"gcs",
                   "parcels":["atlas-Flechsig1920"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false},
 
             "H": {"atlas":"HCPMM1",
                   "name":"HCP-MMP1",
@@ -64,7 +69,9 @@
                   "type":"gcs",
                   "parcels":["atlas-HCPMM1_seg-5p3","atlas-HCPMM1_seg-6p0","atlas-HCPMM1_seg-7p1"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "K": {"atlas":"Kleist1934",
                   "name":"Kleist",
@@ -75,7 +82,9 @@
                   "type":"gcs",
                   "parcels":["atlas-Kleist1934"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "L": {"atlas":"Lausanne2018",
                   "name":"Lausanne",
@@ -86,7 +95,9 @@
                   "type":"annot",
                   "parcels":["atlas-Lausanne2018_scale-1","atlas-Lausanne2018_scale-2","atlas-Lausanne2018_scale-3","atlas-Lausanne2018_scale-4","atlas-Lausanne2018_scale-5"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": true
+            },
 
             "M": {"atlas":"Smith1907",
                   "name":"Smith",
@@ -97,9 +108,11 @@
                   "type":"gcs",
                   "parcels":["atlas-Smith1907"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
-            
-                  "R": {"atlas":"Broadmann1909",
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
+
+            "R": {"atlas":"Broadmann1909",
                   "name":"Broadmann",
                   "description":"# 1. Cortical parcellation (R): Broadmann cortical parcellation.",
                   "citation":"(Broadmann, 1909)",
@@ -108,7 +121,9 @@
                   "type":"gcs",
                   "parcels":["atlas-Broadmann1909"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "S": {"atlas":"Schaefer2018",
                   "name":"Schaefer",
@@ -119,7 +134,9 @@
                   "type":"annot",
                   "parcels":["atlas-Schaefer2018_seg-7n_scale-100","atlas-Schaefer2018_seg-7n_scale-200","atlas-Schaefer2018_seg-7n_scale-300","atlas-Schaefer2018_seg-7n_scale-400","atlas-Schaefer2018_seg-7n_scale-500","atlas-Schaefer2018_seg-7n_scale-600","atlas-Schaefer2018_seg-7n_scale-700","atlas-Schaefer2018_seg-7n_scale-800","atlas-Schaefer2018_seg-7n_scale-900","atlas-Schaefer2018_seg-7n_scale-1000","atlas-Schaefer2018_seg-17n_scale-100","atlas-Schaefer2018_seg-17n_scale-200","atlas-Schaefer2018_seg-17n_scale-300","atlas-Schaefer2018_seg-17n_scale-400","atlas-Schaefer2018_seg-17n_scale-500","atlas-Schaefer2018_seg-17n_scale-600","atlas-Schaefer2018_seg-17n_scale-700","atlas-Schaefer2018_seg-17n_scale-800","atlas-Schaefer2018_seg-17n_scale-900","atlas-Schaefer2018_seg-17n_scale-1000", "atlas-Schaefer2018_seg-kong17n_scale-100","atlas-Schaefer2018_seg-kong17n_scale-200","atlas-Schaefer2018_seg-kong17n_scale-300","atlas-Schaefer2018_seg-kong17n_scale-400","atlas-Schaefer2018_seg-kong17n_scale-500","atlas-Schaefer2018_seg-kong17n_scale-600","atlas-Schaefer2018_seg-kong17n_scale-700","atlas-Schaefer2018_seg-kong17n_scale-800","atlas-Schaefer2018_seg-kong17n_scale-900","atlas-Schaefer2018_seg-kong17n_scale-1000"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "T": {"atlas":"DKT2012",
                   "name":"Desikan-Killiany-Tourville",
@@ -130,7 +147,9 @@
                   "type":"gcs",
                   "parcels":["atlas-DKT2012_scale-40"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "V": {"atlas":"vonEconomo1925",
                   "name":"vonEconomo",
@@ -141,7 +160,9 @@
                   "type":"gcs",
                   "parcels":["atlas-vonEconomo1925"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "X": {"atlas":"Destrieux2009",
                   "name":"Destrieux",
@@ -152,7 +173,9 @@
                   "type":"freesurfer",
                   "parcels":["aparc.a2009s"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"},
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            },
 
             "Y": {"atlas":"Yeo2011",
                   "name":"Yeo",
@@ -163,7 +186,9 @@
                   "type":"annot",
                   "parcels":["atlas-Yeo2011_seg-7n","Yeo2011_seg-17n"],
                   "deriv_surffold":"atlases-surfparc",
-                  "deriv_volfold":"atlases-volparc"}
+                  "deriv_volfold":"atlases-volparc",
+                  "default": false
+            }
       },
 
       "Subcortical": {
@@ -176,7 +201,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "R": {"atlas":"FIRST",
                   "name":"FIRST",
@@ -187,7 +214,9 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"fsl-firstparc"}
+                  "deriv_volfold":"fsl-firstparc",
+                  "default": false
+            }
       },
 
       "Thalamus": {
@@ -200,7 +229,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "I": {"atlas":"FSThalamicParc",
                   "name":"FSThalParc",
@@ -211,7 +242,9 @@
                   "parcels":"ThalamicNuclei",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-thalamicparc"},
+                  "deriv_volfold":"freesurfer-thalamicparc",
+                  "default": false
+            },
 
             "M": {"atlas":"MIAL67ThalamicNuclei",
                   "name":"MIALThalParc",
@@ -223,7 +256,9 @@
                   "mask":"aparc+aseg",
                   "type":"maxprob",
                   "probthresh":0.05,
-                  "deriv_volfold":"mialabased-thalamicparc"},
+                  "deriv_volfold":"mialabased-thalamicparc",
+                  "default": false
+            },
 
             "R": {"atlas":"FIRST",
                   "name":"FIRST",
@@ -234,7 +269,9 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"fsl-firstparc"}
+                  "deriv_volfold":"fsl-firstparc",
+                  "default": false
+            }
       },
 
       "Amygdala": {
@@ -247,7 +284,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "I": {"atlas":"FSAmygHippoNucleiParc",
                   "name":"FSAmygHippoParc",
@@ -258,7 +297,9 @@
                   "parcels": "hippoAmygLabels",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc"},
+                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc",
+                  "default": false
+            },
 
             "R": {"atlas":"FIRST",
                   "name":"FIRST",
@@ -269,7 +310,9 @@
                   "parcels": "custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"fsl-firstparc"}
+                  "deriv_volfold":"fsl-firstparc",
+                  "default": false
+            }
       },
 
       "Hippocampus": {
@@ -282,7 +325,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "I": {"atlas":"FSAmygHippoNucleiParc",
                   "name":"FSAmygHippoParc",
@@ -293,7 +338,9 @@
                   "parcels": "hippoAmygLabels",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc"},
+                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc",
+                  "default": false
+            },
 
             "H": {"atlas":"HeadBodyTail",
                   "name":"HBT",
@@ -304,7 +351,9 @@
                   "parcels": "hippoAmygLabels.HBT",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc"},
+                  "deriv_volfold":"freesurfer-amyghippsubfieldsparc",
+                  "default": false
+            },
 
             "R": {"atlas":"FIRST",
                   "name":"FIRST",
@@ -315,7 +364,9 @@
                   "parcels": "custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"fsl-firstparc"}
+                  "deriv_volfold":"fsl-firstparc",
+                  "default": false
+            }
       },
 
       "Hypothalamus": {
@@ -328,7 +379,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "I": {"atlas":"FSHypoThalamicParc",
                   "name":"FSHypoThalParc",
@@ -339,7 +392,9 @@
                   "parcels":"hypothalamic_subunits_seg.v1",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-hypothalmicparc"}
+                  "deriv_volfold":"freesurfer-hypothalmicparc",
+                  "default": false
+            }
       },
 
       "Cerebellum": {
@@ -352,7 +407,9 @@
                   "parcels":"custom",
                   "mask":"aparc+aseg",
                   "type":"maxprob",
-                  "deriv_volfold":"abased-aal2cerebellum"},
+                  "deriv_volfold":"abased-aal2cerebellum",
+                  "default": false
+            },
 
             "F": {"atlas":"Aseg",
                   "name":"Aseg",
@@ -363,7 +420,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "S": {"atlas":"Diedrichsen2009",
                   "name":"SUIT",
@@ -375,7 +434,9 @@
                   "mask":"aparc+aseg",
                   "type":"spam",
                   "probthresh":0.05,
-                  "deriv_volfold":"abased-suitcerebellum"}
+                  "deriv_volfold":"abased-suitcerebellum",
+                  "default": false
+            }
       },
 
       "Brainstem": {
@@ -388,7 +449,9 @@
                   "parcels":"aparc+aseg",
                   "mask":"aparc+aseg",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
 
             "I": {"atlas":"FSBrainStemParc",
                   "name":"FSBrainStemParc",
@@ -399,7 +462,9 @@
                   "parcels":"brainstemSsLabels",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer-brainstemparc"},
+                  "deriv_volfold":"freesurfer-brainstemparc",
+                  "default": false
+            },
 
             "R": {"atlas":"FIRST",
                   "name":"FIRST",
@@ -410,7 +475,9 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"fsl-firstparc"}
+                  "deriv_volfold":"fsl-firstparc",
+                  "default": false
+            }
       },
       "GyralWM": {
             "F": {"atlas":"Cortical",
@@ -422,10 +489,12 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"custom",
-                  "OutVolLocation":"freesurfer"}
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            }
       },
       "WhiteMatter": {
-      	    "F": {"atlas":"Aseg",
+            "F": {"atlas":"Aseg",
                   "name":"Aseg",
                   "description":"# 10. White matter parcellation (F): Aseg subcortical parcellation.",
                   "citation":"(Fischl et al, 2002)",
@@ -434,8 +503,10 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"custom",
-                  "deriv_volfold":"freesurfer"},
-      	
+                  "deriv_volfold":"freesurfer",
+                  "default": true
+            },
+
             "J": {"atlas":"Hua2008",
                   "name":"JHU",
                   "description":"# 10. Tract probability maps in stereotaxic spaces (J): White matter segmentation.",
@@ -445,7 +516,8 @@
                   "parcels":"custom",
                   "mask":"custom",
                   "type":"maxprob",
-                  "OutVolLocation":"freesurfer"}
-           
+                  "deriv_volfold":"freesurfer",
+                  "default": false
+            }
       }
 }
