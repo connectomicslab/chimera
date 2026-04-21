@@ -6,24 +6,17 @@ import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import bids
 from bids import BIDSLayout
 import nibabel as nib
 from glob import glob
-from operator import itemgetter
 from datetime import datetime
 import argparse
 from typing import Union
 import shutil
 import uuid
-import csv
 import json
 import subprocess
-import scipy.ndimage as sc
-import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import wait
-from concurrent.futures import as_completed
 import time
 import copy
 from threading import Lock
