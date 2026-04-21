@@ -349,16 +349,19 @@ class Chimera:
                                 fssubj_dir, atlas_ref, "surf", "lh.white"
                             )
                             ctx_parc_lh_annot.append(tmp_annot)
+                            # lh_obj = cltfree.AnnotParcellation.gii2annot(
+                            #     gii_file=parc_file,
+                            #     ref_surf=tmp_refsurf,
+                            #     annot_file=tmp_annot,
+                            #     cont_tech=pipe_dict["packages"]["freesurfer"][
+                            #         "cont_tech"
+                            #     ],
+                            #     cont_image=pipe_dict["packages"]["freesurfer"][
+                            #         "container"
+                            #     ],
+                            # )
                             lh_obj = cltfree.AnnotParcellation.gii2annot(
-                                gii_file=parc_file,
-                                ref_surf=tmp_refsurf,
-                                annot_file=tmp_annot,
-                                cont_tech=pipe_dict["packages"]["freesurfer"][
-                                    "cont_tech"
-                                ],
-                                cont_image=pipe_dict["packages"]["freesurfer"][
-                                    "container"
-                                ],
+                                gii_file=parc_file, annot_file=tmp_annot
                             )
 
                             tmp_annot = os.path.join(
@@ -371,16 +374,19 @@ class Chimera:
                                 fssubj_dir, atlas_ref, "surf", "rh.white"
                             )
                             ctx_parc_rh_annot.append(tmp_annot)
+                            # rh_obj = cltfree.AnnotParcellation.gii2annot(
+                            #     gii_file=ctx_parc_rh[i],
+                            #     ref_surf=tmp_refsurf,
+                            #     annot_file=tmp_annot,
+                            #     cont_tech=pipe_dict["packages"]["freesurfer"][
+                            #         "cont_tech"
+                            #     ],
+                            #     cont_image=pipe_dict["packages"]["freesurfer"][
+                            #         "container"
+                            #     ],
+                            # )
                             rh_obj = cltfree.AnnotParcellation.gii2annot(
-                                gii_file=ctx_parc_rh[i],
-                                ref_surf=tmp_refsurf,
-                                annot_file=tmp_annot,
-                                cont_tech=pipe_dict["packages"]["freesurfer"][
-                                    "cont_tech"
-                                ],
-                                cont_image=pipe_dict["packages"]["freesurfer"][
-                                    "container"
-                                ],
+                                gii_file=ctx_parc_rh[i], annot_file=tmp_annot
                             )
 
                     if not ctx_parc_lh_annot or not ctx_parc_rh_annot:
