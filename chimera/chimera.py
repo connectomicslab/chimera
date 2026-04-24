@@ -2584,7 +2584,7 @@ class Chimera:
 
 def _build_args_parser():
 
-    class ColoredHelpFormatter(argparse.HelpFormatter):
+    class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
         def __init__(self, prog):
             super().__init__(prog, max_help_position=52, width=100)
 
