@@ -2634,8 +2634,29 @@ def _build_args_parser():
 
     epilog = f"""
 {bcolors.BOLD}Examples:{bcolors.ENDC}
-  chimera --regions                           # List available parcellations
-  chimera -b /data -p HFMIIIFIFN -d /out -fr /fs  # Basic usage with 10-char code
+
+  {bcolors.OKYELLOW}# List all available parcellations per supra-region{bcolors.ENDC}
+  chimera --regions
+
+  {bcolors.OKYELLOW}# Basic usage with a 10-character parcellation code{bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -p HFMIIIFIFN
+
+  {bcolors.OKYELLOW}# Interactive code generator (builds --parcodes, --seg, --scale, --growwm){bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -g
+
+  {bcolors.OKYELLOW}# Multi-scale cortical parcellation (Schaefer 400 parcels, 7 networks){bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -p SFMIIIFIF -s 400 -e 7n
+
+  {bcolors.OKYELLOW}# Grow GM labels 0 and 2 mm into white matter{bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -p HFMIIIFIFN -gw 0,2
+
+  {bcolors.OKYELLOW}# Process specific subjects using 8 parallel threads{bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -p HFMIIIFIFN \\
+          -ids sub-001,sub-002,sub-003 -n 8
+
+  {bcolors.OKYELLOW}# Specify a custom FreeSurfer subjects directory{bcolors.ENDC}
+  chimera -b /data/study -d /data/study/derivatives -p HFMIIIFIFN \\
+          -fr /data/study/derivatives/freesurfer
 
 {bcolors.BOLD}For more information:{bcolors.ENDC}
   Use --regions to see all available parcellation codes for each brain region.
@@ -2774,7 +2795,7 @@ def _build_args_parser():
 
     optionalNamed.add_argument(
         "--growwm",
-        "-g",
+        "-gw",
         action="store",
         required=False,
         metavar="MM",
@@ -2784,6 +2805,17 @@ def _build_args_parser():
         f"Expand gray matter labels into white matter (in mm).\n"
         f"Multiple values can be comma-separated.\n",
         default=None,
+    )
+
+    optionalNamed.add_argument(
+        "--gencode",
+        "-g",
+        action="store_true",
+        required=False,
+        help=f"{bcolors.BOLD}Launch interactive code generator{bcolors.ENDC}\n"
+        f"Start the CHIMERA parcellation code generator to build --parcodes\n"
+        f"(and optionally --seg / --scale) interactively.\n",
+        default=False,
     )
 
     optionalNamed.add_argument(
@@ -2832,6 +2864,50 @@ def _build_args_parser():
 
     args = p.parse_args()
 
+    # Show help when called with no arguments at all
+    if len(sys.argv) == 1:
+        p.print_help()
+        sys.exit(0)
+
+    # Launch the interactive code generator to fill --parcodes / --seg / --scale / --growwm
+    if args.gencode:
+        from chimera.chimera_code_generator import (
+            load_parcellations_info as _cg_load,
+            run_interactive as _cg_run,
+            build_code_string as _cg_code_str,
+            _prompt_growwm as _cg_growwm,
+        )
+
+        _cg_data = _cg_load()
+        try:
+            _cg_result = _cg_run(_cg_data)
+            _cg_growwm_vals = _cg_growwm()
+        except (KeyboardInterrupt, EOFError):
+            print("\n  Interrupted -- no code generated.")
+            sys.exit(0)
+
+        _cg_code_string = _cg_code_str(_cg_result)
+        args.parcodes = [_cg_code_string]
+
+        # Collect seg and scale values from selected parcels
+        import re as _re
+
+        _all_segs, _all_scales = [], []
+        for _choice in _cg_result.values():
+            for _p in _choice.get("selected_parcels") or []:
+                _m_seg = _re.search(r"seg-([^_]+)", _p)
+                _m_scale = _re.search(r"scale-([^_]+)", _p)
+                if _m_seg and _m_seg.group(1) not in _all_segs:
+                    _all_segs.append(_m_seg.group(1))
+                if _m_scale and _m_scale.group(1) not in _all_scales:
+                    _all_scales.append(_m_scale.group(1))
+        if _all_segs:
+            args.seg = [",".join(_all_segs)]
+        if _all_scales:
+            args.scale = [",".join(_all_scales)]
+        if _cg_growwm_vals != ["0"]:
+            args.growwm = [",".join(_cg_growwm_vals)]
+
     global bids_dirs, supra_dict, deriv_dirs, fssubj_dirs, parcodes, pipe_json
 
     pipe_json = args.config
@@ -2840,18 +2916,17 @@ def _build_args_parser():
         pipe_json = args.config[0]
 
     if args.regions is True:
-        if args.bidsdir is None and args.parcodes is None:
-            print("\n")
-            mess = "Available parcellations for each supra-region"
-            print(
-                "{}{}{}{}{}: ".format(
-                    bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC
-                )
+        print("\n")
+        mess = "Available parcellations for each supra-region"
+        print(
+            "{}{}{}{}{}: ".format(
+                bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC
             )
-            _print_availab_parcels()
-            sys.exit()
+        )
+        _print_availab_parcels()
+        sys.exit()
 
-        elif args.bidsdir is None or args.parcodes is None:
+        if args.bidsdir is None or args.parcodes is None:
             print("--bidsdir and --parcodes are REQUIRED arguments")
             sys.exit()
 
