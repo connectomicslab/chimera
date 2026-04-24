@@ -66,8 +66,8 @@
                   "citation":"(Glasser et al, 2016)",
                   "source": "local",
                   "reference":"fsaverage",
-                  "type":"gcs",
-                  "parcels":["atlas-HCPMM1_seg-5p3","atlas-HCPMM1_seg-6p0","atlas-HCPMM1_seg-7p1"],
+                  "type":"annot",
+                  "parcels":["atlas-HCPMM1_desc-curated"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc",
                   "default": false
