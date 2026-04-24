@@ -74,6 +74,26 @@ Example codes:
 - ``DFMIIIFIF``: Desikan-Killiany cortical + FreeSurfer subcortical + MIAL thalamus + ...
 - ``HFIIIIFIF``: HCP-MMP1 cortical + FreeSurfer subcortical + ...
 
+Interactive Code Generator
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Not sure which parcellation code to use?  Run the interactive generator with
+``-g`` / ``--gencode`` and CHIMERA will walk you through each supra-region:
+
+.. code-block:: bash
+
+    chimera -b /path/to/bids -d /path/to/derivatives -g
+
+The generator prompts you to:
+
+1. Pick an atlas for each supra-region by its letter key (Enter = default).
+2. Narrow down seg/scale variants for multi-resolution atlases.
+3. Choose white-matter growing distance(s): a non-negative integer, ``wm``,
+   or a comma-separated mix (e.g. ``0``, ``0,1``, ``0,wm``).  Default: ``0``.
+
+At the end it prints the equivalent ``--parcodes``, ``--seg``, ``--scale``, and
+``--growwm`` command line for reference, then proceeds with processing.
+
 List Available Parcellations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -83,18 +103,6 @@ To see all available parcellations for each supra-region:
 
     chimera --regions
 
-Working with Results
-~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    # Create and export lookup table
-    chimera_obj.create_table()
-    chimera_obj.export_table(out_basename="my_parcellation", format=["tsv", "json"])
-    
-    # Build LUT header
-    header = chimera_obj.build_lut_header()
-    print(header)
 
 Next Steps
 ----------

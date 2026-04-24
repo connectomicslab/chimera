@@ -145,7 +145,8 @@ Brief description of input options:
 | `--scale`, `-s`          | Scale identification. This option should be supplied for multi-resolution cortical parcellations (e.g. Lausanne or Schaeffer). |
 | `--seg`, `-e`            | Segmentation identifier.                                                                                                       |
 | `--nthreads`, `-n`       | Number of processes to run in parallel (default= Number of cores - 4).                                                         |
-| `--growwm`, `-g`         | Grow of GM labels inside the white matter (mm).                                                                                |
+| `--gencode`, `-g`        | Launch the interactive parcellation code generator (sets `--parcodes`, `--seg`, `--scale`, and `--growwm`).                    |
+| `--growwm`, `-gw`        | Grow of GM labels inside the white matter (mm).                                                                                |
 | `--subjids`, `-ids`      | Subject IDs. Multiple subject ids can be specified separating them by a comma.                                                 |
 | `--mergectx,`, `-mctx`   | Join cortical white matter and cortical gray matter regions.                                                                   |
 | `--force`, `-f`          | Overwrite the results.                                                                                                         |
@@ -186,7 +187,13 @@ Example of **t1s.txt** file
 3. Cortical volumes will grow 0 and 2 mm respectively inside the white matter for the selected cortical parcellations.
 
 ```sh
-    $ chimera -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -g 0,2
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -p LFMFIIFIF -gw 0,2
+```
+
+4. Use the interactive code generator to build the parcellation code and white matter growing options:
+
+```sh
+    $ chimera -b <BIDs directory> -d <Derivatives directory> -g
 ```
 
 ## Main files in the repository

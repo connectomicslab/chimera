@@ -131,7 +131,11 @@ Advanced Command Line Options
     
     # Grow cortical labels into white matter
     chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\
-            -g 2  # Grow 2mm into white matter
+            -gw 2  # Grow 2mm into white matter
+
+    # Grow with multiple distances (0mm, 1mm, and full WM)
+    chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\
+            -gw 0,1,wm
     
     # Merge cortical GM and WM regions
     chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\
@@ -144,6 +148,34 @@ Advanced Command Line Options
     # Verbose output
     chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\
             -v 2  # Maximum verbosity
+
+Interactive Code Generator
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the ``-g`` / ``--gencode`` flag to launch the interactive code generator
+instead of supplying ``--parcodes`` manually.  The generator walks through each
+supra-region, lets you pick an atlas by its letter key, handles seg/scale
+sub-selection for multi-resolution atlases, and finally asks for white-matter
+growing distance(s).  The resulting ``--parcodes``, ``--seg``, ``--scale``, and
+``--growwm`` values are applied automatically.
+
+.. code-block:: bash
+
+    # Launch the interactive generator and then run chimera
+    chimera -b /data/study -d /data/study/derivatives -g
+
+    # Combine with other options (e.g. specific subjects, parallel threads)
+    chimera -b /data/study -d /data/study/derivatives -g \\
+            -ids sub-001,sub-002 -n 8
+
+The generator can also be run standalone to preview the command line without
+processing any data:
+
+.. code-block:: bash
+
+    python -m chimera.chimera_code_generator
+    # or, with a custom parcellation dictionary:
+    python -m chimera.chimera_code_generator /path/to/my_dictionary.json
 
 Integration Examples
 --------------------
