@@ -67,7 +67,7 @@
                   "source": "local",
                   "reference":"fsaverage",
                   "type":"annot",
-                  "parcels":["atlas-HCPMM1_desc-curated"],
+                  "parcels":["atlas-HCPMM1"],
                   "deriv_surffold":"atlases-surfparc",
                   "deriv_volfold":"atlases-volparc",
                   "default": false
