@@ -407,6 +407,10 @@ class Chimera:
                         atlas_dir = os.path.join(chim_dir, "data", "gcs_atlases")
                         atlas_ext = ".gcs"
                         method = "gcs2indiv"
+                    else:
+                        raise ValueError(
+                            "The type of the cortical atlas is not valid. Please supply a valid type (annot or gcs)."
+                        )
 
                     ctx_parc_lh = glob(os.path.join(atlas_dir, "*-L_*" + atlas_ext))
                     ctx_parc_rh = glob(os.path.join(atlas_dir, "*-R_*" + atlas_ext))
@@ -505,6 +509,10 @@ class Chimera:
                         atlas_file = glob(
                             os.path.join(atlas_dir, "*" + atlas_cad + "*_dseg.nii.gz")
                         )
+                    else:
+                        raise ValueError(
+                            "The type of the atlas is not valid. Please supply a valid type (spam or maxprob)."
+                        )
 
                     meth_dict = {
                         "method": "atlasbased",
@@ -542,7 +550,7 @@ class Chimera:
     def create_table(
         self,
         wm_index_offset: int = 3000,
-        reg2rem: Union[list, str] = ["unknown", "medialwall", "corpuscallosum"],
+        reg2rem: Union[list, str, None] = None,
     ):
         """
         This method creates a table with the regions that will be created using the Chimera parcellation.
@@ -557,6 +565,10 @@ class Chimera:
             List of regions to remove from the parcellation.
 
         """
+
+        # Use a fresh list rather than a mutable default argument
+        if reg2rem is None:
+            reg2rem = ["unknown", "medialwall", "corpuscallosum"]
 
         # Detecting the base directory
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -645,6 +657,10 @@ class Chimera:
                     elif atlas_type == "gcs":
                         atlas_dir = os.path.join(chim_dir, "data", "gcs_atlases")
                         atlas_ext = ".gcs"
+                    else:
+                        raise ValueError(
+                            "The type of the cortical atlas is not valid. Please supply a valid type (annot or gcs)."
+                        )
 
                     ctx_parc_lh = glob(os.path.join(atlas_dir, "*-L_*" + atlas_ext))
                     ctx_parc_rh = glob(os.path.join(atlas_dir, "*-R_*" + atlas_ext))
@@ -705,30 +721,30 @@ class Chimera:
 
         if rh_noctx_names:
             indexes = cltmisc.get_indexes_by_substring(rh_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    rh_noctx_names.pop(i)
-                    rh_noctx_codes.pop(i)
-                    rh_noctx_colors.pop(i)
+            # Remove the elements in all_names and all_colors. Pop in descending
+            # order so earlier deletions do not shift the remaining indexes.
+            for i in sorted(indexes, reverse=True):
+                rh_noctx_names.pop(i)
+                rh_noctx_codes.pop(i)
+                rh_noctx_colors.pop(i)
 
         if lh_noctx_names:
             indexes = cltmisc.get_indexes_by_substring(lh_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    lh_noctx_names.pop(i)
-                    lh_noctx_codes.pop(i)
-                    lh_noctx_colors.pop(i)
+            # Remove the elements in all_names and all_colors. Pop in descending
+            # order so earlier deletions do not shift the remaining indexes.
+            for i in sorted(indexes, reverse=True):
+                lh_noctx_names.pop(i)
+                lh_noctx_codes.pop(i)
+                lh_noctx_colors.pop(i)
 
         if bs_noctx_names:
             indexes = cltmisc.get_indexes_by_substring(bs_noctx_names, reg2rem).tolist()
-            # Remove the elements in all_names and all_colors
-            if indexes:
-                for i in indexes:
-                    bs_noctx_names.pop(i)
-                    bs_noctx_codes.pop(i)
-                    bs_noctx_codes.pop(i)
+            # Remove the elements in all_names and all_colors. Pop in descending
+            # order so earlier deletions do not shift the remaining indexes.
+            for i in sorted(indexes, reverse=True):
+                bs_noctx_names.pop(i)
+                bs_noctx_codes.pop(i)
+                bs_noctx_colors.pop(i)
 
         # Creating the list of dataframes for the different parcellations
         tab_list = []
@@ -798,22 +814,21 @@ class Chimera:
                 lh_ctx_color = df_lh["color"].tolist()
                 rh_ctx_color = df_rh["color"].tolist()
 
-                ## Removing elements from the table according to their name for both
+                ## Removing elements from the table according to their name for both.
+                ## Pop in descending order so earlier deletions do not shift indexes.
                 indexes = cltmisc.get_indexes_by_substring(
                     lh_ctx_name, reg2rem
                 ).tolist()
-                if indexes:
-                    for i in indexes:
-                        lh_ctx_name.pop(i)
-                        lh_ctx_color.pop(i)
+                for i in sorted(indexes, reverse=True):
+                    lh_ctx_name.pop(i)
+                    lh_ctx_color.pop(i)
 
                 indexes = cltmisc.get_indexes_by_substring(
                     rh_ctx_name, reg2rem
                 ).tolist()
-                if indexes:
-                    for i in indexes:
-                        rh_ctx_name.pop(i)
-                        rh_ctx_color.pop(i)
+                for i in sorted(indexes, reverse=True):
+                    rh_ctx_name.pop(i)
+                    rh_ctx_color.pop(i)
 
                 # Concatenating the lists
                 if "GyralWM" in self.parc_dict.keys():
@@ -1065,6 +1080,12 @@ class Chimera:
 
         """
         global pipe_dict
+
+        # Use the parcellation code stored on the object instead of relying on a
+        # module-level global set elsewhere (previously this method depended on the
+        # `chim_code` global populated by chimera_parcellation, which broke when the
+        # method was called directly).
+        chim_code = self.parc_code
 
         # Detecting the base directory
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -1356,7 +1377,6 @@ class Chimera:
             )  # It will include the parcellation for structures that do not belong to any hemisphere
 
             files2del = []  # Temporal files that will be deleted
-            exec_cmds = []
             for supra in gm_sub_names:
 
                 # Getting the information of the common atributes
@@ -1710,7 +1730,7 @@ class Chimera:
                                 ]["index"]
                             )
 
-                elif proc_dict["method"] == None:
+                elif proc_dict["method"] is None:
 
                     # Running FIRST if it is needed
                     if atlas_code == "R":
@@ -2581,6 +2601,11 @@ class Chimera:
                     )
                     del chim_parc
 
+            # Removing the intermediate/temporary files collected during processing
+            for tmp_file in files2del:
+                if os.path.isfile(tmp_file):
+                    os.remove(tmp_file)
+
 
 def _build_args_parser():
 
@@ -2926,9 +2951,11 @@ def _build_args_parser():
         _print_availab_parcels()
         sys.exit()
 
-        if args.bidsdir is None or args.parcodes is None:
-            print("--bidsdir and --parcodes are REQUIRED arguments")
-            sys.exit()
+    # --bidsdir and --parcodes are required for an actual run
+    if args.bidsdir is None or args.parcodes is None:
+        print("--bidsdir and --parcodes are REQUIRED arguments")
+        p.print_help()
+        sys.exit()
 
     bids_dirs = args.bidsdir[0].split(sep=",")
     # Remove possible empty elements
@@ -3176,7 +3203,7 @@ def chimera_parcellation(
     fssubj_dir: str,
     code_dict: dict,
     t1s2run_file: str = None,
-    growwm: list = ["0"],
+    growwm: list = None,
     mixwm: bool = False,
     nthreads: int = 1,
 ):
@@ -3210,6 +3237,10 @@ def chimera_parcellation(
 
     # Declaring global variables
     global pipe_json, pipe_dict, pb, pb1, n_subj, n_comp, lock, chim_code
+
+    # Use a fresh list rather than a mutable default argument
+    if growwm is None:
+        growwm = ["0"]
 
     ######## -- Reading the configuration dictionary  ------------ #
     pipe_dict = _pipeline_info(pipe_json=pipe_json)
@@ -3327,11 +3358,9 @@ def chimera_parcellation(
 
                 # start the thread pool
                 with ThreadPoolExecutor(nthreads) as executor:
-                    # send in the tasks
-                    # futures = [executor.submit(_build_parcellation, t1s[i],
-                    # bids_dir, deriv_dir, parccode, growwm, mixwm) for i in range(n_subj)]
-
-                    futures = [
+                    # send in the tasks, keeping the mapping to the subject so
+                    # failures can be reported afterwards.
+                    future2t1 = {
                         executor.submit(
                             chim_obj.build_parcellation,
                             t1s[i],
@@ -3340,14 +3369,34 @@ def chimera_parcellation(
                             fssubj_dir,
                             growwm,
                             mixwm,
-                        )
+                        ): t1s[i]
                         for i in range(n_subj)
-                    ]
+                    }
 
                     # register the progress indicator callback
-                    for future in futures:
+                    for future in future2t1:
                         future.add_done_callback(progress_indicator)
-                    # wait for all tasks to complete
+
+                # The ThreadPoolExecutor context manager waits for all tasks to
+                # complete. Collect and report any subjects that failed instead of
+                # silently swallowing the exception.
+                for future, t1 in future2t1.items():
+                    exc = future.exception()
+                    if exc is not None:
+                        failed.append((t1, exc))
+
+                if failed:
+                    print(
+                        f"\n[{chim_code}] {len(failed)} subject(s) failed to process:"
+                    )
+                    for t1, exc in failed:
+                        print(f"  - {os.path.basename(t1)}: {exc}")
+
+                elapsed_time = time.perf_counter() - start_time
+                print(
+                    f"[{chim_code}] Processed {n_subj} subject(s) in "
+                    f"{elapsed_time:.1f} s."
+                )
 
 
 def main():
@@ -3357,7 +3406,7 @@ def main():
 
     print(args)
     if args.verbose is not None:
-        v = np.int(args.verbose[0])
+        v = int(args.verbose[0])
     else:
         v = 0
         print("- Verbose set to 0\n")
