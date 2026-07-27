@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8
+.PHONY: clean clean-build clean-pyc clean-test clean-docs coverage dist docs help install lint lint/flake8
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -26,7 +26,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
+clean: clean-build clean-pyc clean-test clean-docs ## remove all build, test, coverage and Python artifacts
 
 clean-build: ## remove build artifacts
 	rm -fr build/
@@ -41,11 +41,16 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '*~' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -fr {} +
 
-clean-test: ## remove test and coverage artifacts
+clean-test: ## remove test, coverage and linter cache artifacts
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
+	rm -fr .ruff_cache
+	rm -fr .mypy_cache
+
+clean-docs: ## remove generated Sphinx documentation
+	rm -fr docs/_build/
 
 lint/flake8: ## check style with flake8
 	flake8 chimera tests
