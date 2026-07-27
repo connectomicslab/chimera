@@ -111,25 +111,12 @@ Alternatively, you can install all required external packages manually:
 
     pip install pandas pybids numpy nibabel rich scipy templateflow clabtoolkit
 
-Or using a requirements.txt file:
+Or install the package itself, which pulls in all runtime dependencies
+declared in ``pyproject.toml``:
 
 .. code-block:: bash
 
-    pip install -r requirements.txt
-
-requirements.txt content:
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: text
-
-    pandas
-    pybids
-    numpy
-    nibabel
-    rich
-    scipy
-    templateflow
-    clabtoolkit
+    pip install -e .
 
 Required image processing packages:
 
