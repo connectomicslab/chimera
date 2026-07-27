@@ -51,7 +51,7 @@ docs = [
 ]
 
 [project.scripts]
-chimera = "chimera.chimera:main"
+chimera = "chimera.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/yasseraleman/chimera"
