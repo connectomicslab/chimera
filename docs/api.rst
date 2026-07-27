@@ -19,7 +19,7 @@ Chimera Class
 
 The main class for creating and working with CHIMERA parcellations.
 
-.. autoclass:: chimera.chimera.Chimera
+.. autoclass:: chimera.core.Chimera
    :members:
    :undoc-members:
    :show-inheritance:
@@ -27,17 +27,17 @@ The main class for creating and working with CHIMERA parcellations.
 
 **Main Methods:**
 
-.. automethod:: chimera.chimera.Chimera.prepare_templates
-.. automethod:: chimera.chimera.Chimera.create_table
-.. automethod:: chimera.chimera.Chimera.export_table
-.. automethod:: chimera.chimera.Chimera.build_lut_header
-.. automethod:: chimera.chimera.Chimera.build_parcellation
+.. automethod:: chimera.core.Chimera.prepare_templates
+.. automethod:: chimera.core.Chimera.create_table
+.. automethod:: chimera.core.Chimera.export_table
+.. automethod:: chimera.core.Chimera.build_lut_header
+.. automethod:: chimera.core.Chimera.build_parcellation
 
 Core Functions
 --------------
 
-.. autofunction:: chimera.chimera.chimera_parcellation
-.. autofunction:: chimera.chimera.main
+.. autofunction:: chimera.cli.chimera_parcellation
+.. autofunction:: chimera.cli.main
 
 Configuration Management
 =========================
