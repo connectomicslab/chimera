@@ -1,6 +1,15 @@
 name: Publish Python distribution to PyPI and TestPyPI
 
-on: push
+# Publishing is gated so it can never fire on an ordinary push:
+#   * pushing a version tag (v*)      -> build + publish to TestPyPI
+#   * publishing a GitHub Release     -> build + publish to PyPI
+# The two-step flow lets you verify the TestPyPI upload before releasing.
+on:
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -10,50 +19,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
       - name: Install pypa/build
-        run: >-
-          python3 -m
-          pip install
-          build
-          --user
+        run: python3 -m pip install --upgrade pip build
       - name: Build a binary wheel and a source tarball
         run: python3 -m build
       - name: Store the distribution packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
-
-  publish-to-pypi:
-    name: >-
-      Publish Python distribution to PyPI
-    if: startsWith(github.ref, 'refs/tags/') # only publish to PyPI on tag pushes
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all the dists
-        uses: actions/download-artifact@v3
-        with:
-          name: python-package-distributions
-          path: dist/
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_KEY }}
 
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
+    # Only on a version tag push (pre-release verification step).
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs:
       - build
     runs-on: ubuntu-latest
     steps:
       - name: Download all the dists
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
@@ -63,3 +51,24 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           user: __token__
           password: ${{ secrets.TESTPYPI_KEY }}
+          skip-existing: true
+
+  publish-to-pypi:
+    name: Publish Python distribution to PyPI
+    # Only when a GitHub Release is published, after TestPyPI has been checked.
+    if: github.event_name == 'release'
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_KEY }}
+          skip-existing: true
