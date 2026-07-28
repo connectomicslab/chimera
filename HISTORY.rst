@@ -2,6 +2,22 @@
 History
 =======
 
+0.4.0 (2026-07-28)
+------------------
+
+* Decomposed the ``chimera.py`` monolith into focused modules: ``core``
+  (the ``Chimera`` class), ``template_preparation``, ``region_table``,
+  ``parcellation_builder`` and ``cli``.
+* Rewrote the 1,780-line ``build_parcellation`` as a ``ParcellationBuilder``
+  with named steps, replacing ``"<name>" in locals()`` state tracking with
+  explicit attributes and threading ``pipe_dict`` explicitly.
+* Moved the console entry point to ``chimera.cli:main`` and removed the
+  legacy ``chimera.py``.
+* Consolidated the PyPI/TestPyPI publish workflows into one, gated on tags
+  (TestPyPI) and GitHub Releases (PyPI); bumped artifact actions to v4.
+* Dropped the redundant root ``requirements.txt`` in favour of
+  ``pyproject.toml`` and ``docs/requirements.txt``.
+
 0.3.1 (2026-02-20)
 ------------------
 
