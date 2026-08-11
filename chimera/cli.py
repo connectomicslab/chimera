@@ -17,11 +17,31 @@ from threading import Lock
 import clabtoolkit.bidstools as cltbids
 from bids import BIDSLayout
 from clabtoolkit.colorstools import bcolors
-from rich.progress import Progress
+from rich.progress import Progress, TaskID
 
 from .config_manager import _pipeline_info, load_parcellations_info
 from .core import Chimera
 from .parcellation import _print_availab_parcels
+
+# State shared between _build_args_parser, chimera_parcellation,
+# progress_indicator and main via `global`. These are annotations only: they
+# bind no value, so the runtime behaviour is unchanged and the names still come
+# into existence when the functions that declare them global assign them. They
+# exist so a reader (and a type checker) can see the shared state in one place
+# instead of inferring it from scattered `global` statements.
+bids_dirs: list[str]
+deriv_dirs: list[str]
+fssubj_dirs: list[str]
+parcodes: list[str]
+supra_dict: dict
+pipe_json: str
+pipe_dict: dict
+lock: Lock
+n_subj: int
+n_comp: int
+pb: Progress
+pb1: TaskID
+chim_code: str
 
 
 def _build_args_parser():
