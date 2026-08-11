@@ -882,7 +882,9 @@ def main():
     mixwm = args.mergectx
 
     # Detecting the number of cores to be used
-    ncores = os.cpu_count()
+    # cpu_count() returns None when it cannot determine the CPU count, and
+    # every use below is arithmetic, so fall back to a single core.
+    ncores = os.cpu_count() or 1
     nthreads = int(args.nthreads[0])
 
     if nthreads > ncores:
