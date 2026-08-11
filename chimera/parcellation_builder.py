@@ -197,7 +197,11 @@ class ParcellationBuilder:
 
         if "ses" in self.ent_dict.keys():
             path_cad = (
-                "sub-" + self.ent_dict["sub"] + os.path.sep + "ses-" + self.ent_dict["ses"]
+                "sub-"
+                + self.ent_dict["sub"]
+                + os.path.sep
+                + "ses-"
+                + self.ent_dict["ses"]
             )
         else:
             path_cad = "sub-" + self.ent_dict["sub"]
@@ -362,9 +366,7 @@ class ParcellationBuilder:
             cmd_cont = cltmisc.generate_container_command(
                 cmd_bashargs, cont_tech, cont_image
             )  # Generating container command
-            out_cmd = subprocess.run(
-                cmd_cont, stdout=subprocess.PIPE, text=True
-            )
+            out_cmd = subprocess.run(cmd_cont, stdout=subprocess.PIPE, text=True)
             fslut_file_cont = os.path.join(
                 out_cmd.stdout.split("\n")[0], "FreeSurferColorLUT.txt"
             )
@@ -548,7 +550,13 @@ class ParcellationBuilder:
                 self._process_method_none(supra, atlas_code, atlas_str, deriv_fold)
             elif proc_dict["method"] == "atlasbased":
                 self._process_atlasbased(
-                    supra, atlas_code, atlas_str, atlas_ref, deriv_fold, proc_dict, spam_thresh
+                    supra,
+                    atlas_code,
+                    atlas_str,
+                    atlas_ref,
+                    deriv_fold,
+                    proc_dict,
+                    spam_thresh,
                 )
 
         self._accumulate_supra(supra)
@@ -1009,7 +1017,14 @@ class ParcellationBuilder:
             )
 
     def _process_atlasbased(
-        self, supra, atlas_code, atlas_str, atlas_ref, deriv_fold, proc_dict, spam_thresh
+        self,
+        supra,
+        atlas_code,
+        atlas_str,
+        atlas_ref,
+        deriv_fold,
+        proc_dict,
+        spam_thresh,
     ):
         """Handle supra-regions built by registration to an atlas template."""
         deriv_dir = self.deriv_dir
@@ -1066,9 +1081,7 @@ class ParcellationBuilder:
 
             # Detecting the side
             sides_ids = list(self.supra_dict[supra][supra][atlas_code].keys())
-            sides_ids = sorted(
-                sides_ids, key=lambda x: not ("lh" in x or "rh" in x)
-            )
+            sides_ids = sorted(sides_ids, key=lambda x: not ("lh" in x or "rh" in x))
 
             # Masking the cerebellum from T1w image
             tmp_t1 = t1
@@ -1578,15 +1591,11 @@ class ParcellationBuilder:
                 chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
                 chim_parc_lut = os.path.join(
                     str(chim_dir),
-                    cltbids.replace_entity_value(
-                        chim_parc_name, {"extension": "lut"}
-                    ),
+                    cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}),
                 )
                 chim_parc_tsv = os.path.join(
                     str(chim_dir),
-                    cltbids.replace_entity_value(
-                        chim_parc_name, {"extension": "tsv"}
-                    ),
+                    cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}),
                 )
                 if (
                     not os.path.isfile(chim_parc_file)
@@ -1634,9 +1643,7 @@ class ParcellationBuilder:
         # Creating the first part of the headers
         part_header = [f"# $Id: {chim_parc_lut} {date_time} \n"]
 
-        part_header.append(
-            f"# Corresponding parcellation: {chim_parc_file} \n"
-        )
+        part_header.append(f"# Corresponding parcellation: {chim_parc_file} \n")
 
         lut_header = part_header + glob_header_info_tmp
 
@@ -1855,9 +1862,7 @@ class ParcellationBuilder:
             or force
         ):
             part_header = [f"# $Id: {chim_parc_lut} {date_time} \n"]
-            part_header.append(
-                f"# Corresponding parcellation: {chim_parc_file} \n"
-            )
+            part_header.append(f"# Corresponding parcellation: {chim_parc_file} \n")
 
             lut_header = part_header + self.glob_header_info
             lut_header = lut_header + ["\n"]

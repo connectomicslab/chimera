@@ -150,9 +150,7 @@ def _prepare_cortical_templates(chim, supra, fssubj_dir, chim_dir, pipe_dict):
                     "label",
                     "lh." + at_name[0] + ".annot",
                 )
-                tmp_refsurf = os.path.join(
-                    fssubj_dir, atlas_ref, "surf", "lh.white"
-                )
+                tmp_refsurf = os.path.join(fssubj_dir, atlas_ref, "surf", "lh.white")
                 ctx_parc_lh_annot.append(tmp_annot)
                 lh_obj = cltfree.AnnotParcellation.gii2annot(
                     gii_file=parc_file, annot_file=tmp_annot
@@ -164,9 +162,7 @@ def _prepare_cortical_templates(chim, supra, fssubj_dir, chim_dir, pipe_dict):
                     "label",
                     "rh." + at_name[0] + ".annot",
                 )
-                tmp_refsurf = os.path.join(
-                    fssubj_dir, atlas_ref, "surf", "rh.white"
-                )
+                tmp_refsurf = os.path.join(fssubj_dir, atlas_ref, "surf", "rh.white")
                 ctx_parc_rh_annot.append(tmp_annot)
                 rh_obj = cltfree.AnnotParcellation.gii2annot(
                     gii_file=ctx_parc_rh[i], annot_file=tmp_annot

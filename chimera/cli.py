@@ -83,7 +83,6 @@ def _build_args_parser():
                     heading = f"{bcolors.BOLD}{heading}{bcolors.ENDC}"
             super().start_section(heading)
 
-
     description = f"""
 {bcolors.BOLD}{bcolors.HEADER}╔══════════════════════════════════════════════════════════════╗{bcolors.ENDC}
 {bcolors.BOLD}{bcolors.HEADER}║                      CHIMERA TOOL                           ║{bcolors.ENDC}
@@ -385,9 +384,7 @@ def _build_args_parser():
     if args.regions is True:
         print("\n")
         mess = "Available parcellations for each supra-region"
-        print(
-            f"{bcolors.BOLD}{bcolors.PURPLE}{mess}{bcolors.ENDC}{bcolors.ENDC}: "
-        )
+        print(f"{bcolors.BOLD}{bcolors.PURPLE}{mess}{bcolors.ENDC}{bcolors.ENDC}: ")
         _print_availab_parcels()
         sys.exit()
 
