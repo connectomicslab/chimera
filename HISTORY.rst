@@ -2,6 +2,28 @@
 History
 =======
 
+0.4.1 (2026-08-11)
+------------------
+
+* Fixed ``processing.py`` never importing ``cltmisc``, which made every FSL
+  FIRST subcortical parcellation fail with ``NameError``.  The import was
+  lost when ``chimera.py`` was decomposed in 0.4.0.
+* Fixed ``main()`` performing arithmetic on ``os.cpu_count()`` without
+  handling ``None``, which raised ``TypeError`` before any subject was
+  processed on platforms where the core count is undeterminable.
+* Corrected ``requires-python`` to ``>=3.11``.  0.4.0 advertised ``>=3.9``
+  but could not be installed there: ``clabtoolkit`` requires
+  ``scipy>=1.16``, which is Python 3.11+ only.  ``scipy>=1.16`` is now
+  pinned directly so the constraint is visible.
+* Repaired the CI pipeline, which had never passed: dropped the
+  unresolvable 3.9/3.10 matrix entries, replaced the ``types-all``
+  pre-commit hook (its dependency was removed from PyPI), moved the ruff
+  settings under ``[tool.ruff.lint]``, and relaxed mypy to the checks the
+  codebase can meet.
+* Switched PyPI and TestPyPI uploads to Trusted Publishing.  The workflow
+  referenced API token secrets that were never configured, so every
+  release since 0.3.1 failed to publish.
+
 0.4.0 (2026-07-28)
 ------------------
 
