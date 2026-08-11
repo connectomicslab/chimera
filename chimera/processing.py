@@ -2,6 +2,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import clabtoolkit.misctools as cltmisc
+
 
 def launch_fsl_first(
     t1: str,
