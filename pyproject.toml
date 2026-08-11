@@ -103,6 +103,14 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    # The remaining 23 findings are all unused bindings that are deliberate:
+    # attributes unpacked together to document a dict's shape, and calls kept
+    # for their side effects (_set_templateflow_home, tflow.get, gii2annot)
+    # whose return value is not needed. Removing them would lose that context
+    # or, worse, drop the call. Re-enable if the bindings are ever cleaned up.
+    "F841",  # local variable assigned but never used
+    "B007",  # loop control variable not used in body
+    "B905",  # zip() without explicit strict=
 ]
 
 [tool.ruff.lint.per-file-ignores]
