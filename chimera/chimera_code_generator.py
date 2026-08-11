@@ -50,7 +50,7 @@ def _c(color: str, text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def load_parcellations_info(parc_dict_file: str = None) -> dict:
+def load_parcellations_info(parc_dict_file: str | None = None) -> dict:
     """
     Load the parcellation configuration from a JSON file.
 

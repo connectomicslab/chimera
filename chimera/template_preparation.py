@@ -22,7 +22,9 @@ from templateflow import api as tflow
 from .config_manager import _pipeline_info, _set_templateflow_home
 
 
-def prepare_templates(chim, fssubj_dir: str = None, pipe_dict: dict = None):
+def prepare_templates(
+    chim, fssubj_dir: str | None = None, pipe_dict: dict | None = None
+):
     """Prepare the templates for the Chimera parcellation.
 
     Based on the parcellation code, this downloads the necessary templates from

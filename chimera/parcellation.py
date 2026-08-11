@@ -26,10 +26,10 @@ def _mix_side_prop(st_dict: dict, boolsort: bool = True):
 
     """
 
-    all_index = []
-    all_name = []
-    all_color = []
-    all_opacity = []
+    all_index: list = []
+    all_name: list = []
+    all_color: list = []
+    all_opacity: list = []
     for side in st_dict.keys():
         all_index = all_index + st_dict[side]["index"]
         all_name = all_name + st_dict[side]["name"]
