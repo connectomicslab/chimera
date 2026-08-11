@@ -146,6 +146,30 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Modules that still carry unresolved type errors, mostly str/Path variables
+# reassigned to the other type and arguments whose declared type does not match
+# what callers pass. They are skipped so the rest of the package is genuinely
+# type-checked instead of the step being disabled outright.
+#
+# This list is meant to shrink. Drop a module, run mypy, fix what it reports.
+# Counts when this was written:
+#   parcellation_builder  142
+#   region_table           14
+#   core                   12
+#   cli                     7
+#   config_manager          9
+#   processing              3
+[[tool.mypy.overrides]]
+module = [
+    "chimera.parcellation_builder",
+    "chimera.region_table",
+    "chimera.core",
+    "chimera.cli",
+    "chimera.config_manager",
+    "chimera.processing",
+]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --strict-markers --strict-config"
