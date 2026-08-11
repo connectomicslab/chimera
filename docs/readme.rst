@@ -16,7 +16,7 @@ Full documentation is available at: **https://chimera-brainparcellation.readthed
 The documentation includes:
 
 - Complete API reference
-- Installation guide  
+- Installation guide
 - Usage examples
 - Parcellation methodology details
 
@@ -94,7 +94,7 @@ The easiest way to install CHIMERA is using pip:
 This will automatically install all required dependencies including:
 
 - pandas
-- pybids  
+- pybids
 - numpy
 - nibabel
 - rich

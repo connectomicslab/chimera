@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Volumetric parcellation construction for Chimera.
 
 This module decomposes the original ~1,780-line ``Chimera.build_parcellation``
@@ -19,30 +18,28 @@ rebinds the read-only locals it needs (``deriv_dir``, ``fullid`` …) at its top
 the bodies remain a faithful copy.
 """
 
-import os
 import copy
+import os
 import shutil
 import subprocess
 import uuid
+from datetime import datetime
 from glob import glob
 from pathlib import Path
-from datetime import datetime
-from typing import Union
 
-import numpy as np
-import nibabel as nib
-
-from clabtoolkit.colorstools import ColorTableLoader
-import clabtoolkit.misctools as cltmisc
-import clabtoolkit.freesurfertools as cltfree
-import clabtoolkit.parcellationtools as cltparc
 import clabtoolkit.bidstools as cltbids
-import clabtoolkit.segmentationtools as cltseg
+import clabtoolkit.freesurfertools as cltfree
 import clabtoolkit.imagetools as cltimg
+import clabtoolkit.misctools as cltmisc
+import clabtoolkit.parcellationtools as cltparc
+import clabtoolkit.segmentationtools as cltseg
+import nibabel as nib
+import numpy as np
+from clabtoolkit.colorstools import ColorTableLoader
 
 from .config_manager import _pipeline_info
+from .parcellation import _mix_side_prop, create_extra_regions_parc
 from .processing import launch_fsl_first
-from .parcellation import create_extra_regions_parc, _mix_side_prop
 from .region_table import build_lut_header
 
 
@@ -90,7 +87,7 @@ class ParcellationBuilder:
         bids_dir: str,
         deriv_dir: str = None,
         fssubj_dir: str = None,
-        growwm: Union[str, int, list] = None,
+        growwm: str | int | list = None,
         bool_mixwm: bool = False,
         force: bool = False,
         pipe_dict: dict = None,
@@ -200,7 +197,11 @@ class ParcellationBuilder:
 
         if "ses" in self.ent_dict.keys():
             path_cad = (
-                "sub-" + self.ent_dict["sub"] + os.path.sep + "ses-" + self.ent_dict["ses"]
+                "sub-"
+                + self.ent_dict["sub"]
+                + os.path.sep
+                + "ses-"
+                + self.ent_dict["ses"]
             )
         else:
             path_cad = "sub-" + self.ent_dict["sub"]
@@ -365,9 +366,7 @@ class ParcellationBuilder:
             cmd_cont = cltmisc.generate_container_command(
                 cmd_bashargs, cont_tech, cont_image
             )  # Generating container command
-            out_cmd = subprocess.run(
-                cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
-            )
+            out_cmd = subprocess.run(cmd_cont, stdout=subprocess.PIPE, text=True)
             fslut_file_cont = os.path.join(
                 out_cmd.stdout.split("\n")[0], "FreeSurferColorLUT.txt"
             )
@@ -380,7 +379,7 @@ class ParcellationBuilder:
 
             # Replace the element of the list equal to replace_cad by the path of the lut file
             cmd_cont = [w.replace("replace_cad", fslut_file_cont) for w in cmd_cont]
-            subprocess.run(cmd_cont, stdout=subprocess.PIPE, universal_newlines=True)
+            subprocess.run(cmd_cont, stdout=subprocess.PIPE, text=True)
             fslut_file = os.path.join("/tmp", tmp_name)
 
             ######## ------------- Reading FreeSurfer color lut table ------------ #
@@ -551,7 +550,13 @@ class ParcellationBuilder:
                 self._process_method_none(supra, atlas_code, atlas_str, deriv_fold)
             elif proc_dict["method"] == "atlasbased":
                 self._process_atlasbased(
-                    supra, atlas_code, atlas_str, atlas_ref, deriv_fold, proc_dict, spam_thresh
+                    supra,
+                    atlas_code,
+                    atlas_str,
+                    atlas_ref,
+                    deriv_fold,
+                    proc_dict,
+                    spam_thresh,
                 )
 
         self._accumulate_supra(supra)
@@ -1012,7 +1017,14 @@ class ParcellationBuilder:
             )
 
     def _process_atlasbased(
-        self, supra, atlas_code, atlas_str, atlas_ref, deriv_fold, proc_dict, spam_thresh
+        self,
+        supra,
+        atlas_code,
+        atlas_str,
+        atlas_ref,
+        deriv_fold,
+        proc_dict,
+        spam_thresh,
     ):
         """Handle supra-regions built by registration to an atlas template."""
         deriv_dir = self.deriv_dir
@@ -1069,9 +1081,7 @@ class ParcellationBuilder:
 
             # Detecting the side
             sides_ids = list(self.supra_dict[supra][supra][atlas_code].keys())
-            sides_ids = sorted(
-                sides_ids, key=lambda x: not ("lh" in x or "rh" in x)
-            )
+            sides_ids = sorted(sides_ids, key=lambda x: not ("lh" in x or "rh" in x))
 
             # Masking the cerebellum from T1w image
             tmp_t1 = t1
@@ -1581,15 +1591,11 @@ class ParcellationBuilder:
                 chim_parc_file = os.path.join(str(chim_dir), chim_parc_name)
                 chim_parc_lut = os.path.join(
                     str(chim_dir),
-                    cltbids.replace_entity_value(
-                        chim_parc_name, {"extension": "lut"}
-                    ),
+                    cltbids.replace_entity_value(chim_parc_name, {"extension": "lut"}),
                 )
                 chim_parc_tsv = os.path.join(
                     str(chim_dir),
-                    cltbids.replace_entity_value(
-                        chim_parc_name, {"extension": "tsv"}
-                    ),
+                    cltbids.replace_entity_value(chim_parc_name, {"extension": "tsv"}),
                 )
                 if (
                     not os.path.isfile(chim_parc_file)
@@ -1635,11 +1641,9 @@ class ParcellationBuilder:
         affine = self.affine
 
         # Creating the first part of the headers
-        part_header = ["# $Id: {} {} \n".format(chim_parc_lut, date_time)]
+        part_header = [f"# $Id: {chim_parc_lut} {date_time} \n"]
 
-        part_header.append(
-            "# Corresponding parcellation: {} \n".format(chim_parc_file)
-        )
+        part_header.append(f"# Corresponding parcellation: {chim_parc_file} \n")
 
         lut_header = part_header + glob_header_info_tmp
 
@@ -1857,10 +1861,8 @@ class ParcellationBuilder:
             or not os.path.isfile(chim_parc_tsv)
             or force
         ):
-            part_header = ["# $Id: {} {} \n".format(chim_parc_lut, date_time)]
-            part_header.append(
-                "# Corresponding parcellation: {} \n".format(chim_parc_file)
-            )
+            part_header = [f"# $Id: {chim_parc_lut} {date_time} \n"]
+            part_header.append(f"# Corresponding parcellation: {chim_parc_file} \n")
 
             lut_header = part_header + self.glob_header_info
             lut_header = lut_header + ["\n"]

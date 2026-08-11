@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Region-table construction and export for the Chimera parcellation.
 
 This module decomposes the original ``Chimera.create_table``,
@@ -8,29 +7,26 @@ functions.  Behaviour is preserved exactly; ``pipe_dict`` is threaded explicitly
 instead of being read from a module-level global.
 """
 
-import os
 import json
+import os
 from glob import glob
 from os import PathLike
 from pathlib import Path
-from typing import Union
 
+import clabtoolkit.freesurfertools as cltfree
+import clabtoolkit.misctools as cltmisc
+import clabtoolkit.parcellationtools as cltparc
 import numpy as np
 import pandas as pd
-
 from templateflow import api as tflow
 
-import clabtoolkit.misctools as cltmisc
-import clabtoolkit.freesurfertools as cltfree
-import clabtoolkit.parcellationtools as cltparc
-
-from .config_manager import _set_templateflow_home, _pipeline_info
+from .config_manager import _pipeline_info, _set_templateflow_home
 
 
 def build_region_table(
     chim,
     wm_index_offset: int = 3000,
-    reg2rem: Union[list, str, None] = None,
+    reg2rem: list | str | None = None,
     pipe_dict: dict = None,
 ):
     """Create the table of regions produced by the Chimera parcellation.
@@ -452,7 +448,7 @@ def _build_tables_with_cortex(
     return parc_id_list, desc_list, tab_list
 
 
-def export_table(chim, out_basename: str = None, format: Union[list, str] = "tsv"):
+def export_table(chim, out_basename: str = None, format: list | str = "tsv"):
     """Export the table of regions to a TSV or a LUT file.
 
     Parameters
@@ -567,7 +563,7 @@ def build_lut_header(chim):
     chim_code = chim.parc_code
 
     # Creating the header lines
-    headerlines = [" # Chimera parcellation code: {}".format(chim.parc_code)]
+    headerlines = [f" # Chimera parcellation code: {chim.parc_code}"]
     for i, supra in enumerate(supra_names):
         tmp_dict = parc_dict[supra]
 
@@ -583,9 +579,7 @@ def build_lut_header(chim):
             headerlines.append("    " + glob_desc)
         else:
             headerlines.append(
-                "    # {}. The parcellation code {} is not present in the dictionary for the supra-region {}.".format(
-                    i + 1, chim_code[i], supra
-                )
+                f"    # {i + 1}. The parcellation code {chim_code[i]} is not present in the dictionary for the supra-region {supra}."
             )
 
     return headerlines

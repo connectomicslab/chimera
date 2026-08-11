@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Template preparation for the Chimera parcellation.
 
 This module decomposes the original ``Chimera.prepare_templates`` monolith into
@@ -13,18 +12,19 @@ original method did.
 """
 
 import os
-from os import PathLike
 from glob import glob
+from os import PathLike
 
+import clabtoolkit.freesurfertools as cltfree
+import clabtoolkit.misctools as cltmisc
 from templateflow import api as tflow
 
-import clabtoolkit.misctools as cltmisc
-import clabtoolkit.freesurfertools as cltfree
-
-from .config_manager import _set_templateflow_home, _pipeline_info
+from .config_manager import _pipeline_info, _set_templateflow_home
 
 
-def prepare_templates(chim, fssubj_dir: str = None, pipe_dict: dict = None):
+def prepare_templates(
+    chim, fssubj_dir: str | None = None, pipe_dict: dict | None = None
+):
     """Prepare the templates for the Chimera parcellation.
 
     Based on the parcellation code, this downloads the necessary templates from
@@ -150,9 +150,7 @@ def _prepare_cortical_templates(chim, supra, fssubj_dir, chim_dir, pipe_dict):
                     "label",
                     "lh." + at_name[0] + ".annot",
                 )
-                tmp_refsurf = os.path.join(
-                    fssubj_dir, atlas_ref, "surf", "lh.white"
-                )
+                tmp_refsurf = os.path.join(fssubj_dir, atlas_ref, "surf", "lh.white")
                 ctx_parc_lh_annot.append(tmp_annot)
                 lh_obj = cltfree.AnnotParcellation.gii2annot(
                     gii_file=parc_file, annot_file=tmp_annot
@@ -164,9 +162,7 @@ def _prepare_cortical_templates(chim, supra, fssubj_dir, chim_dir, pipe_dict):
                     "label",
                     "rh." + at_name[0] + ".annot",
                 )
-                tmp_refsurf = os.path.join(
-                    fssubj_dir, atlas_ref, "surf", "rh.white"
-                )
+                tmp_refsurf = os.path.join(fssubj_dir, atlas_ref, "surf", "rh.white")
                 ctx_parc_rh_annot.append(tmp_annot)
                 rh_obj = cltfree.AnnotParcellation.gii2annot(
                     gii_file=ctx_parc_rh[i], annot_file=tmp_annot

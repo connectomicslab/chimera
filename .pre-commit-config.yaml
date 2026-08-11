@@ -1,6 +1,8 @@
+# Hook revisions are kept in step with the versions CI installs, so a run here
+# and a run in the CI workflow cannot disagree about formatting or lint rules.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -11,20 +13,19 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 26.5.1
     hooks:
       - id: black
         language_version: python3
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.270
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
+    rev: v2.3.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
         args: [--ignore-missing-imports]

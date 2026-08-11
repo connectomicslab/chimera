@@ -1,13 +1,13 @@
 import copy
 import os
 from glob import glob
+
+import clabtoolkit.parcellationtools as cltparc
 import numpy as np
 import pandas as pd
+from clabtoolkit.colorstools import bcolors
 
 from .config_manager import load_parcellations_info
-
-from clabtoolkit.colorstools import bcolors
-import clabtoolkit.parcellationtools as cltparc
 
 
 def _mix_side_prop(st_dict: dict, boolsort: bool = True):
@@ -26,10 +26,10 @@ def _mix_side_prop(st_dict: dict, boolsort: bool = True):
 
     """
 
-    all_index = []
-    all_name = []
-    all_color = []
-    all_opacity = []
+    all_index: list = []
+    all_name: list = []
+    all_color: list = []
+    all_opacity: list = []
     for side in st_dict.keys():
         all_index = all_index + st_dict[side]["index"]
         all_name = all_name + st_dict[side]["name"]
@@ -166,58 +166,30 @@ def _print_availab_parcels(reg_name=None):
         parc_help = ""
         for sup in supra_keys:
             parc_opts = data[sup]
-            parc_help = '{} "{}:\n"'.format(parc_help, sup)
+            parc_help = f'{parc_help} "{sup}:\n"'
             print(
-                "{}{}{}{}{}: ".format(
-                    bcolors.BOLD, bcolors.DARKCYAN, sup, bcolors.ENDC, bcolors.ENDC
-                )
+                f"{bcolors.BOLD}{bcolors.DARKCYAN}{sup}{bcolors.ENDC}{bcolors.ENDC}: "
             )
 
             for opts in parc_opts:
                 desc = data[sup][opts]["name"]
                 cita = data[sup][opts]["citation"]
-                parc_help = '{} "{}: {} {}\n"'.format(parc_help, opts, desc, cita)
+                parc_help = f'{parc_help} "{opts}: {desc} {cita}\n"'
                 print(
-                    "{}     {}{}: {}{}{}{}{} {}{}{}".format(
-                        bcolors.OKGREEN,
-                        opts,
-                        bcolors.ENDC,
-                        bcolors.ITALIC,
-                        bcolors.DARKWHITE,
-                        desc,
-                        bcolors.ENDC,
-                        bcolors.ENDC,
-                        bcolors.OKYELLOW,
-                        cita,
-                        bcolors.ENDC,
-                    )
+                    f"{bcolors.OKGREEN}     {opts}{bcolors.ENDC}: {bcolors.ITALIC}{bcolors.DARKWHITE}{desc}{bcolors.ENDC}{bcolors.ENDC} {bcolors.OKYELLOW}{cita}{bcolors.ENDC}"
                 )
             print("")
     else:
         parc_opts = data[reg_name]
         print("\n")
         print(
-            "{}{}{}{}{}: ".format(
-                bcolors.BOLD, bcolors.DARKCYAN, reg_name, bcolors.ENDC, bcolors.ENDC
-            )
+            f"{bcolors.BOLD}{bcolors.DARKCYAN}{reg_name}{bcolors.ENDC}{bcolors.ENDC}: "
         )
 
         for opts in parc_opts:
             desc = data[reg_name][opts]["name"]
             cita = data[reg_name][opts]["citation"]
             print(
-                "{}     {}{}: {}{}{}{}{} {}{}{}".format(
-                    bcolors.OKGREEN,
-                    opts,
-                    bcolors.ENDC,
-                    bcolors.ITALIC,
-                    bcolors.DARKWHITE,
-                    desc,
-                    bcolors.ENDC,
-                    bcolors.ENDC,
-                    bcolors.OKYELLOW,
-                    cita,
-                    bcolors.ENDC,
-                )
+                f"{bcolors.OKGREEN}     {opts}{bcolors.ENDC}: {bcolors.ITALIC}{bcolors.DARKWHITE}{desc}{bcolors.ENDC}{bcolors.ENDC} {bcolors.OKYELLOW}{cita}{bcolors.ENDC}"
             )
         print("")

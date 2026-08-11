@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """The Chimera object.
 
 This is the refactored, decomposed counterpart of the ``Chimera`` class that
@@ -17,18 +16,21 @@ module-level global the original relied on.
 """
 
 import os
-from typing import Union
 
 import clabtoolkit.misctools as cltmisc
 
 from .config_manager import load_parcellations_info
-from .template_preparation import prepare_templates as _prepare_templates
+from .parcellation_builder import ParcellationBuilder
 from .region_table import (
-    build_region_table as _build_region_table,
-    export_table as _export_table,
     build_lut_header as _build_lut_header,
 )
-from .parcellation_builder import ParcellationBuilder
+from .region_table import (
+    build_region_table as _build_region_table,
+)
+from .region_table import (
+    export_table as _export_table,
+)
+from .template_preparation import prepare_templates as _prepare_templates
 
 
 class Chimera:
@@ -58,8 +60,8 @@ class Chimera:
     def __init__(
         self,
         parc_code: str,
-        scale: Union[str, list] = None,
-        seg: Union[str, list] = None,
+        scale: str | list = None,
+        seg: str | list = None,
         parc_dict_file: str = None,
         supra_folder: str = None,
         pipe_dict: dict = None,
@@ -166,9 +168,7 @@ class Chimera:
             else:
                 # Print a message that the parcellation code is not present in the dictionary
                 print(
-                    "The parcellation code {} is not present in the dictionary for the supra-region {}.".format(
-                        parc_code[i], supra_names[i]
-                    )
+                    f"The parcellation code {parc_code[i]} is not present in the dictionary for the supra-region {supra_names[i]}."
                 )
 
         self.parc_dict = temp_dict
@@ -187,7 +187,7 @@ class Chimera:
     def create_table(
         self,
         wm_index_offset: int = 3000,
-        reg2rem: Union[list, str, None] = None,
+        reg2rem: list | str | None = None,
     ):
         """Create the table of regions produced by the Chimera parcellation.
 
@@ -200,7 +200,7 @@ class Chimera:
             pipe_dict=self.pipe_dict,
         )
 
-    def export_table(self, out_basename: str = None, format: Union[list, str] = "tsv"):
+    def export_table(self, out_basename: str = None, format: list | str = "tsv"):
         """Export the table of regions to a TSV or a LUT file.
 
         See :func:`chimera.region_table.export_table`.
@@ -220,7 +220,7 @@ class Chimera:
         bids_dir: str,
         deriv_dir: str = None,
         fssubj_dir: str = None,
-        growwm: Union[str, int] = None,
+        growwm: str | int = None,
         bool_mixwm: bool = False,
         force: bool = False,
     ):
