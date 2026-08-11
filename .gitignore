@@ -116,3 +116,14 @@ ENV/
 # IDE settings
 .vscode/
 .idea/
+
+# LibreOffice/OpenOffice lock files, written next to a document while it is
+# open. The config TSVs get edited in a spreadsheet, so these appear inside
+# chimera/data and chimera/config.
+.~lock.*#
+
+# OS and editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
