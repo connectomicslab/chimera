@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Template preparation for the Chimera parcellation.
 
 This module decomposes the original ``Chimera.prepare_templates`` monolith into
@@ -13,15 +12,14 @@ original method did.
 """
 
 import os
-from os import PathLike
 from glob import glob
+from os import PathLike
 
+import clabtoolkit.freesurfertools as cltfree
+import clabtoolkit.misctools as cltmisc
 from templateflow import api as tflow
 
-import clabtoolkit.misctools as cltmisc
-import clabtoolkit.freesurfertools as cltfree
-
-from .config_manager import _set_templateflow_home, _pipeline_info
+from .config_manager import _pipeline_info, _set_templateflow_home
 
 
 def prepare_templates(chim, fssubj_dir: str = None, pipe_dict: dict = None):

@@ -29,16 +29,14 @@ Usage
 
 import argparse
 import json
-import re
 import os
+import re
 import sys
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Terminal colours
 # ---------------------------------------------------------------------------
-
 from clabtoolkit.colorstools import bcolors
 
 
@@ -88,7 +86,7 @@ def load_parcellations_info(parc_dict_file: str = None) -> dict:
         print(_c(bcolors.OKRED, f"Error: file not found -> {parc_dict_file}"))
         sys.exit(1)
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return json.load(fh)
     except json.JSONDecodeError as exc:
         print(_c(bcolors.OKRED, f"Error: could not parse JSON -> {exc}"))

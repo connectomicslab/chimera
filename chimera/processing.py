@@ -53,7 +53,7 @@ def launch_fsl_first(
             cmd_bashargs, cont_tech, cont_image
         )  # Generating container command
         subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
+            cmd_cont, stdout=subprocess.PIPE, text=True
         )  # Running container command
 
         cmd_bashargs = [
@@ -65,7 +65,7 @@ def launch_fsl_first(
             cmd_bashargs, cont_tech, cont_image
         )  # Generating container command
         subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
+            cmd_cont, stdout=subprocess.PIPE, text=True
         )  # Running container command
 
         cmd_bashargs = ["rm", "-rf", "temp*"]
@@ -73,5 +73,5 @@ def launch_fsl_first(
             cmd_bashargs, cont_tech, cont_image
         )  # Generating container command
         subprocess.run(
-            cmd_cont, stdout=subprocess.PIPE, universal_newlines=True
+            cmd_cont, stdout=subprocess.PIPE, text=True
         )  # Running container command

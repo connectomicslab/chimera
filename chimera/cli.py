@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Command-line interface and multi-subject orchestration for Chimera.
 
 This module gathers the argument parser, the progress-indicator callback, the
@@ -7,23 +6,22 @@ This module gathers the argument parser, the progress-indicator callback, the
 of :mod:`chimera.chimera`.  It drives the refactored :class:`chimera.core.Chimera`.
 """
 
+import argparse
 import os
 import sys
 import time
-import argparse
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Lock
 
+import clabtoolkit.bidstools as cltbids
 from bids import BIDSLayout
+from clabtoolkit.colorstools import bcolors
 from rich.progress import Progress
 
-from clabtoolkit.colorstools import bcolors
-import clabtoolkit.bidstools as cltbids
-
-from .config_manager import load_parcellations_info, _pipeline_info
-from .parcellation import _print_availab_parcels
+from .config_manager import _pipeline_info, load_parcellations_info
 from .core import Chimera
+from .parcellation import _print_availab_parcels
 
 
 def _build_args_parser():
@@ -65,7 +63,6 @@ def _build_args_parser():
                     heading = f"{bcolors.BOLD}{heading}{bcolors.ENDC}"
             super().start_section(heading)
 
-    from argparse import ArgumentParser
 
     description = f"""
 {bcolors.BOLD}{bcolors.HEADER}╔══════════════════════════════════════════════════════════════╗{bcolors.ENDC}
@@ -316,10 +313,16 @@ def _build_args_parser():
     # Launch the interactive code generator to fill --parcodes / --seg / --scale / --growwm
     if args.gencode:
         from chimera.chimera_code_generator import (
-            load_parcellations_info as _cg_load,
-            run_interactive as _cg_run,
-            build_code_string as _cg_code_str,
             _prompt_growwm as _cg_growwm,
+        )
+        from chimera.chimera_code_generator import (
+            build_code_string as _cg_code_str,
+        )
+        from chimera.chimera_code_generator import (
+            load_parcellations_info as _cg_load,
+        )
+        from chimera.chimera_code_generator import (
+            run_interactive as _cg_run,
         )
 
         _cg_data = _cg_load()
@@ -363,9 +366,7 @@ def _build_args_parser():
         print("\n")
         mess = "Available parcellations for each supra-region"
         print(
-            "{}{}{}{}{}: ".format(
-                bcolors.BOLD, bcolors.PURPLE, mess, bcolors.ENDC, bcolors.ENDC
-            )
+            f"{bcolors.BOLD}{bcolors.PURPLE}{mess}{bcolors.ENDC}{bcolors.ENDC}: "
         )
         _print_availab_parcels()
         sys.exit()
@@ -384,9 +385,7 @@ def _build_args_parser():
         if not os.path.isdir(bids_dir):
             print("Please, supply a valid BIDs directory.")
             print(
-                "The supplied BIDs directory does not exist: {}{}{}{}{}: is not supplied. ".format(
-                    bcolors.BOLD, bcolors.OKRED, bids_dir, bcolors.ENDC, bcolors.ENDC
-                )
+                f"The supplied BIDs directory does not exist: {bcolors.BOLD}{bcolors.OKRED}{bids_dir}{bcolors.ENDC}{bcolors.ENDC}: is not supplied. "
             )
             p.print_help()
             sys.exit()

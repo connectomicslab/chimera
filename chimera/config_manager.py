@@ -1,11 +1,10 @@
-import os
 import json
+import os
+from glob import glob
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from glob import glob
-
-from pathlib import Path
-import templateflow.api as tflow
 
 
 # Loading the JSON file containing the available parcellations
