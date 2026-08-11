@@ -23,13 +23,13 @@ Here's a simple example of how to create a CHIMERA parcellation:
 .. code-block:: python
 
     from chimera import Chimera
-    
+
     # Create a CHIMERA instance with a parcellation code
     # Each character represents a supra-region parcellation choice
     parc_code = "DFMIIIFIF"  # 10-character code for all supra-regions
-    
+
     chimera_obj = Chimera(parc_code=parc_code)
-    
+
     # Prepare templates and build parcellation
     chimera_obj.prepare_templates(fssubj_dir="/path/to/freesurfer/subjects")
     chimera_obj.build_parcellation(
@@ -47,10 +47,10 @@ CHIMERA can also be used from the command line:
 
     # Basic usage
     chimera -b /path/to/bids -d /path/to/derivatives -p DFMIIIFIF
-    
+
     # Multiple parcellation codes
     chimera -b /path/to/bids -d /path/to/derivatives -p DFMIIIFIF,SFMIIIFIF
-    
+
     # Specific subjects
     chimera -b /path/to/bids -d /path/to/derivatives -p DFMIIIFIF -ids sub-001,sub-002
 

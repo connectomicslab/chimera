@@ -38,7 +38,7 @@ Python Dependencies
 All Python dependencies are automatically installed with pip:
 
 - numpy
-- pandas  
+- pandas
 - scipy
 - nibabel
 - pybids
