@@ -110,14 +110,22 @@ ignore = [
 "tests/**/*" = ["B011"]
 
 [tool.mypy]
-python_version = "3.11"
+# 3.12 rather than the 3.11 floor: numpy's bundled stubs use `type` aliases,
+# which mypy only parses when targeting 3.12+, and a parse error in a stub is
+# fatal. ruff and black still target py311, so 3.11-incompatible syntax is
+# caught there.
+python_version = "3.12"
 check_untyped_defs = true
-disallow_any_generics = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+# The codebase is largely unannotated, so demanding annotations everywhere
+# buries the errors that indicate real type bugs. These stay off until the
+# modules they apply to actually carry annotations; tighten per-module via
+# an override rather than flipping them back on globally.
+disallow_any_generics = false
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
 module = [
@@ -125,6 +133,8 @@ module = [
     "clabtoolkit.*",
     "templateflow.*",
     "bids.*",
+    "pandas.*",
+    "scipy.*",
 ]
 ignore_missing_imports = true
 
