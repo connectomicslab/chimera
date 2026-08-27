@@ -488,7 +488,7 @@ def export_table(chim, out_basename: str = None, format: list | str = "tsv"):
                     str(out_dir), out_name + "_" + parc_ids[i] + ".tsv"
                 )
                 cltparc.Parcellation.write_tsvtable(
-                    tsv_df=tab_df, out_file=out_file_tsv, force=True
+                    tsv_df=tab_df, out_file=out_file_tsv, overwrite=True
                 )
 
             if "lut" in format:
@@ -504,7 +504,7 @@ def export_table(chim, out_basename: str = None, format: list | str = "tsv"):
                     colors=colors,
                     out_file=out_file_lut,
                     headerlines=parc_desc,
-                    force=True,
+                    overwrite=True,
                 )
         else:
             if format == "tsv":
@@ -512,7 +512,7 @@ def export_table(chim, out_basename: str = None, format: list | str = "tsv"):
                     str(out_dir), out_name + "_" + parc_ids[i] + ".tsv"
                 )
                 cltparc.Parcellation.write_tsvtable(
-                    tsv_df=tab_df, out_file=out_file_tsv, force=True
+                    tsv_df=tab_df, out_file=out_file_tsv, overwrite=True
                 )
 
             if format == "lut":
@@ -528,7 +528,7 @@ def export_table(chim, out_basename: str = None, format: list | str = "tsv"):
                     colors=colors,
                     out_file=out_file_lut,
                     headerlines=parc_desc,
-                    force=True,
+                    overwrite=True,
                 )
 
 

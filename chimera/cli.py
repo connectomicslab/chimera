@@ -302,8 +302,8 @@ def _build_args_parser():
     )
 
     optionalNamed.add_argument(
-        "--force",
-        "-f",
+        "--overwrite",
+        "-ow",
         action="store_true",
         required=False,
         help=f"{bcolors.BOLD}Force overwrite{bcolors.ENDC}\n"

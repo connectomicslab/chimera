@@ -10,7 +10,7 @@ def launch_fsl_first(
     first_parc: str,
     cont_tech: str = "local",
     cont_image: str = None,
-    force=False,
+    overwrite=False,
 ):
     """
     This function executes the FIRST subcortical parcellation.
@@ -29,7 +29,7 @@ def launch_fsl_first(
     cont_image : str
         Container image.
 
-    force : bool
+    overwrite : bool
         Overwrite the results.
 
     Returns:
@@ -38,7 +38,7 @@ def launch_fsl_first(
     """
     fsl_outdir = os.path.dirname(first_parc)
 
-    if not os.path.isfile(first_parc) or force:
+    if not os.path.isfile(first_parc) or overwrite:
         fsl_outdir = Path(fsl_outdir)
         fsl_outdir.mkdir(parents=True, exist_ok=True)
 

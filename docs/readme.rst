@@ -157,7 +157,7 @@ Brief description of input options:
      - Subject IDs. Multiple subject ids can be specified separating them by a comma.
    * - ``--mergectx``, ``-mctx``
      - Join cortical white matter and cortical gray matter regions.
-   * - ``--force``, ``-f``
+   * - ``--overwrite``, ``-ow``
      - Overwrite the results.
    * - ``--verbose``, ``-v``
      - Verbose (**0**, **1** or **2**).

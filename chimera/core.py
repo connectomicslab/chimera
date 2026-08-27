@@ -222,7 +222,7 @@ class Chimera:
         fssubj_dir: str = None,
         growwm: str | int = None,
         bool_mixwm: bool = False,
-        force: bool = False,
+        overwrite: bool = False,
     ):
         """Build the parcellation for the selected parcellation code.
 
@@ -236,6 +236,6 @@ class Chimera:
             fssubj_dir=fssubj_dir,
             growwm=growwm,
             bool_mixwm=bool_mixwm,
-            force=force,
+            overwrite=overwrite,
             pipe_dict=self.pipe_dict,
         ).run()

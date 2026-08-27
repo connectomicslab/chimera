@@ -143,7 +143,7 @@ Advanced Command Line Options
 
     # Force overwrite existing results
     chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\
-            -f
+            -ow
 
     # Verbose output
     chimera -b /data/study -d /data/study/derivatives -p DFMIIIFIF \\

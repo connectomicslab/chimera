@@ -72,7 +72,7 @@ class ParcellationBuilder:
     bool_mixwm : bool
         If True, the grown voxels mix with the cortical labels.
 
-    force : bool
+    overwrite : bool
         Overwrite the results.
 
     pipe_dict : dict
@@ -89,7 +89,7 @@ class ParcellationBuilder:
         fssubj_dir: str = None,
         growwm: str | int | list = None,
         bool_mixwm: bool = False,
-        force: bool = False,
+        overwrite: bool = False,
         pipe_dict: dict = None,
     ):
         self.chim = chim
@@ -99,7 +99,7 @@ class ParcellationBuilder:
         self.fssubj_dir = fssubj_dir
         self.growwm = growwm
         self.bool_mixwm = bool_mixwm
-        self.force = force
+        self.overwrite = overwrite
         self.pipe_dict = pipe_dict if pipe_dict is not None else _pipeline_info()
 
         self.chim_code = chim.parc_code
@@ -233,12 +233,12 @@ class ParcellationBuilder:
     # --------------------------------------------- step: existence check
     def _outputs_already_exist(self) -> bool:
         """Return ``True`` when every requested output file is already present."""
-        force = self.force
+        overwrite = self.overwrite
         chim_code = self.chim_code
         fullid = self.fullid
         chim_dir = self.out_dir
 
-        if force:
+        if overwrite:
             return False
 
         bool_chim_exist = True
@@ -318,7 +318,7 @@ class ParcellationBuilder:
                         not os.path.isfile(chim_parc_file)
                         or not os.path.isfile(chim_parc_lut)
                         or not os.path.isfile(chim_parc_tsv)
-                        or force
+                        or overwrite
                     ):
                         bool_chim_exist = bool_chim_exist & False
                     else:
@@ -344,7 +344,7 @@ class ParcellationBuilder:
                 not os.path.isfile(chim_parc_file)
                 or not os.path.isfile(chim_parc_lut)
                 or not os.path.isfile(chim_parc_tsv)
-                or force
+                or overwrite
             ):
                 bool_chim_exist = bool_chim_exist & False
             else:
@@ -399,7 +399,7 @@ class ParcellationBuilder:
         """Run FreeSurfer, build the aseg + extra parcellations and the buffers."""
         pipe_dict = self.pipe_dict
         t1 = self.t1
-        force = self.force
+        overwrite = self.overwrite
         fssubj_dir = self.fssubj_dir
         fullid = self.fullid
 
@@ -421,7 +421,7 @@ class ParcellationBuilder:
 
         # Running FreeSurfer if it was not previously computed is mandatory
         sub2proc.launch_freesurfer(
-            force=force,
+            overwrite=overwrite,
             t1w_img=t1,
             cont_tech=cont_tech_freesurfer,
             cont_image=cont_image_freesurfer,
@@ -441,7 +441,7 @@ class ParcellationBuilder:
                 nii_native=nii_image,
                 cont_image=cont_image_freesurfer,
                 cont_tech=cont_tech_freesurfer,
-                force=force,
+                overwrite=overwrite,
             )
 
         if self.aseg_parc is None:
@@ -625,7 +625,7 @@ class ParcellationBuilder:
         deriv_dir = self.deriv_dir
         path_cad = self.path_cad
         fullid = self.fullid
-        force = self.force
+        overwrite = self.overwrite
         cont_tech_freesurfer = self.cont_tech_freesurfer
         cont_image_freesurfer = self.cont_image_freesurfer
         atlas_src = self.parc_dict[supra]["source"]
@@ -633,7 +633,7 @@ class ParcellationBuilder:
 
         if proc_dict["labels"] == "freesurferextra":
             sub2proc.launch_freesurfer(
-                force=force,
+                overwrite=overwrite,
                 extra_proc=supra.lower(),
                 cont_tech=cont_tech_freesurfer,
                 cont_image=cont_image_freesurfer,
@@ -689,7 +689,7 @@ class ParcellationBuilder:
                             nii_native=lh_nii_image,
                             cont_image=cont_image_freesurfer,
                             cont_tech=cont_tech_freesurfer,
-                            force=force,
+                            overwrite=overwrite,
                         )
                     else:
                         lh_nii_image = lh_mgz_image
@@ -705,7 +705,7 @@ class ParcellationBuilder:
                             nii_native=rh_nii_image,
                             cont_image=cont_image_freesurfer,
                             cont_tech=cont_tech_freesurfer,
-                            force=force,
+                            overwrite=overwrite,
                         )
                     else:
                         rh_nii_image = rh_mgz_image
@@ -776,7 +776,7 @@ class ParcellationBuilder:
                             nii_native=nii_image,
                             cont_image=cont_image_freesurfer,
                             cont_tech=cont_tech_freesurfer,
-                            force=force,
+                            overwrite=overwrite,
                         )
                     else:
                         nii_image = mgz_image
@@ -849,7 +849,7 @@ class ParcellationBuilder:
                         nii_native=nii_image,
                         cont_image=cont_image_freesurfer,
                         cont_tech=cont_tech_freesurfer,
-                        force=force,
+                        overwrite=overwrite,
                     )
                     self.files2del.append(nii_image)
 
@@ -954,7 +954,7 @@ class ParcellationBuilder:
         path_cad = self.path_cad
         fullid = self.fullid
         t1 = self.t1
-        force = self.force
+        overwrite = self.overwrite
         cont_tech_fsl = self.cont_tech_fsl
         cont_image_fsl = self.cont_image_fsl
 
@@ -975,7 +975,7 @@ class ParcellationBuilder:
                     first_parc=first_nii,
                     cont_tech=cont_tech_fsl,
                     cont_image=cont_image_fsl,
-                    force=force,
+                    overwrite=overwrite,
                 )
                 self.first_parc = cltparc.Parcellation(parc_file=first_nii)
 
@@ -1075,7 +1075,7 @@ class ParcellationBuilder:
             not os.path.isfile(out_parc_maxp)
             or not os.path.isfile(out_parc_lut)
             or not os.path.isfile(out_parc_tsv)
-            or self.force
+            or self.overwrite
         ):
             work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1403,7 +1403,7 @@ class ParcellationBuilder:
         chim_code = self.chim_code
         chim_dir = self.out_dir
         bool_mixwm = self.bool_mixwm
-        force = self.force
+        overwrite = self.overwrite
         sub2proc = self.sub2proc
         prev_chims = self.prev_chims
         cont_tech_freesurfer = self.cont_tech_freesurfer
@@ -1457,7 +1457,7 @@ class ParcellationBuilder:
                     ind_annot=lh_out_annot,
                     cont_tech=cont_tech_freesurfer,
                     cont_image=cont_image_freesurfer,
-                    force=force,
+                    overwrite=overwrite,
                 )
 
                 sub2proc.annot2ind(
@@ -1467,7 +1467,7 @@ class ParcellationBuilder:
                     ind_annot=rh_out_annot,
                     cont_tech=cont_tech_freesurfer,
                     cont_image=cont_image_freesurfer,
-                    force=force,
+                    overwrite=overwrite,
                 )
 
             if ctx_meth == "gcs2indiv":
@@ -1478,7 +1478,7 @@ class ParcellationBuilder:
                     ind_annot=lh_out_annot,
                     cont_tech=cont_tech_freesurfer,
                     cont_image=cont_image_freesurfer,
-                    force=force,
+                    overwrite=overwrite,
                 )
 
                 sub2proc.gcs2ind(
@@ -1487,7 +1487,7 @@ class ParcellationBuilder:
                     ind_annot=rh_out_annot,
                     cont_tech=cont_tech_freesurfer,
                     cont_image=cont_image_freesurfer,
-                    force=force,
+                    overwrite=overwrite,
                 )
 
             # Copying to the labels folder
@@ -1601,7 +1601,7 @@ class ParcellationBuilder:
                     not os.path.isfile(chim_parc_file)
                     or not os.path.isfile(chim_parc_lut)
                     or not os.path.isfile(chim_parc_tsv)
-                    or force
+                    or overwrite
                 ):
                     self._compose_and_save_cortical(
                         c,
@@ -1724,7 +1724,7 @@ class ParcellationBuilder:
                 out_vol=os.path.join(out_vol_dir, out_vol_name),
                 gm_grow=self.growwm[ngrow],
                 bool_mixwm=bool_mixwm,
-                force=False,
+                overwrite=False,
                 bool_native=True,
                 color_table=["tsv", "lut"],
                 cont_tech=cont_tech_freesurfer,
@@ -1836,7 +1836,7 @@ class ParcellationBuilder:
         fullid = self.fullid
         chim_code = self.chim_code
         chim_dir = self.out_dir
-        force = self.force
+        overwrite = self.overwrite
         t1_image = self.t1_image
         affine = self.affine
 
@@ -1859,7 +1859,7 @@ class ParcellationBuilder:
             not os.path.isfile(chim_parc_file)
             or not os.path.isfile(chim_parc_lut)
             or not os.path.isfile(chim_parc_tsv)
-            or force
+            or overwrite
         ):
             part_header = [f"# $Id: {chim_parc_lut} {date_time} \n"]
             part_header.append(f"# Corresponding parcellation: {chim_parc_file} \n")

@@ -149,7 +149,7 @@ Brief description of input options:
 | `--growwm`, `-gw`        | Grow of GM labels inside the white matter (mm).                                                                                |
 | `--subjids`, `-ids`      | Subject IDs. Multiple subject ids can be specified separating them by a comma.                                                 |
 | `--mergectx,`, `-mctx`   | Join cortical white matter and cortical gray matter regions.                                                                   |
-| `--force`, `-f`          | Overwrite the results.                                                                                                         |
+| `--overwrite`, `-ow`     | Overwrite the results.                                                                                                         |
 | `--verbose`, `-v`        | Verbose (**0**, **1** or **2**).                                                                                               |
 | `--help`, `-h`           | Help.                                                                                                                          |
 
