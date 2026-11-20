@@ -1159,6 +1159,13 @@ class ParcellationBuilder:
                     tmp_parc.color = self.supra_dict[supra][supra][atlas_code][side][
                         "color"
                     ]
+                    # Set opacity together with index/name/color: the opacity
+                    # auto-generated on load only covers the labels present in
+                    # the max-prob image, so a region with no winning voxels
+                    # would leave it one entry short.
+                    tmp_parc.opacity = self.supra_dict[supra][supra][atlas_code][side][
+                        "opacity"
+                    ]
 
                     if side in self.supra_dict[supra][supra]["F"].keys():
                         aseg_code = self.supra_dict[supra][supra]["F"][side]["index"]
