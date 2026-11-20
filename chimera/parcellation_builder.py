@@ -1144,6 +1144,8 @@ class ParcellationBuilder:
                         prob_thresh=spam_thresh,
                         vol_indexes=vol_indexes,
                         maxp_name=tmp_par_file,
+                        # A temporary file left by an interrupted run is replaced
+                        overwrite=True,
                     )
 
                     # Back to the native grid (3D labels only). A SPAM left in
