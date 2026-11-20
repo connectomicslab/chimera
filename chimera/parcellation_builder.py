@@ -1109,10 +1109,17 @@ class ParcellationBuilder:
                     cont_image=cont_image_ants,
                 )
 
-                if supra == "Cerebellum":
-                    if self.parc_dict[supra]["name"] == "SUIT":
-                        os.remove(tmp_t1)
-                        cltimg.cropped_to_native(out_parc_spam, t1, out_parc_spam)
+                # For SUIT the SPAM stays on the cropped (cerebellum) grid. The
+                # 4D probability maps are never expanded to the native grid: on
+                # high-resolution images that array alone is several GB. Instead
+                # each side's 3D max-probability map is computed on the cropped
+                # grid and only that label image is put back into native space.
+                # The crop is a pure voxel shift, so the labels are identical.
+                is_suit = (
+                    supra == "Cerebellum" and self.parc_dict[supra]["name"] == "SUIT"
+                )
+                if is_suit and os.path.isfile(tmp_t1):
+                    os.remove(tmp_t1)
 
                 for side_cont, side in enumerate(sides_ids):
                     vol_indexes = (
@@ -1138,6 +1145,11 @@ class ParcellationBuilder:
                         vol_indexes=vol_indexes,
                         maxp_name=tmp_par_file,
                     )
+
+                    # Back to the native grid (3D labels only). A SPAM left in
+                    # native space by an earlier version maps onto itself here.
+                    if is_suit:
+                        cltimg.cropped_to_native(tmp_parc_file, t1, tmp_parc_file)
 
                     tmp_parc = cltparc.Parcellation(parc_file=tmp_parc_file)
                     tmp_parc.index = vol_indexes + 1
