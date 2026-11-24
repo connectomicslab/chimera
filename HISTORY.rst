@@ -2,6 +2,28 @@
 History
 =======
 
+Unreleased
+----------
+
+* Fixed the codes of the cortical white matter regions, which could be wrong
+  in the left hemisphere.  ``wm-lh-X`` must have the code of ``ctx-lh-X``
+  plus 3000, but its code was computed from the number of regions in the
+  right non-cortical table (``nrh_subc``), while the code of ``ctx-lh-X``
+  comes from the labels in the image.  When the table listed regions that
+  had no voxels in the image, the left white matter codes were shifted (by
+  14 in a cohort that had to be corrected by hand).  The codes of
+  ``wm-lh-X`` and ``wm-rh-X`` are now set from the codes of their cortical
+  regions by name once all the regions are in the image, and the region
+  table (``region_table.py``) derives them the same way instead of counting.
+* Every parcellation is now checked before it is saved: the color table lists
+  have the same length, no name or code is repeated, every code of the image
+  is in the color table, and every ``wm-<hemi>-X`` region has a
+  ``ctx-<hemi>-X`` region and its code plus 3000.  An inconsistent
+  parcellation raises a ``ValueError`` listing the problems and is not
+  written.  The checks and the correction are in the new ``validation``
+  module (``check_parcellation``, ``validate_parcellation``,
+  ``fix_wm_codes``), with the first tests of the package.
+
 0.4.1 (2026-08-11)
 ------------------
 

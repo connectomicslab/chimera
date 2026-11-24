@@ -389,19 +389,13 @@ def _build_tables_with_cortex(
             wm_rh_name = cltmisc.correct_names(
                 rh_ctx_name, replace=["ctx-rh-", "wm-rh-"]
             )
-            wm_rh_indexes = np.arange(1, len(wm_rh_name) + 1) + wm_index_offset
-            wm_rh_indexes = wm_rh_indexes.tolist()
-
             wm_lh_name = cltmisc.correct_names(
                 lh_ctx_name, replace=["ctx-lh-", "wm-lh-"]
             )
-            wm_lh_indexes = (
-                np.arange(1, len(wm_lh_name) + 1)
-                + len(rh_ctx_name)
-                + len(rh_noctx_names)
-                + wm_index_offset
-            )
-            wm_lh_indexes = wm_lh_indexes.tolist()
+            # The codes of the white matter regions are set below from the codes
+            # of their cortical regions (wm-<hemi>-X = ctx-<hemi>-X + offset)
+            wm_rh_indexes = []
+            wm_lh_indexes = []
 
             wm_rh_color = rh_ctx_color
             wm_lh_color = lh_ctx_color
@@ -426,6 +420,16 @@ def _build_tables_with_cortex(
             1, len(lh_ctx_name + lh_noctx_names + bs_noctx_names) + 1
         ) + np.max(rh_all_indexes)
         lh_all_indexes = lh_all_indexes.tolist()
+
+        # wm-<hemi>-X takes the code of ctx-<hemi>-X + offset. The cortical regions
+        # come first in each hemisphere, so their codes are the first ones.
+        if wm_rh_name or wm_lh_name:
+            wm_rh_indexes = [
+                c + wm_index_offset for c in rh_all_indexes[: len(rh_ctx_name)]
+            ]
+            wm_lh_indexes = [
+                c + wm_index_offset for c in lh_all_indexes[: len(lh_ctx_name)]
+            ]
 
         rh_all_colors = rh_ctx_color + rh_noctx_colors
         lh_all_colors = (
