@@ -1139,13 +1139,17 @@ class ParcellationBuilder:
                     )
                     self.files2del.append(tmp_par_file)
 
+                    # A temporary file left by an interrupted run is removed first:
+                    # newer clabtoolkit versions refuse to replace an existing
+                    # output, and older ones have no overwrite option.
+                    if os.path.isfile(tmp_par_file):
+                        os.remove(tmp_par_file)
+
                     tmp_parc_file = cltimg.spams2maxprob(
                         out_parc_spam,
                         prob_thresh=spam_thresh,
                         vol_indexes=vol_indexes,
                         maxp_name=tmp_par_file,
-                        # A temporary file left by an interrupted run is replaced
-                        overwrite=True,
                     )
 
                     # Back to the native grid (3D labels only). A SPAM left in
