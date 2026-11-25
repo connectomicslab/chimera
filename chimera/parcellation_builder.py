@@ -1109,10 +1109,17 @@ class ParcellationBuilder:
                     cont_image=cont_image_ants,
                 )
 
-                if supra == "Cerebellum":
-                    if self.parc_dict[supra]["name"] == "SUIT":
-                        os.remove(tmp_t1)
-                        cltimg.cropped_to_native(out_parc_spam, t1, out_parc_spam)
+                # For SUIT the SPAM stays on the cropped (cerebellum) grid. The
+                # 4D probability maps are never expanded to the native grid: on
+                # high-resolution images that array alone is several GB. Instead
+                # each side's 3D max-probability map is computed on the cropped
+                # grid and only that label image is put back into native space.
+                # The crop is a pure voxel shift, so the labels are identical.
+                is_suit = (
+                    supra == "Cerebellum" and self.parc_dict[supra]["name"] == "SUIT"
+                )
+                if is_suit and os.path.isfile(tmp_t1):
+                    os.remove(tmp_t1)
 
                 for side_cont, side in enumerate(sides_ids):
                     vol_indexes = (
@@ -1132,12 +1139,23 @@ class ParcellationBuilder:
                     )
                     self.files2del.append(tmp_par_file)
 
+                    # A temporary file left by an interrupted run is removed first:
+                    # newer clabtoolkit versions refuse to replace an existing
+                    # output, and older ones have no overwrite option.
+                    if os.path.isfile(tmp_par_file):
+                        os.remove(tmp_par_file)
+
                     tmp_parc_file = cltimg.spams2maxprob(
                         out_parc_spam,
                         prob_thresh=spam_thresh,
                         vol_indexes=vol_indexes,
                         maxp_name=tmp_par_file,
                     )
+
+                    # Back to the native grid (3D labels only). A SPAM left in
+                    # native space by an earlier version maps onto itself here.
+                    if is_suit:
+                        cltimg.cropped_to_native(tmp_parc_file, t1, tmp_parc_file)
 
                     tmp_parc = cltparc.Parcellation(parc_file=tmp_parc_file)
                     tmp_parc.index = vol_indexes + 1
@@ -1146,6 +1164,13 @@ class ParcellationBuilder:
                     ]
                     tmp_parc.color = self.supra_dict[supra][supra][atlas_code][side][
                         "color"
+                    ]
+                    # Set opacity together with index/name/color: the opacity
+                    # auto-generated on load only covers the labels present in
+                    # the max-prob image, so a region with no winning voxels
+                    # would leave it one entry short.
+                    tmp_parc.opacity = self.supra_dict[supra][supra][atlas_code][side][
+                        "opacity"
                     ]
 
                     if side in self.supra_dict[supra][supra]["F"].keys():
