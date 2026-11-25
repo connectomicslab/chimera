@@ -392,7 +392,7 @@ def _build_args_parser():
     if args.bidsdir is None or args.parcodes is None:
         print("--bidsdir and --parcodes are REQUIRED arguments")
         p.print_help()
-        sys.exit()
+        sys.exit(2)
 
     bids_dirs = args.bidsdir[0].split(sep=",")
     # Remove possible empty elements
@@ -405,7 +405,7 @@ def _build_args_parser():
                 f"The supplied BIDs directory does not exist: {bcolors.BOLD}{bcolors.OKRED}{bids_dir}{bcolors.ENDC}{bcolors.ENDC}: is not supplied. "
             )
             p.print_help()
-            sys.exit()
+            sys.exit(2)
 
     if args.derivdir is None:
         print(
