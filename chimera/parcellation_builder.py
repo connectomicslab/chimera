@@ -41,6 +41,7 @@ from .config_manager import _pipeline_info
 from .parcellation import _mix_side_prop, create_extra_regions_parc
 from .processing import launch_fsl_first
 from .region_table import build_lut_header
+from .validation import fix_wm_codes, validate_parcellation
 
 
 class ParcellationBuilder:
@@ -1800,6 +1801,8 @@ class ParcellationBuilder:
         if tmp_lh:
             lh_wm_parc = copy.deepcopy(ctx_parc)
             lh_wm_parc.keep_by_name(names2keep=tmp_lh)
+            # Provisional codes: the final ones are set from the cortical codes
+            # by name once all the regions are in the image (fix_wm_codes)
             lh_wm_parc.rearrange(offset=3000 + nrh_ctx + self.nrh_subc)
 
         # Adding the right cortical parcellation to the final image
@@ -1836,6 +1839,12 @@ class ParcellationBuilder:
             chim_parc.add_parcellation(lh_wm_parc, append=False)
             del lh_wm_parc
 
+        # The code of wm-<hemi>-X is the code of ctx-<hemi>-X + 3000. The codes are
+        # taken from the regions in the image, because the provisional codes rely
+        # on region counts that differ from the image when regions are missing.
+        if tmp_rh or tmp_lh:
+            fix_wm_codes(chim_parc, offset=3000)
+
         # Adding the extra regions
         if self.extra_parc is not None:
             # Detecting if there is region overlap and removing it
@@ -1847,7 +1856,10 @@ class ParcellationBuilder:
             chim_parc.add_parcellation(tmp_extra, append=False)
             del tmp_extra
 
-        # Saving the FINAL parcellation
+        # Saving the FINAL parcellation, only if it is consistent with its table
+        validate_parcellation(
+            chim_parc, offset=3000, label=os.path.basename(chim_parc_file)
+        )
         chim_parc.save_parcellation(
             out_file=chim_parc_file,
             affine=affine,
@@ -1911,7 +1923,10 @@ class ParcellationBuilder:
                 self.mid_parc.rearrange()
                 chim_parc.add_parcellation(self.mid_parc, append=True)
 
-            # Saving the FINAL parcellation
+            # Saving the FINAL parcellation, only if it is consistent with its table
+            validate_parcellation(
+                chim_parc, offset=3000, label=os.path.basename(chim_parc_file)
+            )
             chim_parc.save_parcellation(
                 out_file=chim_parc_file,
                 affine=affine,
