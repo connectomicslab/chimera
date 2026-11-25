@@ -392,7 +392,7 @@ def _build_args_parser():
     if args.bidsdir is None or args.parcodes is None:
         print("--bidsdir and --parcodes are REQUIRED arguments")
         p.print_help()
-        sys.exit()
+        sys.exit(2)
 
     bids_dirs = args.bidsdir[0].split(sep=",")
     # Remove possible empty elements
@@ -405,7 +405,7 @@ def _build_args_parser():
                 f"The supplied BIDs directory does not exist: {bcolors.BOLD}{bcolors.OKRED}{bids_dir}{bcolors.ENDC}{bcolors.ENDC}: is not supplied. "
             )
             p.print_help()
-            sys.exit()
+            sys.exit(2)
 
     if args.derivdir is None:
         print(
@@ -661,6 +661,11 @@ def chimera_parcellation(
 
     nthreads : int
         Number of threads to be used.
+
+    Returns
+    -------
+    failed : list of tuple
+        (Chimera code, T1w image, exception) for every subject that failed.
     """
 
     # Declaring global variables
@@ -720,6 +725,9 @@ def chimera_parcellation(
     n_parc = len(chim_codes)
     n_subj = len(t1s)
 
+    # Subjects that failed, across every Chimera code
+    all_failed = []
+
     with Progress() as pb:
         pb2 = pb.add_task("[green]Parcellation: ", total=n_parc)
 
@@ -767,9 +775,14 @@ def chimera_parcellation(
                         completed=i + 1,
                     )
 
-                    chim_obj.build_parcellation(
-                        t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm
-                    )
+                    # A failing subject is reported, as in the parallel path,
+                    # instead of stopping the remaining subjects.
+                    try:
+                        chim_obj.build_parcellation(
+                            t1, bids_dir, deriv_dir, fssubj_dir, growwm, mixwm
+                        )
+                    except Exception as exc:
+                        failed.append((t1, exc))
 
             else:
                 start_time = time.perf_counter()
@@ -812,18 +825,20 @@ def chimera_parcellation(
                     if exc is not None:
                         failed.append((t1, exc))
 
-                if failed:
-                    print(
-                        f"\n[{chim_code}] {len(failed)} subject(s) failed to process:"
-                    )
-                    for t1, exc in failed:
-                        print(f"  - {os.path.basename(t1)}: {exc}")
-
                 elapsed_time = time.perf_counter() - start_time
                 print(
                     f"[{chim_code}] Processed {n_subj} subject(s) in "
                     f"{elapsed_time:.1f} s."
                 )
+
+            if failed:
+                print(f"\n[{chim_code}] {len(failed)} subject(s) failed to process:")
+                for t1, exc in failed:
+                    print(f"  - {os.path.basename(t1)}: {exc}")
+
+            all_failed.extend((chim_code, t1, exc) for t1, exc in failed)
+
+    return all_failed
 
 
 def main():
@@ -890,20 +905,28 @@ def main():
         else:
             nthreads = 2
 
+    n_failed = 0
     for i, bids_dir in enumerate(bids_dirs):
 
         deriv_dir = deriv_dirs[i]
         fssubj_dir = fssubj_dirs[i]
-        chimera_parcellation(
-            bids_dir,
-            deriv_dir,
-            fssubj_dir,
-            code_dict,
-            t1s2run_file,
-            growwm,
-            mixwm,
-            nthreads,
+        n_failed += len(
+            chimera_parcellation(
+                bids_dir,
+                deriv_dir,
+                fssubj_dir,
+                code_dict,
+                t1s2run_file,
+                growwm,
+                mixwm,
+                nthreads,
+            )
         )
+
+    # A non-zero status lets batch schedulers and scripts detect the failures.
+    if n_failed:
+        print(f"\n{n_failed} parcellation(s) failed. See the messages above.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

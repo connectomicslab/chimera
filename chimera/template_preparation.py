@@ -22,6 +22,34 @@ from templateflow import api as tflow
 from .config_manager import _pipeline_info, _set_templateflow_home
 
 
+def _single_file(found, description: str) -> str:
+    """Return the one path in a glob or TemplateFlow result.
+
+    ``glob`` returns a list, and ``tflow.get`` returns a single path or a list
+    (empty when nothing matches). Writing either straight into the processing
+    dictionary with ``str()`` would store the text of a list, such as
+    ``"['/path/file.nii.gz']"``, which is not a usable path.
+
+    Raises
+    ------
+    FileNotFoundError
+        If nothing matched.
+    ValueError
+        If more than one file matched.
+    """
+    if isinstance(found, (list, tuple)):
+        if not found:
+            raise FileNotFoundError(f"No file found for the {description}.")
+        if len(found) > 1:
+            listed = "\n  ".join(str(f) for f in found)
+            raise ValueError(
+                f"Expected one file for the {description}, found {len(found)}:"
+                f"\n  {listed}"
+            )
+        found = found[0]
+    return str(found)
+
+
 def prepare_templates(
     chim, fssubj_dir: str | None = None, pipe_dict: dict | None = None
 ):
@@ -279,8 +307,8 @@ def _prepare_volumetric_templates(chim, supra, chim_dir, pipe_dict):
         meth_dict = {
             "method": "atlasbased",
             "type": type_cad,
-            "reference": str(t1_temp),
-            "labels": str(atlas_file),
+            "reference": _single_file(t1_temp, f"{atlas_ref} T1w template"),
+            "labels": _single_file(atlas_file, f"{atlas_cad} {type_cad} atlas"),
         }
 
     elif atlas_src == "local":
@@ -305,8 +333,8 @@ def _prepare_volumetric_templates(chim, supra, chim_dir, pipe_dict):
         meth_dict = {
             "method": "atlasbased",
             "type": type_cad,
-            "reference": str(t1_temp),
-            "labels": str(atlas_file),
+            "reference": _single_file(t1_temp, f"{atlas_cad} T1w template"),
+            "labels": _single_file(atlas_file, f"{atlas_cad} {type_cad} atlas"),
         }
 
     elif atlas_src == "freesurfer":
