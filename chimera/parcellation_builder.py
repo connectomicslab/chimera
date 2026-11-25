@@ -21,8 +21,7 @@ the bodies remain a faithful copy.
 import copy
 import os
 import shutil
-import subprocess
-import uuid
+import tempfile
 from datetime import datetime
 from glob import glob
 from pathlib import Path
@@ -39,7 +38,7 @@ from clabtoolkit.colorstools import ColorTableLoader
 
 from .config_manager import _pipeline_info
 from .parcellation import _mix_side_prop, create_extra_regions_parc
-from .processing import launch_fsl_first
+from .processing import launch_fsl_first, run_command
 from .region_table import build_lut_header
 from .validation import fix_wm_codes, validate_parcellation
 
@@ -362,34 +361,33 @@ class ParcellationBuilder:
             cont_tech = pipe_dict["packages"]["freesurfer"]["cont_tech"]
             cont_image = pipe_dict["packages"]["freesurfer"]["container"]
 
-            # Detecting the FreeSurfer home directory using the container
-            cmd_bashargs = ["echo", "$FREESURFER_HOME"]
-            cmd_cont = cltmisc.generate_container_command(
-                cmd_bashargs, cont_tech, cont_image
-            )  # Generating container command
-            out_cmd = subprocess.run(cmd_cont, stdout=subprocess.PIPE, text=True)
-            fslut_file_cont = os.path.join(
-                out_cmd.stdout.split("\n")[0], "FreeSurferColorLUT.txt"
+            # Commands run without a shell, so bash is needed to expand
+            # $FREESURFER_HOME inside the container. The table is streamed back
+            # on stdout, which needs no directory shared with the container.
+            lut_text = run_command(
+                ["bash", "-c", 'cat "$FREESURFER_HOME/FreeSurferColorLUT.txt"'],
+                cont_tech,
+                cont_image,
             )
 
-            tmp_name = str(uuid.uuid4())
-            cmd_bashargs = ["cp", "replace_cad", "/tmp/" + tmp_name]
-            cmd_cont = cltmisc.generate_container_command(
-                cmd_bashargs, cont_tech, cont_image
-            )
-
-            # Replace the element of the list equal to replace_cad by the path of the lut file
-            cmd_cont = [w.replace("replace_cad", fslut_file_cont) for w in cmd_cont]
-            subprocess.run(cmd_cont, stdout=subprocess.PIPE, text=True)
-            fslut_file = os.path.join("/tmp", tmp_name)
-
-            ######## ------------- Reading FreeSurfer color lut table ------------ #
-            self.lut_dict = ColorTableLoader.read_luttable(fslut_file)
-            os.remove(fslut_file)
+            with tempfile.NamedTemporaryFile(
+                "w", suffix=".txt", delete=False
+            ) as tmp_lut:
+                tmp_lut.write(lut_text)
+            try:
+                ######## ------------- Reading FreeSurfer color lut table ------------ #
+                self.lut_dict = ColorTableLoader.read_luttable(tmp_lut.name)
+            finally:
+                os.remove(tmp_lut.name)
 
         else:
 
             fshome_dir = os.getenv("FREESURFER_HOME")
+            if not fshome_dir:
+                raise RuntimeError(
+                    "FREESURFER_HOME is not set. Source FreeSurfer's setup script, "
+                    "or set cont_tech for FreeSurfer in the pipeline configuration."
+                )
             fslut_file = os.path.join(fshome_dir, "FreeSurferColorLUT.txt")
 
             ######## ------------- Reading FreeSurfer color lut table ------------ #
