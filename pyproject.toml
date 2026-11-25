@@ -55,10 +55,10 @@ docs = [
 chimera = "chimera.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yasseraleman/chimera"
-Repository = "https://github.com/yasseraleman/chimera"
-Documentation = "https://chimera.readthedocs.io"
-"Bug Reports" = "https://github.com/yasseraleman/chimera/issues"
+Homepage = "https://github.com/connectomicslab/chimera"
+Repository = "https://github.com/connectomicslab/chimera"
+Documentation = "https://chimera-brainparcellation.readthedocs.io"
+"Bug Reports" = "https://github.com/connectomicslab/chimera/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
